@@ -14,7 +14,8 @@ class SolverSettings():
     max_precenter = 100
     max_iter = 200
     tol = 1e-7
-    boundary_frac = 0.99
+    safe_boundary_frac = 0.99
+    greedy_boundary_frac = 0.999
     gamma = 0.5
     min_mu = 1e-11
     tau_reg =1e-12
@@ -78,10 +79,10 @@ class GLMProblem():
         
         return x,y,s
     
-    def KKT_res(self,x,g,y,s,mu):
+    def KKT_res(self,x,g,y,s):
         rx = g + self.C.T@y - self.b
         rp = self.C@x + s - self.c
-        rc = y * s - mu
+        rc = y * s
         return rx,rp,rc
     
     def solve_KKT(
@@ -148,10 +149,12 @@ class GLMProblem():
         z = self.A@x
         H = self.get_H(z)
         gradf = self.A.T@self.f.d1f(z) + self.Q@x
-        rx,rp,rc = self.KKT_res(x,gradf,y,s,mu)
+        rx,rp,rc = self.KKT_res(x,gradf,y,s)
         kkt_res = np.max(
-                np.abs(np.hstack([rx,rp,rc+ mu]))#broadcasted (+mu), get r
+                np.abs(np.hstack([rx,rp,rc]))
             )
+        #Perturb to interior point
+        rc = rc - mu
 
         
         solver = None    
@@ -168,7 +171,11 @@ class GLMProblem():
                 tau_reg = self.settings.tau_reg
 
             dx,ds,dy,solver = self.solve_KKT(x,y,s,H,rx,rp,rc,mu,tau_reg,solver)
-            tmax = get_step_size(s,ds,y,dy,frac = settings.boundary_frac)
+            if (feasible is True) and maxnorm(rc)>10*maxnorm(rx):
+                boundary_frac = settings.greedy_boundary_frac
+            else:
+                boundary_frac = settings.safe_boundary_frac
+            tmax = get_step_size(s,ds,y,dy,frac = boundary_frac)
 
             #Linesearch procedure here
 
@@ -212,31 +219,39 @@ class GLMProblem():
             z = self.A@x
             H = self.get_H(z)
             gradf = self.A.T@self.f.d1f(z) + self.Q@x
-
-            if kkt_res<=100 * mu:
+                        
+            rx,rp,rc = self.KKT_res(x,gradf,y,s)                
+            kkt_res = np.max([maxnorm(rx),maxnorm(rp),maxnorm(rc)])
+            #If we're reasonably close to primal feasibility and 
+            # complementarity aggressive mu update
+            if maxnorm(rc) + maxnorm(rp)<=500 * mu:
                 mu_est = np.dot(s,y)/self.k
                 xi = np.min(s*y)/mu_est
+                #Don't decrease by more than a factor of 100
                 mu_lower = np.maximum(mu*0.01,settings.min_mu)
                 mu = np.maximum(
                     mu_lower,
                     settings.gamma * 
                     np.minimum(
-                    (1-settings.boundary_frac)*(1-xi)/xi + 0.1,2)**3 * mu_est
+                    (1-boundary_frac)*(1-xi)/xi + 0.1,2)**3 * mu_est
                     )
             else:
+                # Otherwise, perform a modest centering update
                 mu_est = np.dot(s,y)/self.k
                 mu = np.minimum(mu_est,mu)
-                        
-            rx,new_rp,rc = self.KKT_res(x,gradf,y,s,mu)                
-            rp = new_rp
-            kkt_res = np.max(
-                np.abs(np.hstack([rx,rp,rc+ mu]))#broadcasted (+mu), get r
-            )
+
+            comp_res = maxnorm(rc)
+
+            #Perturb complementarity to new interior parameter
+            rc = rc - mu
+
             elapsed = time.time() - start
             logger.log(
                 iter=i+1,
                 primal = primal,
+                dual_res = maxnorm(rx),
                 cons_viol = maxnorm(rp),
+                comp_res = comp_res,
                 mu=mu,
                 Δx = maxnorm(t*dx),
                 step=t,

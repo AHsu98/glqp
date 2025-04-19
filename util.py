@@ -51,11 +51,13 @@ class PrettyLogger:
             col_specs = OrderedDict([
                 ("iter",      "{:>4d}"),
                 ("primal",    "{:>9.4e}"),
-                ("cons_viol", "{:>9.4e}"),
+                ("dual_res", "{:>9.2e}"),
+                ("cons_viol", "{:>9.2e}"),
+                ("comp_res", "{:>9.2e}"),
+                ("KKT_res",   "{:>9.2e}"),
                 ("mu",        "{:>8.1e}"),
                 ("Δx",        "{:>9.2e}"),
                 ("step",      "{:>6.3e}"),
-                ("KKT_res",   "{:>9.2e}"),
                 ("cum_time",  "{:>8.2f}s"),
             ])
         if not isinstance(col_specs, OrderedDict):
