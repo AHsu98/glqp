@@ -34,7 +34,7 @@ def get_step_size(s, ds, y, dy,frac = 0.99):
 
 class PrettyLogger:
     """
-    Clarabel‑style table printer **and** in‑memory recorder.
+    table printer **and** in‑memory recorder.
       • Create once; call `log(iter=..., mu=..., ...)` each IPM step.
       • All rows are kept in `self.rows` (a list of OrderedDicts).
       • Call `to_dataframe()` at any point to get a pandas DataFrame.
@@ -46,7 +46,7 @@ class PrettyLogger:
     # ------------------------------------------------------------------
     # construction
     # ------------------------------------------------------------------
-    def __init__(self, col_specs=None):
+    def __init__(self,col_specs=None,verbose = True):
         if col_specs is None:
             col_specs = OrderedDict([
                 ("iter",      "{:>4d}"),
@@ -68,6 +68,7 @@ class PrettyLogger:
         )
 
         self.rows: list[OrderedDict] = []
+        self.verbose = verbose
 
     # ------------------------------------------------------------------
     # public API
@@ -78,18 +79,20 @@ class PrettyLogger:
         Missing keys show as blanks in the table and as None in storage.
         Extra keys are ignored in printing but kept in storage.
         """
+        
         # -------- pretty print --------
-        if not self._hdr_printed:
-            self._print_header()
-            self._hdr_printed = True
+        if self.verbose is True:
+            if not self._hdr_printed:
+                self._print_header()
+                self._hdr_printed = True
 
-        fmt_cells = []
-        for key, fmt in self.col_specs.items():
-            val = kwargs.get(key, "")
-            cell = fmt.format(val) if val != "" else " " * self._width(fmt)
-            fmt_cells.append(cell)
-        row_str = f"{self._COL_SEP} " + f" {self._COL_SEP} ".join(fmt_cells) + f" {self._COL_SEP}"
-        print(row_str)
+            fmt_cells = []
+            for key, fmt in self.col_specs.items():
+                val = kwargs.get(key, "")
+                cell = fmt.format(val) if val != "" else " " * self._width(fmt)
+                fmt_cells.append(cell)
+            row_str = f"{self._COL_SEP} " + f" {self._COL_SEP} ".join(fmt_cells) + f" {self._COL_SEP}"
+            print(row_str)
 
         # -------- store raw values --------
         stored = OrderedDict()

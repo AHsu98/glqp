@@ -16,10 +16,9 @@ class SolverSettings():
     tol = 1e-7
     boundary_frac = 0.99
     gamma = 0.5
-    min_mu = 1e-10
+    min_mu = 1e-11
     tau_reg =1e-12
     max_linesearch_steps = 50
-    verbose = True
 
 
 class GLMProblem():
@@ -51,11 +50,6 @@ class GLMProblem():
             b = np.zeros(n)
         self.b = b
         
-        
-        if settings.verbose is True:
-            print(f"{k} constraints")
-            print(f"{n} variables")
-            print(f"{m} rows in A")
         self.f = f
         self.A = A
         self.Q = Q
@@ -133,10 +127,16 @@ class GLMProblem():
         self,
         x0=None,
         y0=None,
-        s0=None
+        s0=None,
+        verbose = True
         ):
         x,y,s = self.initialize(x0,y0,s0)
-        logger = PrettyLogger()
+        if verbose is True:
+            print(f"{self.k} constraints")
+            print(f"{self.n} variables")
+            print(f"{self.m} rows in A")
+
+        logger = PrettyLogger(verbose=verbose)
         settings = self.settings
         feasible = False
         armijo_param = 0.01
@@ -169,6 +169,7 @@ class GLMProblem():
 
             dx,ds,dy,solver = self.solve_KKT(x,y,s,H,rx,rp,rc,mu,tau_reg,solver)
             tmax = get_step_size(s,ds,y,dy,frac = settings.boundary_frac)
+
             #Linesearch procedure here
 
             #Set up merit function
@@ -181,8 +182,7 @@ class GLMProblem():
 
 
             t = tmax
-            dz = A@dx
-            Cdx = C@dx
+            dz = self.A@dx
             #Check implicit feasibility of f(x+t*dz)
             step_finite = self.f(z + t*dz)<np.inf
             
@@ -223,6 +223,9 @@ class GLMProblem():
                     np.minimum(
                     (1-settings.boundary_frac)*(1-xi)/xi + 0.1,2)**3 * mu_est
                     )
+            else:
+                mu_est = np.dot(s,y)/self.k
+                mu = np.minimum(mu_est,mu)
                         
             rx,new_rp,rc = self.KKT_res(x,gradf,y,s,mu)                
             rp = new_rp
