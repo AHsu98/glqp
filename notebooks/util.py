@@ -6,6 +6,7 @@ import pandas as pd
 def norm2(x):
     return np.sum(x**2)
 
+
 def maxnorm(x):
     return np.max(np.abs(x))
 
@@ -53,8 +54,10 @@ class PrettyLogger:
                 ("primal",    "{:>9.4e}"),
                 ("cons_viol", "{:>9.4e}"),
                 ("mu",        "{:>8.1e}"),
+                ("merit_pen", "{:>9.2e}"),
+                ("Δmerit",    "{:>9.2e}"),
                 ("Δx",        "{:>9.2e}"),
-                ("step",      "{:>6.3e}"),
+                ("step",      "{:>6.3f}"),
                 ("KKT_res",   "{:>9.2e}"),
                 ("cum_time",  "{:>8.2f}s"),
             ])
