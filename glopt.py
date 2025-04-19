@@ -15,7 +15,7 @@ class SolverSettings():
     max_iter = 200
     tol = 1e-7
     safe_boundary_frac = 0.99
-    greedy_boundary_frac = 0.999
+    greedy_boundary_frac = 0.9999
     gamma = 0.5
     min_mu = 1e-11
     tau_reg =1e-12
@@ -170,7 +170,9 @@ class GLMProblem():
             else:
                 tau_reg = self.settings.tau_reg
 
+            #Solve KKT
             dx,ds,dy,solver = self.solve_KKT(x,y,s,H,rx,rp,rc,mu,tau_reg,solver)
+
             if (feasible is True) and maxnorm(rc)>10*maxnorm(rx):
                 boundary_frac = settings.greedy_boundary_frac
             else:
@@ -211,20 +213,47 @@ class GLMProblem():
                 if successful ==False:
                     warn("Linesearch Failed!")
                     return x,logger.to_dataframe()
+                
+            w = np.sqrt(y/s)
             
             #Take step
             x = x + t*dx
             s = s + t*ds
             y = y + t*dy
-            z = self.A@x
-            H = self.get_H(z)
+            z = z + t*dz
+
             gradf = self.A.T@self.f.d1f(z) + self.Q@x
-                        
-            rx,rp,rc = self.KKT_res(x,gradf,y,s)                
+            rx,rp,rc = self.KKT_res(x,gradf,y,s)
+            print("rx",maxnorm(rx))
+            print("rp",maxnorm(rp))
+            print("rc",maxnorm(rc))
+
+            #Try to steal an extra corrector step
+            rhs = np.hstack([-rx,-w*rp + (w/y) * rc])
+            sol = solver.solve(rhs)
+            # linres = rhs - G@sol
+            dx = sol[:self.n]
+            dy = w*sol[self.n:]
+            ds = -rp - self.C@dx
+            tmax = get_step_size(s,ds,y,dy,frac = settings.safe_boundary_frac)
+            x = x + tmax*dx
+            s = s + tmax*ds
+            y = y + tmax*dy
+            z = self.A@x
+            gradf = self.A.T@self.f.d1f(z) + self.Q@x
+            rx,rp,rc = self.KKT_res(x,gradf,y,s)
+            print("corrected rx",maxnorm(rx))
+            print("corrected rp",maxnorm(rp))
+            print("corrected rc",maxnorm(rc))
+
+            #end here
+
+
+            H = self.get_H(z)
             kkt_res = np.max([maxnorm(rx),maxnorm(rp),maxnorm(rc)])
             #If we're reasonably close to primal feasibility and 
             # complementarity aggressive mu update
-            if maxnorm(rc) + maxnorm(rp)<=500 * mu:
+            if maxnorm(rc) + maxnorm(rp)<=1000 * mu:
                 mu_est = np.dot(s,y)/self.k
                 xi = np.min(s*y)/mu_est
                 #Don't decrease by more than a factor of 100
@@ -238,7 +267,11 @@ class GLMProblem():
             else:
                 # Otherwise, perform a modest centering update
                 mu_est = np.dot(s,y)/self.k
-                mu = np.minimum(mu_est,mu)
+                if i==0:
+                    #Purely take first estimate
+                    m = mu_est
+                else:
+                    mu = 0.9*np.minimum(mu_est,mu)
 
             comp_res = maxnorm(rc)
 
