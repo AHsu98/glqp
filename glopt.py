@@ -6,11 +6,9 @@ import qdldl
 from scipy.sparse import block_array,eye_array,tril,triu
 from sparse_dot_mkl import dot_product_mkl
 from util import (
-    PrettyLogger,get_step_size,
+    Logger,get_step_size,
     maxnorm,norm2,
     print_problem_summary,
-    factor_with_retries,
-    solve_with_refinement,
     build_solution_summary,factor_and_solve
 )
 from obj import DummyGLM
@@ -92,17 +90,19 @@ class GLMProblem():
         elif E is not None:
             n = E.shape[1]
         else:
-            raise ValueError("Not enough of problem specified.")
+            raise ValueError("Not enough of problem specified, can't determine number of variables.")
 
         #Setup matrix A
         if A is None:
             A = csc_array((1,n))
             assert f is None, "Cannot have glm function f without A"
             f = DummyGLM()
+            dummy_A = True
         else:
             A = csc_array(A)
             assert f is not None, "Need GLM if A is given"
             assert A.ndim==2
+            dummy_A = False
         m = A.shape[0]
 
         #Setup inequality constraints
@@ -110,11 +110,13 @@ class GLMProblem():
             assert c is None
             C = csc_array((1,n))
             c = np.ones((1,))
+            dummy_ineq = True
         elif C is not None:
             C = csc_array(C)
             assert C.ndim == 2
             #Need c if C is not None
             assert c is not None, "Need c if inequality matrix C is given"
+            dummy_ineq = False
         k = C.shape[0]
         
         #Setup equality constraints
@@ -142,8 +144,14 @@ class GLMProblem():
             C.shape[1] == 
             E.shape[1] ==
             len(b)     ==
-            Q.shape[1]
-        )
+            Q.shape[1] ==
+            Q.shape[0] ==
+            n
+        ), f"""Implied number of variables inconsistent.
+        ncol(A) = {A.shape[1]}, ncol(C) = {C.shape[1]},
+        ncol(E) = {E.shape[1]}, len(b) = {len(b)},
+        ncol(Q) = {Q.shape[1]}, n = {n}
+        """
 
         assert C.shape[0] == len(c)
         assert E.shape[0] == e.shape[0]
@@ -151,8 +159,9 @@ class GLMProblem():
         self.E = E
         self.e = e
         p = E.shape[0]
-            
-
+        
+        self.dummy_A = dummy_A
+        self.dummy_ineq = dummy_ineq
         self.k = k
         self.c = c
         self.f = f
@@ -254,21 +263,6 @@ class GLMProblem():
             max_solve_attempts=10,
             max_refinement_steps=self.settings.max_iterative_refinement
         )
-        # solver = factor_with_retries(
-        #     G,
-        #     reg_shift = self.reg_shift,
-        #     init_tau_reg = tau_reg,
-        #     solver=solver,
-        #     max_attempts=10
-        # )
-
-        # sol,num_refine = solve_with_refinement(
-        #     G = G,
-        #     rhs = rhs,
-        #     solver = solver,
-        #     target_tol=0.05*self.settings.tol,
-        #     max_steps = self.settings.max_iterative_refinement
-        # )
                 
         dx = sol[:self.n]
         dy = w*sol[self.n:self.n+self.k]
@@ -295,14 +289,20 @@ class GLMProblem():
         convergence_tag = 'not_optimal'
         x,y,s,nu = self.initialize(x0,y0,s0)
         if verbose is True:
+            k = self.k
+            if self.dummy_ineq is True:
+                k = 0
+            m = self.m 
+            if self.dummy_A is True:
+                m = 0
             print_problem_summary(
                 n=self.n,
-                m=self.m,
+                m=m,
                 p=self.p,
-                k=self.k
+                k=k
             )
 
-        logger = PrettyLogger(verbose=verbose)
+        logger = Logger(verbose=verbose)
         settings = self.settings
         feasible = False
         armijo_param = 0.01
@@ -460,7 +460,7 @@ class GLMProblem():
             convergence_tag,
             kkt_res,
             iteration_number,
-            elapsed
+            time.time() - start
         )
         if verbose is True:
             print(message)

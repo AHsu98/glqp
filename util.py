@@ -17,41 +17,6 @@ def maxnorm(x):
     else:
         return np.max(np.abs(x))
     
-def factor_with_retries(
-    G,reg_shift,init_tau_reg,solver,max_attempts=10
-):
-    succeeded = False
-    tau_reg = init_tau_reg
-    for i in range(max_attempts):
-        try:
-            Gshift = G + tau_reg*reg_shift
-            if solver is None:
-                solver = qdldl.Solver(Gshift)
-            else:
-                solver.update(Gshift)
-            succeeded = True
-            break
-        except Exception as ex:
-            last_ex  = ex
-            tau_reg = 10*tau_reg
-    if succeeded is False:
-        warn(f"Failed factorization with attempted reg {tau_reg:.2e}")
-        raise last_ex
-    return solver
-
-def solve_with_refinement(G,rhs,solver,target_tol,max_steps = 5):
-    sol = solver.solve(rhs)
-    res = rhs - G@sol
-    num_refine = 0
-    for i in range(max_steps):
-        if maxnorm(res)>=target_tol:
-            sol = sol + solver.solve(res)
-            res = rhs - G@sol
-            num_refine += 1
-    if maxnorm(res)>target_tol:
-        warn(f"Poor linear solve: didn't reach target tolerance of {target_tol:.3e} in {num_refine} steps")
-    return sol,num_refine
-
 def factor_and_solve(
     G,rhs,reg_shift,init_tau_reg,solver,
     target_tol = 1e-10,
@@ -139,9 +104,9 @@ def print_problem_summary(n, m, p, k):
     print(bar)
 
 
-class PrettyLogger:
+class Logger:
     """
-    table printer **and** in‑memory recorder.
+    table printer and convergence tracker.
       • Create once; call `log(iter=..., mu=..., ...)` each IPM step.
       • All rows are kept in `self.rows` (a list of OrderedDicts).
       • Call `to_dataframe()` at any point to get a pandas DataFrame.
