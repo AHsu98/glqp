@@ -1,13 +1,68 @@
 from collections import OrderedDict
 import itertools
 import numpy  as np
+import qdldl
+from warnings import warn
 import pandas as pd
+from scipy.sparse import csc_array,eye_array
+from obj import DummyGLM
 
 def norm2(x):
-    return np.sum(x**2)
+    if len(x)==0:
+        return 0.
+    else:
+        return np.sum(x**2)
 
 def maxnorm(x):
-    return np.max(np.abs(x))
+    if len(x)==0:
+        return 0.
+    else:
+        return np.max(np.abs(x))
+    
+def factor_and_solve(
+    G,rhs,reg_shift,init_tau_reg,solver,
+    target_tol = 1e-10,
+    max_solve_attempts=10,max_refinement_steps = 5,
+):
+    succeeded = False
+    tau_reg = init_tau_reg
+    for i in range(max_solve_attempts):
+        try:
+            Gshift = G + tau_reg*reg_shift
+            if solver is None:
+                solver = qdldl.Solver(Gshift)
+            else:
+                solver.update(Gshift)
+            sol = solver.solve(rhs)
+            if np.any(np.isnan(sol)):
+                raise ValueError(f"NaNs found in solution to linear system with tau = {tau_reg}")
+            res = rhs - G@sol
+            if norm2(res)>0.95*norm2(rhs):
+                raise ValueError(
+                    f"""Linear solve computed to unacceptable relative L2 error of 
+                    f{np.sqrt(norm2(res)/norm2(rhs))}
+                    """
+                    )
+            num_refine = 0
+            for i in range(max_refinement_steps):
+                if maxnorm(res)>=target_tol:
+                    sol = sol + solver.solve(res)
+                    res = rhs - G@sol
+                    num_refine += 1
+            if maxnorm(res)>target_tol:
+                warn(f"Poor linear solve: didn't reach target tolerance of {target_tol:.3e} in {num_refine} steps")
+
+            succeeded = True
+            break
+        except Exception as ex:
+            last_ex  = ex
+            tau_reg = 10*tau_reg
+    if succeeded is False:
+        warn(f"Failed to solve with attempted reg {tau_reg:.2e} after {max_solve_attempts} attempts")
+        raise last_ex
+    return sol,num_refine,solver
+
+
 
 def get_step_size(s, ds, y, dy,frac = 0.99):
     """
@@ -32,9 +87,28 @@ def get_step_size(s, ds, y, dy,frac = 0.99):
     alpha = min(frac*alpha_s, frac*alpha_lam, 1.0)
     return alpha
 
-class PrettyLogger:
+def print_problem_summary(n, m, p, k):
     """
-    table printer **and** in‑memory recorder.
+      n : number of decision variables
+      m : rows in data matrix A
+      p : equality constraints (rows in E)
+      k : inequality constraints (rows in C)
+    """
+    line = (
+        f"{'Variables:':>6}: {n:<7,} │ "
+        f"{'Rows in A':>6}: {m:<7,} │ "
+        f"{'Equality Constraints':>6}: {p:<7,} │ "
+        f"{'Inequality Constraints':>6}: {k:<7,}"
+    )
+    bar  = "─" * len(line)
+    print(bar)
+    print(line)
+    print(bar)
+
+
+class Logger:
+    """
+    table printer and convergence tracker.
       • Create once; call `log(iter=..., mu=..., ...)` each IPM step.
       • All rows are kept in `self.rows` (a list of OrderedDicts).
       • Call `to_dataframe()` at any point to get a pandas DataFrame.
@@ -56,9 +130,10 @@ class PrettyLogger:
                 ("comp_res", "{:>9.2e}"),
                 ("KKT_res",   "{:>9.2e}"),
                 ("mu",        "{:>8.1e}"),
-                ("Δx",        "{:>9.1e}"),
+                ("Δx",        "{:>7.1e}"),
                 ("step",      "{:>6.1e}"),
-                ("cum_time",  "{:>8.2f}s"),
+                ("refine",    "{:>6d}"),
+                ("time",  "{:>6.2f}s"),
             ])
         if not isinstance(col_specs, OrderedDict):
             col_specs = OrderedDict(col_specs)
@@ -128,3 +203,133 @@ class PrettyLogger:
 
     def _col_widths(self):
         return (self._width(fmt) for fmt in self.col_specs.values())
+
+def build_solution_summary(
+    solved,near_solved,convergence_tag,KKT_res,iter,elapsed
+):
+    if solved ==True:
+        convergence_tag = 'optimal'
+        msg = f"Optimal solution found after {iter} iterations in {elapsed:.2f}s."
+    else:
+        if convergence_tag=='not_optimal':
+            convergence_tag = 'maximum_iter'
+            warn("Maximum Iterations Reached")
+            if near_solved is True:
+                convergence_tag = f"near_opt_{convergence_tag}"
+                msg = f"Maximum of {iter} iterations reached in {elapsed:.2f}s. Tolerance was almost achieved."
+            else:
+                msg = f"Maximum of {iter} iterations reached in {elapsed:.2f}s. "
+        
+        if convergence_tag=="stagnated":
+            warn("Giving up due to stagnation")
+            if near_solved is True:
+                convergence_tag = f"near_opt_{convergence_tag}"
+                msg = f"Progress stagnated after {iter} iterations in {elapsed:.2f}s. Tolerance was almost achieved."
+            else:
+                msg = f"Progress stagnated after {iter} iterations in {elapsed:.2f}s."
+        
+        if convergence_tag=="failed_line_search":
+            if near_solved is True:
+                convergence_tag = f"near_opt_{convergence_tag}"
+                msg = f"Failed line search after {iter} iterations in {elapsed:.2f}s. Tolerance was almost achieved."
+            else:
+                msg = f"Failed line search after {iter} iterations in {elapsed:.2f}s."
+    msg = f"{msg} Final maxnorm KKT residual: {KKT_res:.2e}."
+    return convergence_tag,msg
+
+def parse_problem(
+    f=None,A=None,
+    Q=None,b=None,
+    C=None,c=None,
+    E=None,e=None,
+    n = None,
+):
+    #Figure out dimension of problem
+    if n is not None:
+        n = n
+    elif A is not None:
+        n = A.shape[1]
+    elif Q is not None:
+        n = Q.shape[1]
+    elif C is not None:
+        n = C.shape[1]
+    elif E is not None:
+        n = E.shape[1]
+    else:
+        raise ValueError("Not enough of problem specified, can't determine number of variables.")
+
+    #Setup matrix A
+    if A is None:
+        A = csc_array((1,n))
+        assert f is None, "Cannot have glm function f without A"
+        f = DummyGLM()
+        dummy_A = True
+    else:
+        A = csc_array(A)
+        assert f is not None, "Need GLM if A is given"
+        assert A.ndim==2
+        dummy_A = False
+    m = A.shape[0]
+
+    #Setup inequality constraints
+    if C is None:
+        assert c is None
+        C = csc_array((1,n))
+        c = np.ones((1,))
+        dummy_ineq = True
+    elif C is not None:
+        C = csc_array(C)
+        assert C.ndim == 2
+        #Need c if C is not None
+        assert c is not None, "Need c if inequality matrix C is given"
+        dummy_ineq = False
+    k = C.shape[0]
+    
+    #Setup equality constraints
+    if E is None:
+        assert e is None
+        E = csc_array((0,n))
+        e = np.zeros((0,))
+    elif E is not None:
+        E = csc_array(E)
+        assert e is not None, "Need e if equality matrix E is given"
+    
+    #Set up linear tilt
+    if b is None:
+        b = np.zeros(n)
+    
+    #Set up quadratic form
+    if Q is None:
+        Q = 1e-8*csc_array(eye_array(n))
+    elif Q is not None:
+        Q = csc_array(Q)
+        assert Q.shape[0]==Q.shape[1], "Q must be square"
+
+    assert (
+        A.shape[1] == 
+        C.shape[1] == 
+        E.shape[1] ==
+        len(b)     ==
+        Q.shape[1] ==
+        Q.shape[0] ==
+        n
+    ), f"""Implied number of variables inconsistent.
+    ncol(A) = {A.shape[1]}, ncol(C) = {C.shape[1]},
+    ncol(E) = {E.shape[1]}, len(b) = {len(b)},
+    ncol(Q) = {Q.shape[1]}, n = {n}
+    """
+
+    assert C.shape[0] == len(c)
+    assert E.shape[0] == e.shape[0]
+    p = E.shape[0]
+
+
+    return (
+        dummy_A,dummy_ineq,
+        f,A,
+        Q,b,
+        C,c,
+        E,e,
+        m,n,p,k
+    )
+
