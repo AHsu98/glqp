@@ -3,9 +3,9 @@ import numpy as np
 import pandas as pd
 from scipy.sparse import csc_array
 import qdldl
-from scipy.sparse import block_array,eye_array
+from scipy.sparse import block_array,eye_array,tril,triu
 from sparse_dot_mkl import dot_product_mkl
-from util import PrettyLogger,get_step_size,maxnorm,norm2
+from util import PrettyLogger,get_step_size,maxnorm,norm2,print_problem_summary
 from warnings import warn
 
 from dataclasses import dataclass
@@ -19,7 +19,7 @@ class SolverSettings():
     greedy_boundary_frac:float = 0.9999
     gamma:float = 0.5
     min_mu:float = 1e-11
-    tau_reg:float =1e-13
+    tau_reg:float =5e-9
     max_linesearch_steps:int = 50
 
 @dataclass
@@ -34,10 +34,38 @@ class SolverResults():
 class GLMProblem():
     def __init__(
         self,
-        f,A,Q,C,c,
+        f,A,Q,
+        C,c,
         b=None,
+        E=None,e=None,
         settings = None
         ):
+        """
+        Problem 
+        minimize f(Ax) + (1/2) x^T Qx -x^T b
+        subject to Ex=e, Cx<=c
+
+        Parameters
+        ----------
+        f : 
+            GLM objective function, sum of scalars
+        A : csc_array
+            design matrix
+        Q : csc_array
+            matrix defining quadratic form
+        C : csc_array
+            inequality constraint matrix
+        c : np.ndarray
+            inequality rhs
+        E : csc_array
+            equality constraint matrix
+        e : 
+            equality constraint rhs
+        b : np.ndarray, optional
+            tilting vector, defaults to zeros
+        settings : SolverSettings, optional
+            settings for solver, by default SolverSettings(0)
+        """
         if settings is None:
             settings = SolverSettings()
         
@@ -56,6 +84,20 @@ class GLMProblem():
         self.k = k
         self.c = c
 
+        if E is None:
+            assert e is None
+            E = csc_array((0,n))
+            e = np.zeros((0,))
+        else:
+            assert e is not None
+        assert E.ndim==2
+        assert E.shape[1] == n
+        assert E.shape[0] == e.shape[0]
+        self.E = E
+        self.e = e
+        p = E.shape[0]
+            
+
         if b is None:
             b = np.zeros(n)
         self.b = b
@@ -66,9 +108,11 @@ class GLMProblem():
         self.C = C
         self.m = m
         self.n = n
+        self.p = p
         self.In = csc_array(eye_array(n))
         self.Ik = csc_array(eye_array(k))
-    
+        self.Ip = csc_array(eye_array(p))
+
     def initialize(self,x0=None,y0 = None,s0 = None):
         if x0 is None:
             x = np.zeros(self.n)
@@ -80,23 +124,40 @@ class GLMProblem():
         else:
             y = np.copy(y0)
             assert np.min(y)>1e-10
+        if self.E.shape[0]>0:
+            G = block_array(
+                [
+                    [self.In,self.E.T],
+                    [self.E ,None]
+                ],format = 'csc'
+            )
+            rhs = np.hstack([x,self.e])
+            solver = qdldl.Solver(G)
+            x_nu = solver.solve(rhs)
+            x = x_nu[:self.n]
+            nu = x_nu[self.n:]
+        else:
+            nu = np.ones((0,))
+
+        
         
         if s0 is None:
             s = np.maximum(self.c - self.C@x,0.01)
         else:
             s = np.copy(s0)
         
-        return x,y,s
+        return x,y,s,nu
     
-    def KKT_res(self,x,g,y,s):
-        rx = g + self.C.T@y - self.b
+    def KKT_res(self,x,g,y,s,nu):
+        rx = g + self.C.T@y + self.E.T@nu - self.b
         rp = self.C@x + s - self.c
         rc = y * s
-        return rx,rp,rc
+        req = self.E@x - self.e
+        return rx,rp,rc,req
     
     def solve_KKT(
         self,
-        x,y,s,H,rx,rp,rc,mu,tau_reg=None,
+        x,y,s,nu,H,rx,rp,rc,req,mu,tau_reg=None,
         solver = None):
         #mu,x unused for now
 
@@ -107,7 +168,7 @@ class GLMProblem():
         # "normal equations" Hessian for GLM part
         w = np.sqrt(y/s)
         wC = self.C.multiply(w[:,None])
-        rhs = np.hstack([-rx,-w*rp + (w/y) * rc])
+        rhs = np.hstack([-rx,-w*rp + (w/y) * rc, -req])
         #Including tau-shift here
         #later may want separate matrix,
         #larger tau shift + iterative refine
@@ -118,25 +179,29 @@ class GLMProblem():
             try:
                 G = block_array(
                     [
-                        [H+tau_reg*self.In,wC.T],
-                        [wC,-1*self.Ik]
+                        [H+tau_reg*self.In,wC.T        ,self.E.T],
+                        [wC               ,-1*self.Ik  ,None],
+                        [self.E           ,None         ,-tau_reg * self.Ip]
                     ],format = 'csc'
                 )
+                G = triu(G,format = 'csc')
+                G.sort_indices()
                 if solver is None:
-                    solver = qdldl.Solver(G)
+                    solver = qdldl.Solver(G,upper = True)
                 else:
-                    solver.update(G)
+                    solver.update(G,upper = True)
                 successful = True
                 break
             except:
                 tau_reg = 10*tau_reg
         if successful ==False:
-            raise(f"KKT Factorization Failed with {tau_reg} regularization!")
+            raise ValueError(f"KKT Factorization Failed with {tau_reg} regularization!")
         sol = solver.solve(rhs)
         dx = sol[:self.n]
-        dy = w*sol[self.n:]
+        dy = w*sol[self.n:self.n+self.k]
+        nu = sol[self.n+self.k:]
         ds = -rp - self.C@dx
-        return dx,ds,dy,solver
+        return dx,ds,dy,nu,solver
     
     def get_H(self,z):
         D = self.f.d2f(z)[:,None]
@@ -154,11 +219,15 @@ class GLMProblem():
         solved = False
         near_solved = False
         convergence_tag = 'not_optimal'
-        x,y,s = self.initialize(x0,y0,s0)
+        x,y,s,nu = self.initialize(x0,y0,s0)
         if verbose is True:
-            print(f"{self.k} constraints")
-            print(f"{self.n} variables")
-            print(f"{self.m} rows in A")
+            print_problem_summary(
+                n=self.n,
+                m=self.m,
+                p=self.E.shape[0],
+                k=self.k
+            )
+
 
         logger = PrettyLogger(verbose=verbose)
         settings = self.settings
@@ -174,7 +243,7 @@ class GLMProblem():
         z = self.A@x
         H = self.get_H(z)
         gradf = self.A.T@self.f.d1f(z) + self.Q@x
-        rx,rp,rc = self.KKT_res(x,gradf,y,s)
+        rx,rp,rc,req = self.KKT_res(x,gradf,y,s,nu)
         kkt_res = np.max(
                 np.abs(np.hstack([rx,rp,rc]))
             )
@@ -203,12 +272,16 @@ class GLMProblem():
                 break
 
             if feasible is False:
-                tau_reg = 0.1 * np.mean(H.diagonal())
+                tau_reg = 0.01 * np.mean(H.diagonal())
             else:
                 tau_reg = self.settings.tau_reg
 
             #Solve KKT
-            dx,ds,dy,solver = self.solve_KKT(x,y,s,H,rx,rp,rc,mu,tau_reg,solver)
+            dx,ds,dy,dnu,solver = self.solve_KKT(
+                x,y,s,nu,
+                H,rx,rp,rc,req,
+                mu,tau_reg,solver
+                )
 
             if (feasible is True) and maxnorm(rc)>10*maxnorm(rx):
                 boundary_frac = settings.greedy_boundary_frac
@@ -251,18 +324,19 @@ class GLMProblem():
                     convergence_tag = "failed_line_search"
                     warn("Linesearch Failed!")
                     break
-                            
+            
             #Take step
             x = x + t*dx
             s = s + t*ds
             y = y + t*dy
+            nu = nu + t*dnu 
             z = z + t*dz
 
             gradf = self.A.T@self.f.d1f(z) + self.Q@x
-            rx,rp,rc = self.KKT_res(x,gradf,y,s)
+            rx,rp,rc,req = self.KKT_res(x,gradf,y,s,nu)
 
             H = self.get_H(z)
-            kkt_res = np.max([maxnorm(rx),maxnorm(rp),maxnorm(rc)])
+            kkt_res = np.max([maxnorm(rx),maxnorm(rp),maxnorm(rc),maxnorm(req)])
 
             #If we're reasonably close to primal feasibility and 
             # complementarity aggressive mu update
@@ -292,13 +366,13 @@ class GLMProblem():
                 iter=i+1,
                 primal = primal,
                 dual_res = maxnorm(rx),
-                cons_viol = maxnorm(rp),
+                cons_viol = np.maximum(maxnorm(rp),maxnorm(req)),
                 comp_res = comp_res,
                 mu=mu,
                 Δx = maxnorm(t*dx),
                 step=t,
                 KKT_res=kkt_res,
-                cum_time=elapsed,
+                time=elapsed,
             )
 
         if solved ==True:

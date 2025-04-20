@@ -4,10 +4,16 @@ import numpy  as np
 import pandas as pd
 
 def norm2(x):
-    return np.sum(x**2)
+    if len(x)==0:
+        return 0.
+    else:
+        return np.sum(x**2)
 
 def maxnorm(x):
-    return np.max(np.abs(x))
+    if len(x)==0:
+        return 0.
+    else:
+        return np.max(np.abs(x))
 
 def get_step_size(s, ds, y, dy,frac = 0.99):
     """
@@ -31,6 +37,25 @@ def get_step_size(s, ds, y, dy,frac = 0.99):
     
     alpha = min(frac*alpha_s, frac*alpha_lam, 1.0)
     return alpha
+
+def print_problem_summary(n, m, p, k):
+    """
+      n : number of decision variables
+      m : rows in data matrix A
+      p : equality constraints (rows in E)
+      k : inequality constraints (rows in C)
+    """
+    line = (
+        f"{'Variables:':>6}: {n:<7,} │ "
+        f"{'Rows in A':>6}: {m:<7,} │ "
+        f"{'Equality Constraints':>6}: {p:<7,} │ "
+        f"{'Inequality Constraints':>6}: {k:<7,}"
+    )
+    bar  = "─" * len(line)
+    print(bar)
+    print(line)
+    print(bar)
+
 
 class PrettyLogger:
     """
@@ -56,9 +81,9 @@ class PrettyLogger:
                 ("comp_res", "{:>9.2e}"),
                 ("KKT_res",   "{:>9.2e}"),
                 ("mu",        "{:>8.1e}"),
-                ("Δx",        "{:>9.1e}"),
+                ("Δx",        "{:>7.1e}"),
                 ("step",      "{:>6.1e}"),
-                ("cum_time",  "{:>8.2f}s"),
+                ("time",  "{:>6.2f}s"),
             ])
         if not isinstance(col_specs, OrderedDict):
             col_specs = OrderedDict(col_specs)
