@@ -44,8 +44,22 @@ class LogisticNLL:
         return np.hstack([hess_diag,np.zeros(tot_z - self.m)])
 
     def __call__(self, z):
+        return self.f(z)
+    
+class DummyGLM:
+    def __init__(self):
         """
-        By defining __call__, this object can be used like a function:
-            phi(z) = phi.f(z)
+        Empty glm term for default in GLOPT in QP mode
         """
+
+    def f(self, z):
+        return 0
+
+    def d1f(self, z):
+        return np.zeros(1)
+
+    def d2f(self, z):
+        return np.zeros(1)
+
+    def __call__(self, z):
         return self.f(z)

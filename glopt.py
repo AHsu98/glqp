@@ -1,11 +1,19 @@
 import time
 import numpy as np
 import pandas as pd
-from scipy.sparse import csc_array
+from scipy.sparse import csc_array,block_diag
 import qdldl
 from scipy.sparse import block_array,eye_array,tril,triu
 from sparse_dot_mkl import dot_product_mkl
-from util import PrettyLogger,get_step_size,maxnorm,norm2,print_problem_summary
+from util import (
+    PrettyLogger,get_step_size,
+    maxnorm,norm2,
+    print_problem_summary,
+    factor_with_retries,
+    solve_with_refinement,
+    build_solution_summary,factor_and_solve
+)
+from obj import DummyGLM
 from warnings import warn
 
 from dataclasses import dataclass
@@ -14,13 +22,14 @@ from dataclasses import dataclass
 class SolverSettings():
     max_precenter:int = 100
     max_iter:int = 200
-    tol:float = 1e-7
+    tol:float = 1e-8
     safe_boundary_frac:float = 0.99
     greedy_boundary_frac:float = 0.9999
     gamma:float = 0.5
-    min_mu:float = 1e-11
+    min_mu:float = 1e-12
     tau_reg:float =5e-9
     max_linesearch_steps:int = 50
+    max_iterative_refinement:int = 5
 
 @dataclass
 class SolverResults():
@@ -34,10 +43,11 @@ class SolverResults():
 class GLMProblem():
     def __init__(
         self,
-        f,A,Q,
-        C,c,
+        f=None,A=None,Q=None,
+        C=None,c=None,
         b=None,
         E=None,e=None,
+        n = None,
         settings = None
         ):
         """
@@ -51,60 +61,104 @@ class GLMProblem():
             GLM objective function, sum of scalars
         A : csc_array
             design matrix
-        Q : csc_array
-            matrix defining quadratic form
-        C : csc_array
-            inequality constraint matrix
-        c : np.ndarray
-            inequality rhs
-        E : csc_array
-            equality constraint matrix
-        e : 
-            equality constraint rhs
+        Q : csc_array, optional
+            matrix defining quadratic form, defaults to 1e-8 * I
         b : np.ndarray, optional
             tilting vector, defaults to zeros
+        C : csc_array, optional
+            inequality constraint matrix, defaults to no constraints
+        c : np.ndarray, optional
+            inequality rhs, defaults to no constraints
+        E : csc_array, optional
+            equality constraint matrix, defaults to no constraints
+        e : np.array, optional
+            equality constraint rhs, defaults to no constraints
         settings : SolverSettings, optional
-            settings for solver, by default SolverSettings(0)
+            settings for solver, by default SolverSettings()
         """
         if settings is None:
             settings = SolverSettings()
-        
-
         self.settings = settings
-        
+
+        #Figure out dimension of problem
+        if n is not None:
+            n = n
+        elif A is not None:
+            n = A.shape[1]
+        elif Q is not None:
+            n = Q.shape[1]
+        elif C is not None:
+            n = C.shape[1]
+        elif E is not None:
+            n = E.shape[1]
+        else:
+            raise ValueError("Not enough of problem specified.")
+
+        #Setup matrix A
+        if A is None:
+            A = csc_array((1,n))
+            assert f is None, "Cannot have glm function f without A"
+            f = DummyGLM()
+        else:
+            A = csc_array(A)
+            assert f is not None, "Need GLM if A is given"
+            assert A.ndim==2
         m = A.shape[0]
-        n = A.shape[1]
-        assert A.shape[1] == C.shape[1]
-        A = csc_array(A)
 
-        #TODO:Separate solver dispatch for unconstrained
-        assert C.shape[0] == len(c)
-        C = csc_array(C)
+        #Setup inequality constraints
+        if C is None:
+            assert c is None
+            C = csc_array((1,n))
+            c = np.ones((1,))
+        elif C is not None:
+            C = csc_array(C)
+            assert C.ndim == 2
+            #Need c if C is not None
+            assert c is not None, "Need c if inequality matrix C is given"
         k = C.shape[0]
-        self.k = k
-        self.c = c
-
+        
+        #Setup equality constraints
         if E is None:
             assert e is None
             E = csc_array((0,n))
             e = np.zeros((0,))
-        else:
-            assert e is not None
-        assert E.ndim==2
-        assert E.shape[1] == n
+        elif E is not None:
+            E = csc_array(E)
+            assert e is not None, "Need e if equality matrix E is given"
+        
+        #Set up linear tilt
+        if b is None:
+            b = np.zeros(n)
+        
+        #Set up quadratic form
+        if Q is None:
+            Q = 1e-8*csc_array(eye_array(n))
+        elif Q is not None:
+            Q = csc_array(Q)
+            assert Q.shape[0]==Q.shape[1], "Q must be square"
+
+        assert (
+            A.shape[1] == 
+            C.shape[1] == 
+            E.shape[1] ==
+            len(b)     ==
+            Q.shape[1]
+        )
+
+        assert C.shape[0] == len(c)
         assert E.shape[0] == e.shape[0]
+
         self.E = E
         self.e = e
         p = E.shape[0]
             
 
-        if b is None:
-            b = np.zeros(n)
-        self.b = b
-        
+        self.k = k
+        self.c = c
         self.f = f
         self.A = A
         self.Q = Q
+        self.b = b
         self.C = C
         self.m = m
         self.n = n
@@ -112,6 +166,7 @@ class GLMProblem():
         self.In = csc_array(eye_array(n))
         self.Ik = csc_array(eye_array(k))
         self.Ip = csc_array(eye_array(p))
+        self.reg_shift = block_diag([self.In,-self.Ik,-self.Ip])
 
     def initialize(self,x0=None,y0 = None,s0 = None):
         if x0 is None:
@@ -132,10 +187,19 @@ class GLMProblem():
                 ],format = 'csc'
             )
             rhs = np.hstack([x,self.e])
-            solver = qdldl.Solver(G)
-            x_nu = solver.solve(rhs)
-            x = x_nu[:self.n]
-            nu = x_nu[self.n:]
+            reg_shift = block_diag([0*self.In,-1*self.Ip])
+            
+            sol,num_refine,solver = factor_and_solve(
+                G,rhs,
+                reg_shift=reg_shift,
+                init_tau_reg = self.settings.tau_reg,
+                solver = None,
+                target_tol = 1e-12,
+                max_solve_attempts=10,
+                max_refinement_steps=self.settings.max_iterative_refinement
+            )
+            x = sol[:self.n]
+            nu = sol[self.n:]
         else:
             nu = np.ones((0,))
 
@@ -157,7 +221,7 @@ class GLMProblem():
     
     def solve_KKT(
         self,
-        x,y,s,nu,H,rx,rp,rc,req,mu,tau_reg=None,
+        x,y,s,H,rx,rp,rc,req,mu,tau_reg=None,prox_reg = 0.,
         solver = None):
         #mu,x unused for now
 
@@ -168,40 +232,50 @@ class GLMProblem():
         # "normal equations" Hessian for GLM part
         w = np.sqrt(y/s)
         wC = self.C.multiply(w[:,None])
-        rhs = np.hstack([-rx,-w*rp + (w/y) * rc, -req])
+        rhs = np.hstack([-rx,-w*rp + (w/y) * rc,-req])
         #Including tau-shift here
         #later may want separate matrix,
         #larger tau shift + iterative refine
 
-        num_factorization_attempts = 8
-        successful = False
-        for attempt in range(num_factorization_attempts):
-            try:
-                G = block_array(
-                    [
-                        [H+tau_reg*self.In,wC.T        ,self.E.T],
-                        [wC               ,-1*self.Ik  ,None],
-                        [self.E           ,None         ,-tau_reg * self.Ip]
-                    ],format = 'csc'
-                )
-                G = triu(G,format = 'csc')
-                G.sort_indices()
-                if solver is None:
-                    solver = qdldl.Solver(G,upper = True)
-                else:
-                    solver.update(G,upper = True)
-                successful = True
-                break
-            except:
-                tau_reg = 10*tau_reg
-        if successful ==False:
-            raise ValueError(f"KKT Factorization Failed with {tau_reg} regularization!")
-        sol = solver.solve(rhs)
+        G = block_array(
+            [
+                [H + prox_reg * self.In,     wC.T,       self.E.T],
+                [wC,    -1*self.Ik, None],
+                [self.E,None,       None]
+            ],format = 'csc'
+        )
+
+        sol,num_refine,solver = factor_and_solve(
+            G,rhs,
+            reg_shift=self.reg_shift,
+            init_tau_reg = tau_reg,
+            solver = solver,
+            target_tol = 0.05*self.settings.tol,
+            max_solve_attempts=10,
+            max_refinement_steps=self.settings.max_iterative_refinement
+        )
+        # solver = factor_with_retries(
+        #     G,
+        #     reg_shift = self.reg_shift,
+        #     init_tau_reg = tau_reg,
+        #     solver=solver,
+        #     max_attempts=10
+        # )
+
+        # sol,num_refine = solve_with_refinement(
+        #     G = G,
+        #     rhs = rhs,
+        #     solver = solver,
+        #     target_tol=0.05*self.settings.tol,
+        #     max_steps = self.settings.max_iterative_refinement
+        # )
+                
         dx = sol[:self.n]
         dy = w*sol[self.n:self.n+self.k]
-        nu = sol[self.n+self.k:]
         ds = -rp - self.C@dx
-        return dx,ds,dy,nu,solver
+        dnu = sol[self.n+self.k:]
+
+        return dx,ds,dy,dnu,solver,num_refine
     
     def get_H(self,z):
         D = self.f.d2f(z)[:,None]
@@ -224,10 +298,9 @@ class GLMProblem():
             print_problem_summary(
                 n=self.n,
                 m=self.m,
-                p=self.E.shape[0],
+                p=self.p,
                 k=self.k
             )
-
 
         logger = PrettyLogger(verbose=verbose)
         settings = self.settings
@@ -245,14 +318,14 @@ class GLMProblem():
         gradf = self.A.T@self.f.d1f(z) + self.Q@x
         rx,rp,rc,req = self.KKT_res(x,gradf,y,s,nu)
         kkt_res = np.max(
-                np.abs(np.hstack([rx,rp,rc]))
+                np.abs(np.hstack([rx,rp,rc,req]))
             )
-        #Perturb to interior point
+        #Perturb to interior complementarity
         rc = rc - mu
 
         
         solver = None    
-        for i in range(settings.max_iter):
+        for iteration_number in range(settings.max_iter):
             if maxnorm(rp)<1e-8:
                 feasible = True
             
@@ -265,22 +338,27 @@ class GLMProblem():
                 break
             
             #Check for stagnation
-            if i>6 and kkt_res>=0.99*logger.rows[-6]['KKT_res']:
+            if iteration_number>6 and kkt_res>=0.99*logger.rows[-6]['KKT_res']:
                 #Little progress in 5 steps
                 convergence_tag = "stagnated"
-                warn("Giving up due to stagnation")
                 break
-
+            
+            #Give some proximal regularization in primal
+            #because we shortcut step acceptance while infeasible
             if feasible is False:
-                tau_reg = 0.01 * np.mean(H.diagonal())
+                prox_reg = 0.1 * np.mean(H.diagonal())
             else:
-                tau_reg = self.settings.tau_reg
+                prox_reg = 0.
 
             #Solve KKT
-            dx,ds,dy,dnu,solver = self.solve_KKT(
-                x,y,s,nu,
-                H,rx,rp,rc,req,
-                mu,tau_reg,solver
+            dx,ds,dy,dnu,solver,num_refine = self.solve_KKT(
+                x,y,s,
+                H,
+                rx,rp,rc,req,
+                mu,
+                tau_reg = self.settings.tau_reg,
+                prox_reg = prox_reg,
+                solver = solver
                 )
 
             if (feasible is True) and maxnorm(rc)>10*maxnorm(rx):
@@ -324,13 +402,13 @@ class GLMProblem():
                     convergence_tag = "failed_line_search"
                     warn("Linesearch Failed!")
                     break
-            
+                            
             #Take step
-            x = x + t*dx
-            s = s + t*ds
-            y = y + t*dy
-            nu = nu + t*dnu 
-            z = z + t*dz
+            x  =  x + t*dx
+            s  =  s + t*ds
+            y  =  y + t*dy
+            z  =  z + t*dz
+            nu = nu + t*dnu
 
             gradf = self.A.T@self.f.d1f(z) + self.Q@x
             rx,rp,rc,req = self.KKT_res(x,gradf,y,s,nu)
@@ -340,7 +418,7 @@ class GLMProblem():
 
             #If we're reasonably close to primal feasibility and 
             # complementarity aggressive mu update
-            if maxnorm(rc) + maxnorm(rp)<=5*mu+np.minimum(1000 * mu,1000):
+            if maxnorm(rc) + maxnorm(rp) + maxnorm(req)<=5*mu+np.minimum(1000 * mu,1000):
                 mu_est = np.dot(s,y)/self.k
                 xi = np.min(s*y)/mu_est
                 #Don't decrease by more than a factor of 100
@@ -363,7 +441,7 @@ class GLMProblem():
 
             elapsed = time.time() - start
             logger.log(
-                iter=i+1,
+                iter=iteration_number+1,
                 primal = primal,
                 dual_res = maxnorm(rx),
                 cons_viol = np.maximum(maxnorm(rp),maxnorm(req)),
@@ -373,15 +451,20 @@ class GLMProblem():
                 step=t,
                 KKT_res=kkt_res,
                 time=elapsed,
+                refine = num_refine
             )
 
-        if solved ==True:
-            convergence_tag = 'optimal'
-        else:
-            if convergence_tag=='not_optimal':
-                convergence_tag = 'maximum_iter'
-                warn("Maximum Iterations Reached")
-            if near_solved is True:
-                convergence_tag = f"near_opt_{convergence_tag}"
+        convergence_tag,message = build_solution_summary(
+            solved,
+            near_solved,
+            convergence_tag,
+            kkt_res,
+            iteration_number,
+            elapsed
+        )
+        if verbose is True:
+            print(message)
+        
         results = SolverResults(settings,x,y,s,logger.to_dataframe(),convergence_tag = convergence_tag)
         return x,results
+

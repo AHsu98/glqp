@@ -1,6 +1,8 @@
 from collections import OrderedDict
 import itertools
 import numpy  as np
+import qdldl
+from warnings import warn
 import pandas as pd
 
 def norm2(x):
@@ -14,6 +16,86 @@ def maxnorm(x):
         return 0.
     else:
         return np.max(np.abs(x))
+    
+def factor_with_retries(
+    G,reg_shift,init_tau_reg,solver,max_attempts=10
+):
+    succeeded = False
+    tau_reg = init_tau_reg
+    for i in range(max_attempts):
+        try:
+            Gshift = G + tau_reg*reg_shift
+            if solver is None:
+                solver = qdldl.Solver(Gshift)
+            else:
+                solver.update(Gshift)
+            succeeded = True
+            break
+        except Exception as ex:
+            last_ex  = ex
+            tau_reg = 10*tau_reg
+    if succeeded is False:
+        warn(f"Failed factorization with attempted reg {tau_reg:.2e}")
+        raise last_ex
+    return solver
+
+def solve_with_refinement(G,rhs,solver,target_tol,max_steps = 5):
+    sol = solver.solve(rhs)
+    res = rhs - G@sol
+    num_refine = 0
+    for i in range(max_steps):
+        if maxnorm(res)>=target_tol:
+            sol = sol + solver.solve(res)
+            res = rhs - G@sol
+            num_refine += 1
+    if maxnorm(res)>target_tol:
+        warn(f"Poor linear solve: didn't reach target tolerance of {target_tol:.3e} in {num_refine} steps")
+    return sol,num_refine
+
+def factor_and_solve(
+    G,rhs,reg_shift,init_tau_reg,solver,
+    target_tol = 1e-10,
+    max_solve_attempts=10,max_refinement_steps = 5,
+):
+    succeeded = False
+    tau_reg = init_tau_reg
+    for i in range(max_solve_attempts):
+        try:
+            Gshift = G + tau_reg*reg_shift
+            if solver is None:
+                solver = qdldl.Solver(Gshift)
+            else:
+                solver.update(Gshift)
+            sol = solver.solve(rhs)
+            if np.any(np.isnan(sol)):
+                raise ValueError(f"NaNs found in solution to linear system with tau = {tau_reg}")
+            res = rhs - G@sol
+            if norm2(res)>0.95*norm2(rhs):
+                raise ValueError(
+                    f"""Linear solve computed to unacceptable relative L2 error of 
+                    f{np.sqrt(norm2(res)/norm2(rhs))}
+                    """
+                    )
+            num_refine = 0
+            for i in range(max_refinement_steps):
+                if maxnorm(res)>=target_tol:
+                    sol = sol + solver.solve(res)
+                    res = rhs - G@sol
+                    num_refine += 1
+            if maxnorm(res)>target_tol:
+                warn(f"Poor linear solve: didn't reach target tolerance of {target_tol:.3e} in {num_refine} steps")
+
+            succeeded = True
+            break
+        except Exception as ex:
+            last_ex  = ex
+            tau_reg = 10*tau_reg
+    if succeeded is False:
+        warn(f"Failed to solve with attempted reg {tau_reg:.2e} after {max_solve_attempts} attempts")
+        raise last_ex
+    return sol,num_refine,solver
+
+
 
 def get_step_size(s, ds, y, dy,frac = 0.99):
     """
@@ -83,6 +165,7 @@ class PrettyLogger:
                 ("mu",        "{:>8.1e}"),
                 ("Δx",        "{:>7.1e}"),
                 ("step",      "{:>6.1e}"),
+                ("refine",    "{:>6d}"),
                 ("time",  "{:>6.2f}s"),
             ])
         if not isinstance(col_specs, OrderedDict):
@@ -153,3 +236,36 @@ class PrettyLogger:
 
     def _col_widths(self):
         return (self._width(fmt) for fmt in self.col_specs.values())
+
+def build_solution_summary(
+    solved,near_solved,convergence_tag,KKT_res,iter,elapsed
+):
+    if solved ==True:
+        convergence_tag = 'optimal'
+        msg = f"Optimal solution found in {iter} iterations in {elapsed:.2f}s."
+    else:
+        if convergence_tag=='not_optimal':
+            convergence_tag = 'maximum_iter'
+            warn("Maximum Iterations Reached")
+            if near_solved is True:
+                convergence_tag = f"near_opt_{convergence_tag}"
+                msg = f"Maximum of {iter} iterations reached in {elapsed:.2f}s. Tolerance was almost achieved."
+            else:
+                msg = f"Maximum of {iter} iterations reached in {elapsed:.2f}s. "
+        
+        if convergence_tag=="stagnated":
+            warn("Giving up due to stagnation")
+            if near_solved is True:
+                convergence_tag = f"near_opt_{convergence_tag}"
+                msg = f"Progress stagnated after {iter} iterations in {elapsed:.2f}s. Tolerance was almost achieved."
+            else:
+                msg = f"Progress stagnated after {iter} iterations in {elapsed:.2f}s."
+        
+        if convergence_tag=="failed_line_search":
+            if near_solved is True:
+                convergence_tag = f"near_opt_{convergence_tag}"
+                msg = f"Failed line search after {iter} iterations in {elapsed:.2f}s. Tolerance was almost achieved."
+            else:
+                msg = f"Failed line search after {iter} iterations in {elapsed:.2f}s."
+    msg = f"{msg} Final maxnorm KKT residual: {KKT_res:.2e}."
+    return convergence_tag,msg
