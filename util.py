@@ -56,8 +56,8 @@ class PrettyLogger:
                 ("comp_res", "{:>9.2e}"),
                 ("KKT_res",   "{:>9.2e}"),
                 ("mu",        "{:>8.1e}"),
-                ("Δx",        "{:>9.2e}"),
-                ("step",      "{:>6.3e}"),
+                ("Δx",        "{:>9.1e}"),
+                ("step",      "{:>6.1e}"),
                 ("cum_time",  "{:>8.2f}s"),
             ])
         if not isinstance(col_specs, OrderedDict):

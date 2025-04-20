@@ -1,5 +1,6 @@
-import numpy as np
 import time
+import numpy as np
+import pandas as pd
 from scipy.sparse import csc_array
 import qdldl
 from scipy.sparse import block_array,eye_array
@@ -11,16 +12,24 @@ from dataclasses import dataclass
 
 @dataclass
 class SolverSettings():
-    max_precenter = 100
-    max_iter = 200
-    tol = 1e-7
-    safe_boundary_frac = 0.99
-    greedy_boundary_frac = 0.9999
-    gamma = 0.5
-    min_mu = 1e-11
-    tau_reg =1e-12
-    max_linesearch_steps = 50
+    max_precenter:int = 100
+    max_iter:int = 200
+    tol:float = 1e-7
+    safe_boundary_frac:float = 0.99
+    greedy_boundary_frac:float = 0.9999
+    gamma:float = 0.5
+    min_mu:float = 1e-11
+    tau_reg:float =1e-13
+    max_linesearch_steps:int = 50
 
+@dataclass
+class SolverResults():
+    settings:SolverSettings
+    x:np.ndarray
+    y:np.ndarray
+    s:np.ndarray
+    history:pd.DataFrame
+    convergence_tag:str
 
 class GLMProblem():
     def __init__(
@@ -70,7 +79,7 @@ class GLMProblem():
             y = np.ones(self.k)
         else:
             y = np.copy(y0)
-            assert np.min(y)>1e-8
+            assert np.min(y)>1e-10
         
         if s0 is None:
             s = np.maximum(self.c - self.C@x,0.01)
@@ -98,22 +107,32 @@ class GLMProblem():
         # "normal equations" Hessian for GLM part
         w = np.sqrt(y/s)
         wC = self.C.multiply(w[:,None])
-        #Including tiny tau-shift here
+        rhs = np.hstack([-rx,-w*rp + (w/y) * rc])
+        #Including tau-shift here
         #later may want separate matrix,
         #larger tau shift + iterative refine
-        G = block_array(
-            [
-                [H+self.settings.tau_reg*self.In,wC.T],
-                [wC,-1*self.Ik]
-            ],format = 'csc'
-        )
-        rhs = np.hstack([-rx,-w*rp + (w/y) * rc])
-        if solver is None:
-            solver = qdldl.Solver(G)
-        else:
-            solver.update(G)
+
+        num_factorization_attempts = 8
+        successful = False
+        for attempt in range(num_factorization_attempts):
+            try:
+                G = block_array(
+                    [
+                        [H+tau_reg*self.In,wC.T],
+                        [wC,-1*self.Ik]
+                    ],format = 'csc'
+                )
+                if solver is None:
+                    solver = qdldl.Solver(G)
+                else:
+                    solver.update(G)
+                successful = True
+                break
+            except:
+                tau_reg = 10*tau_reg
+        if successful ==False:
+            raise(f"KKT Factorization Failed with {tau_reg} regularization!")
         sol = solver.solve(rhs)
-        # linres = rhs - G@sol
         dx = sol[:self.n]
         dy = w*sol[self.n:]
         ds = -rp - self.C@dx
@@ -129,8 +148,12 @@ class GLMProblem():
         x0=None,
         y0=None,
         s0=None,
+        mu0 = None,
         verbose = True
         ):
+        solved = False
+        near_solved = False
+        convergence_tag = 'not_optimal'
         x,y,s = self.initialize(x0,y0,s0)
         if verbose is True:
             print(f"{self.k} constraints")
@@ -143,8 +166,10 @@ class GLMProblem():
         armijo_param = 0.01
 
         start = time.time()
-            
-        mu = 100.
+        if mu0 is None:
+            mu = 100.
+        else:
+            mu = mu0
 
         z = self.A@x
         H = self.get_H(z)
@@ -161,9 +186,21 @@ class GLMProblem():
         for i in range(settings.max_iter):
             if maxnorm(rp)<1e-8:
                 feasible = True
+            
+            if kkt_res<=100*settings.tol:
+                near_solved = True
+            
+            #Check for convergence
             if kkt_res<=settings.tol:
+                solved = True
                 break
-
+            
+            #Check for stagnation
+            if i>6 and kkt_res>=0.99*logger.rows[-6]['KKT_res']:
+                #Little progress in 5 steps
+                convergence_tag = "stagnated"
+                warn("Giving up due to stagnation")
+                break
 
             if feasible is False:
                 tau_reg = 0.1 * np.mean(H.diagonal())
@@ -211,11 +248,10 @@ class GLMProblem():
                     else:
                         t = 0.9*t
                 if successful ==False:
+                    convergence_tag = "failed_line_search"
                     warn("Linesearch Failed!")
-                    return x,logger.to_dataframe()
-                
-            w = np.sqrt(y/s)
-            
+                    break
+                            
             #Take step
             x = x + t*dx
             s = s + t*ds
@@ -224,36 +260,13 @@ class GLMProblem():
 
             gradf = self.A.T@self.f.d1f(z) + self.Q@x
             rx,rp,rc = self.KKT_res(x,gradf,y,s)
-            print("rx",maxnorm(rx))
-            print("rp",maxnorm(rp))
-            print("rc",maxnorm(rc))
-
-            #Try to steal an extra corrector step
-            rhs = np.hstack([-rx,-w*rp + (w/y) * rc])
-            sol = solver.solve(rhs)
-            # linres = rhs - G@sol
-            dx = sol[:self.n]
-            dy = w*sol[self.n:]
-            ds = -rp - self.C@dx
-            tmax = get_step_size(s,ds,y,dy,frac = settings.safe_boundary_frac)
-            x = x + tmax*dx
-            s = s + tmax*ds
-            y = y + tmax*dy
-            z = self.A@x
-            gradf = self.A.T@self.f.d1f(z) + self.Q@x
-            rx,rp,rc = self.KKT_res(x,gradf,y,s)
-            print("corrected rx",maxnorm(rx))
-            print("corrected rp",maxnorm(rp))
-            print("corrected rc",maxnorm(rc))
-
-            #end here
-
 
             H = self.get_H(z)
             kkt_res = np.max([maxnorm(rx),maxnorm(rp),maxnorm(rc)])
+
             #If we're reasonably close to primal feasibility and 
             # complementarity aggressive mu update
-            if maxnorm(rc) + maxnorm(rp)<=1000 * mu:
+            if maxnorm(rc) + maxnorm(rp)<=5*mu+np.minimum(1000 * mu,1000):
                 mu_est = np.dot(s,y)/self.k
                 xi = np.min(s*y)/mu_est
                 #Don't decrease by more than a factor of 100
@@ -267,11 +280,7 @@ class GLMProblem():
             else:
                 # Otherwise, perform a modest centering update
                 mu_est = np.dot(s,y)/self.k
-                if i==0:
-                    #Purely take first estimate
-                    m = mu_est
-                else:
-                    mu = 0.9*np.minimum(mu_est,mu)
+                mu = 0.9*mu_est
 
             comp_res = maxnorm(rc)
 
@@ -291,4 +300,14 @@ class GLMProblem():
                 KKT_res=kkt_res,
                 cum_time=elapsed,
             )
-        return x,logger.to_dataframe()
+
+        if solved ==True:
+            convergence_tag = 'optimal'
+        else:
+            if convergence_tag=='not_optimal':
+                convergence_tag = 'maximum_iter'
+                warn("Maximum Iterations Reached")
+            if near_solved is True:
+                convergence_tag = f"near_opt_{convergence_tag}"
+        results = SolverResults(settings,x,y,s,logger.to_dataframe(),convergence_tag = convergence_tag)
+        return x,results
