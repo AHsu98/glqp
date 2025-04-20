@@ -238,9 +238,9 @@ def build_solution_summary(
     return convergence_tag,msg
 
 def parse_problem(
-    f=None,A=None,Q=None,
+    f=None,A=None,
+    Q=None,b=None,
     C=None,c=None,
-    b=None,
     E=None,e=None,
     n = None,
 ):
@@ -325,17 +325,11 @@ def parse_problem(
 
 
     return (
-        dummy_A,
-        dummy_ineq,
-        f,
-        A,
-        Q,
-        b,
-        C,
-        c,
-        m,
-        n,
-        p,
-        k
+        dummy_A,dummy_ineq,
+        f,A,
+        Q,b,
+        C,c,
+        E,e,
+        m,n,p,k
     )
 

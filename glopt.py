@@ -9,7 +9,7 @@ from util import (
     Logger,get_step_size,
     maxnorm,norm2,
     print_problem_summary,
-    build_solution_summary,factor_and_solve
+    build_solution_summary,factor_and_solve,parse_problem
 )
 from obj import DummyGLM
 from warnings import warn
@@ -41,9 +41,9 @@ class SolverResults():
 class GLMProblem():
     def __init__(
         self,
-        f=None,A=None,Q=None,
+        f=None,A=None,
+        Q=None,b=None,
         C=None,c=None,
-        b=None,
         E=None,e=None,
         n = None,
         settings = None
@@ -77,85 +77,12 @@ class GLMProblem():
         if settings is None:
             settings = SolverSettings()
         self.settings = settings
-
-        #Figure out dimension of problem
-        if n is not None:
-            n = n
-        elif A is not None:
-            n = A.shape[1]
-        elif Q is not None:
-            n = Q.shape[1]
-        elif C is not None:
-            n = C.shape[1]
-        elif E is not None:
-            n = E.shape[1]
-        else:
-            raise ValueError("Not enough of problem specified, can't determine number of variables.")
-
-        #Setup matrix A
-        if A is None:
-            A = csc_array((1,n))
-            assert f is None, "Cannot have glm function f without A"
-            f = DummyGLM()
-            dummy_A = True
-        else:
-            A = csc_array(A)
-            assert f is not None, "Need GLM if A is given"
-            assert A.ndim==2
-            dummy_A = False
-        m = A.shape[0]
-
-        #Setup inequality constraints
-        if C is None:
-            assert c is None
-            C = csc_array((1,n))
-            c = np.ones((1,))
-            dummy_ineq = True
-        elif C is not None:
-            C = csc_array(C)
-            assert C.ndim == 2
-            #Need c if C is not None
-            assert c is not None, "Need c if inequality matrix C is given"
-            dummy_ineq = False
-        k = C.shape[0]
-        
-        #Setup equality constraints
-        if E is None:
-            assert e is None
-            E = csc_array((0,n))
-            e = np.zeros((0,))
-        elif E is not None:
-            E = csc_array(E)
-            assert e is not None, "Need e if equality matrix E is given"
-        
-        #Set up linear tilt
-        if b is None:
-            b = np.zeros(n)
-        
-        #Set up quadratic form
-        if Q is None:
-            Q = 1e-8*csc_array(eye_array(n))
-        elif Q is not None:
-            Q = csc_array(Q)
-            assert Q.shape[0]==Q.shape[1], "Q must be square"
-
-        assert (
-            A.shape[1] == 
-            C.shape[1] == 
-            E.shape[1] ==
-            len(b)     ==
-            Q.shape[1] ==
-            Q.shape[0] ==
-            n
-        ), f"""Implied number of variables inconsistent.
-        ncol(A) = {A.shape[1]}, ncol(C) = {C.shape[1]},
-        ncol(E) = {E.shape[1]}, len(b) = {len(b)},
-        ncol(Q) = {Q.shape[1]}, n = {n}
-        """
-
-        assert C.shape[0] == len(c)
-        assert E.shape[0] == e.shape[0]
-        p = E.shape[0]
+        (dummy_A,dummy_ineq,
+        f,A,
+        Q,b,
+        C,c,
+        E,e,
+        m,n,p,k) = parse_problem(f,A,Q,b,C,c,E,e,n)
 
 
         self.dummy_A = dummy_A
