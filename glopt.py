@@ -155,23 +155,23 @@ class GLMProblem():
 
         assert C.shape[0] == len(c)
         assert E.shape[0] == e.shape[0]
-
-        self.E = E
-        self.e = e
         p = E.shape[0]
-        
+
+
         self.dummy_A = dummy_A
         self.dummy_ineq = dummy_ineq
-        self.k = k
-        self.c = c
         self.f = f
         self.A = A
         self.Q = Q
         self.b = b
         self.C = C
+        self.c = c
+        self.E = E
+        self.e = e
         self.m = m
         self.n = n
         self.p = p
+        self.k = k
         self.In = csc_array(eye_array(n))
         self.Ik = csc_array(eye_array(k))
         self.Ip = csc_array(eye_array(p))
@@ -183,11 +183,6 @@ class GLMProblem():
         else:
             x = np.copy(x0)
         
-        if y0 is None:
-            y = np.ones(self.k)
-        else:
-            y = np.copy(y0)
-            assert np.min(y)>1e-10
         if self.E.shape[0]>0:
             G = block_array(
                 [
@@ -215,10 +210,23 @@ class GLMProblem():
         
         
         if s0 is None:
-            s = np.maximum(self.c - self.C@x,0.01)
+            if self.dummy_ineq:
+                s = np.ones(self.k)
+            else:
+                s = np.maximum(self.c - self.C@x,0.01)
         else:
             s = np.copy(s0)
-        
+
+
+        if y0 is None:
+            if self.dummy_ineq:
+                y = self.settings.min_mu*np.ones(self.k)
+            else:
+                y = np.ones(self.k)
+        else:
+            y = np.copy(y0)
+            assert np.min(y)>1e-10
+
         return x,y,s,nu
     
     def KKT_res(self,x,g,y,s,nu):
@@ -309,7 +317,10 @@ class GLMProblem():
 
         start = time.time()
         if mu0 is None:
-            mu = 100.
+            if self.dummy_ineq is True:
+                mu = settings.min_mu
+            else:
+                mu = 100.
         else:
             mu = mu0
 
@@ -377,7 +388,6 @@ class GLMProblem():
             gx = self.A.T@self.f.d1f(z) + self.Q@x - self.b
             gs = -mu/s
 
-
             t = tmax
             dz = self.A@dx
             #Check implicit feasibility of f(x+t*dz)
@@ -386,6 +396,7 @@ class GLMProblem():
             #Accept every step if feasible is false and don't nan on the f
             #only enter linesearch if already feasible
             if (feasible is True) and (step_finite is True):
+                ls_eps = 5e-15
                 def merit_line(t):
                     primal = self.f(z+t*dz) + (1/2) * (x+t*dx).T@self.Q@(x+t*dx) - np.dot(x,self.b)
                     barrier = -mu*np.sum(np.log(s+t*ds))
@@ -393,7 +404,7 @@ class GLMProblem():
                 successful = False
                 for linesearch_step in range(settings.max_linesearch_steps):
                     new_merit = merit_line(t)
-                    if new_merit<merit0 + armijo_param * t * (np.dot(dx,gx) + np.dot(ds,gs)):
+                    if new_merit<merit0 + armijo_param * t * (np.dot(dx,gx) + np.dot(ds,gs)) + ls_eps:
                         successful = True
                         break
                     else:
