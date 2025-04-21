@@ -43,9 +43,16 @@ def factor_and_solve(
                     f{np.sqrt(norm2(res)/norm2(rhs))}
                     """
                     )
-            sol = sol + solver.solve(res)
-            res = rhs - G@sol
-            num_refine = 1
+            
+            num_refine = 0
+            
+            #Less stringent condition to perform 1 step of iterative refinement
+            if maxnorm(res)>=0.1*target_atol:
+                sol = sol + solver.solve(res)
+                res = rhs - G@sol
+                num_refine += 1
+            
+            #Continue refinement until reaching at least target_atol
             for i in range(max_refinement_steps):
                 if maxnorm(res)>=target_atol:
                     sol = sol + solver.solve(res)
