@@ -5,13 +5,13 @@ from scipy.sparse import csc_array,block_diag
 import qdldl
 from scipy.sparse import block_array,eye_array,tril,triu
 from sparse_dot_mkl import dot_product_mkl
-from util import (
+from .util import (
     Logger,get_step_size,
     maxnorm,
     print_problem_summary,
     build_solution_summary,factor_and_solve,parse_problem
 )
-from obj import DummyGLM
+from .obj import DummyGLM
 from warnings import warn
 
 from dataclasses import dataclass
@@ -27,7 +27,7 @@ class SolverSettings():
     min_mu:float = 1e-12
     tau_reg:float =5e-9
     max_linesearch_steps:int = 50
-    max_iterative_refinement:int = 5
+    max_iterative_refinement:int = 8
 
 @dataclass
 class SolverResults():
@@ -38,7 +38,7 @@ class SolverResults():
     history:pd.DataFrame
     convergence_tag:str
 
-class QPGLM():
+class GLQP():
     def __init__(
         self,
         f=None,A=None,

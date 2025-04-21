@@ -49,7 +49,7 @@ class LogisticNLL:
 class DummyGLM:
     def __init__(self):
         """
-        Empty glm term for default in GLOPT in QP mode
+        Empty glm term for default in glqp in QP mode
         """
 
     def f(self, z):
