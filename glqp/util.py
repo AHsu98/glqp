@@ -1,11 +1,10 @@
 from collections import OrderedDict
-import itertools
 import numpy  as np
 import qdldl
 from warnings import warn
 import pandas as pd
 from scipy.sparse import csc_array,eye_array
-from obj import DummyGLM
+from .obj import DummyGLM
 
 def norm2(x):
     if len(x)==0:
@@ -21,7 +20,7 @@ def maxnorm(x):
     
 def factor_and_solve(
     G,rhs,reg_shift,init_tau_reg,solver,
-    target_tol = 1e-10,
+    target_atol = 1e-10,
     max_solve_attempts=10,max_refinement_steps = 5,
 ):
     succeeded = False
@@ -45,12 +44,12 @@ def factor_and_solve(
                     )
             num_refine = 0
             for i in range(max_refinement_steps):
-                if maxnorm(res)>=target_tol:
+                if maxnorm(res)>=target_atol:
                     sol = sol + solver.solve(res)
                     res = rhs - G@sol
                     num_refine += 1
-            if maxnorm(res)>target_tol:
-                warn(f"Poor linear solve: didn't reach target tolerance of {target_tol:.3e} in {num_refine} steps")
+            if maxnorm(res)>target_atol:
+                warn(f"Poor linear solve: didn't reach target tolerance of {target_atol:.3e} in {num_refine} steps")
 
             succeeded = True
             break
@@ -61,8 +60,6 @@ def factor_and_solve(
         warn(f"Failed to solve with attempted reg {tau_reg:.2e} after {max_solve_attempts} attempts")
         raise last_ex
     return sol,num_refine,solver
-
-
 
 def get_step_size(s, ds, y, dy,frac = 0.99):
     """
@@ -95,16 +92,15 @@ def print_problem_summary(n, m, p, k):
       k : inequality constraints (rows in C)
     """
     line = (
-        f"{'Variables:':>6}: {n:<7,} │ "
-        f"{'Rows in A':>6}: {m:<7,} │ "
-        f"{'Equality Constraints':>6}: {p:<7,} │ "
-        f"{'Inequality Constraints':>6}: {k:<7,}"
+        "| GLQP | "
+        f"{'Variables':>3}: {n:<4,} │ "
+        f"{'Rows in A':>3}: {m:<4,} │ "
+        f"{'Equality Constraints':>3}: {p:<4,} │ "
+        f"{'Inequality Constraints':>3}: {k:<4,}"
     )
     bar  = "─" * len(line)
     print(bar)
     print(line)
-    print(bar)
-
 
 class Logger:
     """
@@ -117,9 +113,6 @@ class Logger:
     _LINE_CHAR = "─"
     _COL_SEP   = "│"
 
-    # ------------------------------------------------------------------
-    # construction
-    # ------------------------------------------------------------------
     def __init__(self,col_specs=None,verbose = True):
         if col_specs is None:
             col_specs = OrderedDict([
@@ -147,9 +140,6 @@ class Logger:
         self.rows: list[OrderedDict] = []
         self.verbose = verbose
 
-    # ------------------------------------------------------------------
-    # public API
-    # ------------------------------------------------------------------
     def log(self, **kwargs):
         """
         Print one formatted row *and* append it to self.rows.
@@ -157,7 +147,6 @@ class Logger:
         Extra keys are ignored in printing but kept in storage.
         """
         
-        # -------- pretty print --------
         if self.verbose is True:
             if not self._hdr_printed:
                 self._print_header()
@@ -171,7 +160,6 @@ class Logger:
             row_str = f"{self._COL_SEP} " + f" {self._COL_SEP} ".join(fmt_cells) + f" {self._COL_SEP}"
             print(row_str)
 
-        # -------- store raw values --------
         stored = OrderedDict()
         for key in self.col_specs:                  # preserve column order
             stored[key] = kwargs.get(key, None)     # None if not supplied
@@ -185,9 +173,6 @@ class Logger:
         """Return the full history as a pandas DataFrame."""
         return pd.DataFrame(self.rows)
 
-    # ------------------------------------------------------------------
-    # helpers
-    # ------------------------------------------------------------------
     def _print_header(self):
         hdr_cells = [
             f"{name:^{self._width(fmt)}}" for name, fmt in self.col_specs.items()
@@ -209,7 +194,7 @@ def build_solution_summary(
 ):
     if solved ==True:
         convergence_tag = 'optimal'
-        msg = f"Optimal solution found after {iter} iterations in {elapsed:.2f}s."
+        msg = f"Optimal solution after {iter} iterations in {elapsed:.2f}s."
     else:
         if convergence_tag=='not_optimal':
             convergence_tag = 'maximum_iter'

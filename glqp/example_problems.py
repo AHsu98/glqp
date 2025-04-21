@@ -7,7 +7,7 @@ from scipy.sparse.linalg import spsolve
 from scipy.sparse import block_array,eye_array
 from sparse_dot_mkl import dot_product_mkl
 
-from obj import LogisticNLL
+from .obj import LogisticNLL
 from numpy.random import default_rng
 
 
@@ -22,6 +22,7 @@ def build_random_logistic(m,n,k,seed,density = 0.01):
     y = rng.binomial(w.astype(int),expit(z_true))/w
 
     Q = 1.*diags_array(np.ones(n))
+    #Create feasible problem.
     xx = rng.normal(size = n)
 
     C = random_array((k,n),
@@ -33,7 +34,7 @@ def build_random_logistic(m,n,k,seed,density = 0.01):
     b = np.zeros(n)
     return f,A,Q,C,c,b
 
-def build_logistic_lasso(m,n,seed,lam = 0.1):
+def build_logistic_lasso(m,n,seed,lam = 0.1,weight = 1000):
     rng = default_rng(seed)
     samp = lambda size:rng.uniform(low = -0.5,high = 0.5,size = size)
     A = random_array((m,n),density = 0.01,rng = rng,data_sampler = samp)
@@ -43,7 +44,7 @@ def build_logistic_lasso(m,n,seed,lam = 0.1):
     A = block_array(
         [[A,csc_array((m,n))]]
     )
-    w = 1000*np.ones(m)
+    w = weight*np.ones(m)
     y = rng.binomial(w.astype(int),expit(z_true))/w
 
     Q = 0.*diags_array(np.ones(2*n))
