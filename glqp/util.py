@@ -40,7 +40,7 @@ def factor_and_solve(
             if norm2(res)>0.95*norm2(rhs):
                 raise ValueError(
                     f"""Linear solve computed to unacceptable relative L2 error of 
-                    f{np.sqrt(norm2(res)/norm2(rhs))}
+                    {np.sqrt(norm2(res)/norm2(rhs))}
                     """
                     )
             
