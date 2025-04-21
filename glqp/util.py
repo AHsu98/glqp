@@ -53,7 +53,7 @@ def factor_and_solve(
                 num_refine += 1
             
             #Continue refinement until reaching at least target_atol
-            for i in range(max_refinement_steps):
+            for i in range(1,max_refinement_steps):
                 if maxnorm(res)>=target_atol:
                     sol = sol + solver.solve(res)
                     res = rhs - G@sol
