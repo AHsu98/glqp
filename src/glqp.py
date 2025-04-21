@@ -7,7 +7,7 @@ from scipy.sparse import block_array,eye_array,tril,triu
 from sparse_dot_mkl import dot_product_mkl
 from util import (
     Logger,get_step_size,
-    maxnorm,norm2,
+    maxnorm,
     print_problem_summary,
     build_solution_summary,factor_and_solve,parse_problem
 )
@@ -38,7 +38,7 @@ class SolverResults():
     history:pd.DataFrame
     convergence_tag:str
 
-class GLMProblem():
+class QPGLM():
     def __init__(
         self,
         f=None,A=None,
@@ -125,7 +125,7 @@ class GLMProblem():
                 reg_shift=reg_shift,
                 init_tau_reg = self.settings.tau_reg,
                 solver = None,
-                target_tol = 1e-12,
+                target_atol = 1e-12,
                 max_solve_attempts=10,
                 max_refinement_steps=self.settings.max_iterative_refinement
             )
@@ -194,7 +194,7 @@ class GLMProblem():
             reg_shift=self.reg_shift,
             init_tau_reg = tau_reg,
             solver = solver,
-            target_tol = 0.05*self.settings.tol,
+            target_atol = 0.05*self.settings.tol,
             max_solve_attempts=10,
             max_refinement_steps=self.settings.max_iterative_refinement
         )

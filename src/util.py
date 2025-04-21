@@ -1,5 +1,4 @@
 from collections import OrderedDict
-import itertools
 import numpy  as np
 import qdldl
 from warnings import warn
@@ -21,7 +20,7 @@ def maxnorm(x):
     
 def factor_and_solve(
     G,rhs,reg_shift,init_tau_reg,solver,
-    target_tol = 1e-10,
+    target_atol = 1e-10,
     max_solve_attempts=10,max_refinement_steps = 5,
 ):
     succeeded = False
@@ -45,12 +44,12 @@ def factor_and_solve(
                     )
             num_refine = 0
             for i in range(max_refinement_steps):
-                if maxnorm(res)>=target_tol:
+                if maxnorm(res)>=target_atol:
                     sol = sol + solver.solve(res)
                     res = rhs - G@sol
                     num_refine += 1
-            if maxnorm(res)>target_tol:
-                warn(f"Poor linear solve: didn't reach target tolerance of {target_tol:.3e} in {num_refine} steps")
+            if maxnorm(res)>target_atol:
+                warn(f"Poor linear solve: didn't reach target tolerance of {target_atol:.3e} in {num_refine} steps")
 
             succeeded = True
             break

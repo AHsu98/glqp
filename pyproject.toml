@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "glqp"
+version = "0.1.0"
+description = "Quadratic Programs with additional GLM terms"
+authors = [
+    {name = "Alexander W. Hsu", email = "owlx@uw.edu"},
+]
+requires-python = ">=3.10"
+dependencies = [
+    "pandas",
+    "qdldl",
+    "numpy>=1.26",
+    "sparse-dot-mkl==0.9.8",
+    "scipy>=1.15",
+]
+
+[tool.setuptools]
+packages = ["glqp"]

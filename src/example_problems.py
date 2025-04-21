@@ -22,6 +22,7 @@ def build_random_logistic(m,n,k,seed,density = 0.01):
     y = rng.binomial(w.astype(int),expit(z_true))/w
 
     Q = 1.*diags_array(np.ones(n))
+    #Create feasible problem.
     xx = rng.normal(size = n)
 
     C = random_array((k,n),
