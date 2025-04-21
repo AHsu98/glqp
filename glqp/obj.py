@@ -35,7 +35,7 @@ class LogisticNLL:
         """
         Computes the second derivative (Hessian diagonal) w.r.t. z:
             w_i * sigma(z_i) * (1 - sigma(z_i))
-        also using expit(z) for numerical stability.
+        Using expit(z) for numerical stability.
         """
         tot_z = len(z)
         z = np.array(z[:self.m], dtype=float)
@@ -53,7 +53,7 @@ class DummyGLM:
         """
 
     def f(self, z):
-        return 0
+        return 0.
 
     def d1f(self, z):
         return np.zeros(1)

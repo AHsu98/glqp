@@ -27,7 +27,7 @@ class SolverSettings():
     min_mu:float = 1e-12
     tau_reg:float =5e-9
     max_linesearch_steps:int = 50
-    max_iterative_refinement:int = 8
+    max_iterative_refinement:int = 5
 
 @dataclass
 class SolverResults():
@@ -299,15 +299,16 @@ class GLQP():
                 solver = solver
                 )
 
+            # Allow a greedier step when we have bad complementarity
             if (feasible is True) and maxnorm(rc)>10*maxnorm(rx):
                 boundary_frac = settings.greedy_boundary_frac
             else:
                 boundary_frac = settings.safe_boundary_frac
             tmax = get_step_size(s,ds,y,dy,frac = boundary_frac)
 
-            #Linesearch procedure here
+            #Perform a linesearch on the nonlinear part
 
-            #Set up merit function
+            #Evaluate merit at current point
             primal = self.f(z) + (1/2) * x.T@self.Q@x - np.dot(x,self.b)
             barrier = -mu*np.sum(np.log(s))
             merit0 = primal + barrier
