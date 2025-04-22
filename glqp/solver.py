@@ -29,6 +29,7 @@ class SolverSettings():
     max_linesearch_steps:int = 50
     max_iterative_refinement:int = 5
     max_time:float = 600.
+    max_stagnation:int = 6
 
 @dataclass
 class SolverResults():
@@ -285,8 +286,11 @@ class GLQP():
                 break
             
             #Check for stagnation
-            if iteration_number>6 and kkt_res>=0.99*logger.rows[-6]['KKT_res']:
-                #Little progress in 5 steps
+            if (
+                iteration_number>settings.max_stagnation and 
+                kkt_res>=0.99*logger.rows[-settings.max_stagnation]['KKT_res']
+            ):
+                #Little progress in settings.max_stagnation
                 termination_tag = "stagnated"
                 break
             
