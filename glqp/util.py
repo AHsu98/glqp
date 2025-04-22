@@ -40,7 +40,7 @@ def factor_and_solve(
             if norm2(res)>0.95*norm2(rhs):
                 raise ValueError(
                     f"""Linear solve computed to unacceptable relative L2 error of 
-                    {np.sqrt(norm2(res)/norm2(rhs))}
+                    {np.sqrt(norm2(res)/norm2(rhs)):.4f}
                     """
                     )
             
@@ -200,37 +200,48 @@ class Logger:
         return (self._width(fmt) for fmt in self.col_specs.values())
 
 def build_solution_summary(
-    solved,near_solved,convergence_tag,KKT_res,iter,elapsed
+    solved,near_solved,termination_tag,KKT_res,iter,elapsed
 ):
     if solved ==True:
-        convergence_tag = 'optimal'
+        termination_tag = 'optimal'
         msg = f"Optimal solution after {iter} iterations in {elapsed:.2f}s."
     else:
-        if convergence_tag=='not_optimal':
-            convergence_tag = 'maximum_iter'
+        if termination_tag=='not_optimal':
+            termination_tag = 'maximum_iter'
             warn("Maximum Iterations Reached")
             if near_solved is True:
-                convergence_tag = f"near_opt_{convergence_tag}"
+                termination_tag = f"near_opt_{termination_tag}"
                 msg = f"Maximum of {iter} iterations reached in {elapsed:.2f}s. Tolerance was almost achieved."
             else:
                 msg = f"Maximum of {iter} iterations reached in {elapsed:.2f}s. "
         
-        if convergence_tag=="stagnated":
+        if termination_tag=="stagnated":
             warn("Giving up due to stagnation")
             if near_solved is True:
-                convergence_tag = f"near_opt_{convergence_tag}"
+                termination_tag = f"near_opt_{termination_tag}"
                 msg = f"Progress stagnated after {iter} iterations in {elapsed:.2f}s. Tolerance was almost achieved."
             else:
                 msg = f"Progress stagnated after {iter} iterations in {elapsed:.2f}s."
         
-        if convergence_tag=="failed_line_search":
+        if termination_tag=="failed_line_search":
+            warn("Failed Line Search")
             if near_solved is True:
-                convergence_tag = f"near_opt_{convergence_tag}"
+                termination_tag = f"near_opt_{termination_tag}"
                 msg = f"Failed line search after {iter} iterations in {elapsed:.2f}s. Tolerance was almost achieved."
             else:
                 msg = f"Failed line search after {iter} iterations in {elapsed:.2f}s."
+        
+        if "Failed linear solve" in termination_tag:
+            warn("Failed Linear Solve")
+            if near_solved is True:
+                msg = f"{termination_tag} after {iter} iterations in {elapsed:.2f}s. Tolerance was almost achieved."
+                termination_tag = f"near_opt_{termination_tag}"
+                
+            else:
+                msg = f"{termination_tag} after {iter} iterations in {elapsed:.2f}s."
+
     msg = f"{msg} Final maxnorm KKT residual: {KKT_res:.2e}."
-    return convergence_tag,msg
+    return termination_tag,msg
 
 def parse_problem(
     f=None,A=None,

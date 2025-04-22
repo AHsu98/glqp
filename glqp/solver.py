@@ -36,7 +36,7 @@ class SolverResults():
     y:np.ndarray
     s:np.ndarray
     history:pd.DataFrame
-    convergence_tag:str
+    termination_tag:str
 
 class GLQP():
     def __init__(
@@ -221,7 +221,7 @@ class GLQP():
         ):
         solved = False
         near_solved = False
-        convergence_tag = 'not_optimal'
+        termination_tag = 'not_optimal'
         x,y,s,nu = self.initialize(x0,y0,s0)
         if verbose is True:
             k = self.k
@@ -278,7 +278,7 @@ class GLQP():
             #Check for stagnation
             if iteration_number>6 and kkt_res>=0.99*logger.rows[-6]['KKT_res']:
                 #Little progress in 5 steps
-                convergence_tag = "stagnated"
+                termination_tag = "stagnated"
                 break
             
             #Give some proximal regularization in primal
@@ -287,17 +287,24 @@ class GLQP():
                 prox_reg = 0.1 * np.mean(H.diagonal())
             else:
                 prox_reg = 0.
+            try:
+                #Solve KKT
+                dx,ds,dy,dnu,solver,num_refine = self.solve_KKT(
+                    x,y,s,
+                    H,
+                    rx,rp,rc,req,
+                    mu,
+                    tau_reg = self.settings.tau_reg,
+                    prox_reg = prox_reg,
+                    solver = solver
+                    )
+            except Exception as ex:
+                termination_tag = (
+                    f"""Failed linear solve with error
+                    \n[\n {ex.__str__()} \n]\n
+                """)
+                break
 
-            #Solve KKT
-            dx,ds,dy,dnu,solver,num_refine = self.solve_KKT(
-                x,y,s,
-                H,
-                rx,rp,rc,req,
-                mu,
-                tau_reg = self.settings.tau_reg,
-                prox_reg = prox_reg,
-                solver = solver
-                )
 
             # Allow a greedier step when we have bad complementarity
             if (feasible is True) and maxnorm(rc)>10*maxnorm(rx):
@@ -338,8 +345,7 @@ class GLQP():
                     else:
                         t = 0.9*t
                 if successful ==False:
-                    convergence_tag = "failed_line_search"
-                    warn("Linesearch Failed!")
+                    termination_tag = "failed_line_search"
                     break
                             
             #Take step
@@ -393,10 +399,10 @@ class GLQP():
                 refine = num_refine
             )
 
-        convergence_tag,message = build_solution_summary(
+        termination_tag,message = build_solution_summary(
             solved,
             near_solved,
-            convergence_tag,
+            termination_tag,
             kkt_res,
             iteration_number,
             time.time() - start
@@ -404,6 +410,6 @@ class GLQP():
         if verbose is True:
             print(message)
         
-        results = SolverResults(settings,x,y,s,logger.to_dataframe(),convergence_tag = convergence_tag)
+        results = SolverResults(settings,x,y,s,logger.to_dataframe(),termination_tag = termination_tag)
         return x,results
 
