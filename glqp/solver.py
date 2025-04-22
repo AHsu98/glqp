@@ -28,7 +28,7 @@ class SolverSettings():
     tau_reg:float =5e-9
     max_linesearch_steps:int = 50
     max_iterative_refinement:int = 5
-    max_time:float = 300.
+    max_time:float = 600.
 
 @dataclass
 class SolverResults():
