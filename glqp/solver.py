@@ -30,6 +30,9 @@ class SolverSettings():
     max_iterative_refinement:int = 5
     max_time:float = 600.
     max_stagnation:int = 6
+    armijo_additive_eps:float = 1e-8
+    armijo_param:float = 0.005
+    let_newton_cook:float = 0.5
 
 @dataclass
 class SolverResults():
@@ -244,7 +247,7 @@ class GLQP():
         settings = self.settings
         feasible = False
         exception = None
-        armijo_param = 0.01
+        
 
         start = time.time()
         if mu0 is None:
@@ -342,20 +345,35 @@ class GLQP():
             #Accept every step if feasible is false and don't nan on the f
             #only enter linesearch if already feasible
             if (feasible is True) and (step_finite is True):
-                ls_eps = 5e-15
+                #OK with a small additive error in line search
                 def merit_line(t):
-                    primal = self.f(z+t*dz) + (1/2) * (x+t*dx).T@self.Q@(x+t*dx) - np.dot(x,self.b)
+                    primal = self.f(z+t*dz) + (1/2) * (x+t*dx).T@self.Q@(x+t*dx) - np.dot(x+t*dx,self.b)
                     barrier = -mu*np.sum(np.log(s+t*ds))
                     return primal + barrier
                 successful = False
                 for linesearch_step in range(settings.max_linesearch_steps):
                     new_merit = merit_line(t)
-                    if new_merit<merit0 + armijo_param * t * (np.dot(dx,gx) + np.dot(ds,gs)) + ls_eps:
+                    armijo_satisfied = (
+                        new_merit<(
+                            merit0 + 
+                            settings.armijo_param * t * (np.dot(dx,gx) + np.dot(ds,gs)) + 
+                            settings.armijo_additive_eps)
+                    )
+                    if armijo_satisfied:
+                        successful = True
+                        break
+                    #LET NEWTON COOK??
+                    if t<settings.let_newton_cook*tmax:
                         successful = True
                         break
                     else:
                         t = 0.9*t
                 if successful ==False:
+                    print("diff merit",merit0 - new_merit)
+                    print("mu",mu)
+                    print("mu est",np.dot(s,y)/k)
+                    print("stepped mu est",np.dot(s+tmax*ds,y+tmax*dy)/k)
+                    
                     termination_tag = "failed_line_search"
                     break
                             
