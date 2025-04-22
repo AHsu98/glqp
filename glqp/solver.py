@@ -38,6 +38,7 @@ class SolverResults():
     s:np.ndarray
     history:pd.DataFrame
     termination_tag:str
+    exception:Exception|None
 
 class GLQP():
     def __init__(
@@ -410,13 +411,19 @@ class GLQP():
             near_solved,
             termination_tag,
             kkt_res,
-            iteration_number+1,
+            iteration_number,
             time.time() - start,
             exception = exception
         )
         if verbose is True:
             print(message)
         
-        results = SolverResults(settings,x,y,s,logger.to_dataframe(),termination_tag = termination_tag)
+        results = SolverResults(
+            settings,
+            x,y,s,
+            logger.to_dataframe(),
+            termination_tag = termination_tag,
+            exception = exception
+            )
         return x,results
 
