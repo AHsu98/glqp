@@ -28,6 +28,8 @@ class SolverSettings():
     tau_reg:float =5e-9
     max_linesearch_steps:int = 50
     max_iterative_refinement:int = 5
+    max_time:float = 600.
+    max_stagnation:int = 6
 
 @dataclass
 class SolverResults():
@@ -36,7 +38,8 @@ class SolverResults():
     y:np.ndarray
     s:np.ndarray
     history:pd.DataFrame
-    convergence_tag:str
+    termination_tag:str
+    exception:Exception|None
 
 class GLQP():
     def __init__(
@@ -221,7 +224,7 @@ class GLQP():
         ):
         solved = False
         near_solved = False
-        convergence_tag = 'not_optimal'
+        termination_tag = 'not_optimal'
         x,y,s,nu = self.initialize(x0,y0,s0)
         if verbose is True:
             k = self.k
@@ -240,6 +243,7 @@ class GLQP():
         logger = Logger(verbose=verbose)
         settings = self.settings
         feasible = False
+        exception = None
         armijo_param = 0.01
 
         start = time.time()
@@ -264,6 +268,12 @@ class GLQP():
         
         solver = None    
         for iteration_number in range(settings.max_iter):
+
+            #Put this check at start in case we barely time out later
+            if time.time() - start>settings.max_time:
+                termination_tag = "max_time"
+                break
+
             if maxnorm(rp)<1e-8:
                 feasible = True
             
@@ -276,9 +286,12 @@ class GLQP():
                 break
             
             #Check for stagnation
-            if iteration_number>6 and kkt_res>=0.99*logger.rows[-6]['KKT_res']:
-                #Little progress in 5 steps
-                convergence_tag = "stagnated"
+            if (
+                iteration_number>settings.max_stagnation and 
+                kkt_res>=0.99*logger.rows[-settings.max_stagnation]['KKT_res']
+            ):
+                #Little progress in settings.max_stagnation
+                termination_tag = "stagnated"
                 break
             
             #Give some proximal regularization in primal
@@ -287,17 +300,22 @@ class GLQP():
                 prox_reg = 0.1 * np.mean(H.diagonal())
             else:
                 prox_reg = 0.
+            try:
+                #Solve KKT
+                dx,ds,dy,dnu,solver,num_refine = self.solve_KKT(
+                    x,y,s,
+                    H,
+                    rx,rp,rc,req,
+                    mu,
+                    tau_reg = self.settings.tau_reg,
+                    prox_reg = prox_reg,
+                    solver = solver
+                    )
+            except Exception as ex:
+                termination_tag = "failed_linear_solve"
+                exception = ex
+                break
 
-            #Solve KKT
-            dx,ds,dy,dnu,solver,num_refine = self.solve_KKT(
-                x,y,s,
-                H,
-                rx,rp,rc,req,
-                mu,
-                tau_reg = self.settings.tau_reg,
-                prox_reg = prox_reg,
-                solver = solver
-                )
 
             # Allow a greedier step when we have bad complementarity
             if (feasible is True) and maxnorm(rc)>10*maxnorm(rx):
@@ -338,8 +356,7 @@ class GLQP():
                     else:
                         t = 0.9*t
                 if successful ==False:
-                    convergence_tag = "failed_line_search"
-                    warn("Linesearch Failed!")
+                    termination_tag = "failed_line_search"
                     break
                             
             #Take step
@@ -393,17 +410,24 @@ class GLQP():
                 refine = num_refine
             )
 
-        convergence_tag,message = build_solution_summary(
+        termination_tag,message = build_solution_summary(
             solved,
             near_solved,
-            convergence_tag,
+            termination_tag,
             kkt_res,
             iteration_number,
-            time.time() - start
+            time.time() - start,
+            exception = exception
         )
         if verbose is True:
             print(message)
         
-        results = SolverResults(settings,x,y,s,logger.to_dataframe(),convergence_tag = convergence_tag)
+        results = SolverResults(
+            settings,
+            x,y,s,
+            logger.to_dataframe(),
+            termination_tag = termination_tag,
+            exception = exception
+            )
         return x,results
 
