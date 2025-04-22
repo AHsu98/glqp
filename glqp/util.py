@@ -37,7 +37,7 @@ def factor_and_solve(
                 raise ValueError(f"NaNs found in solution to linear system with tau = {tau_reg}")
             #Check if linear solve is terrible
             res = rhs - G@sol
-            if norm2(res)>0.95*norm2(rhs):
+            if norm2(res)>0.98*norm2(rhs) and (maxnorm(res)>0.98*maxnorm(rhs)):
                 raise ValueError(
                     f"""ERROR: Linear solve computed to unacceptable relative L2 error of 
                     {np.sqrt(norm2(res)/norm2(rhs)):.4f}

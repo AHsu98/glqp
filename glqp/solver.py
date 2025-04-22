@@ -29,7 +29,7 @@ class SolverSettings():
     max_linesearch_steps:int = 50
     max_iterative_refinement:int = 5
     max_time:float = 600.
-    max_stagnation:int = 6
+    max_stagnation:int = 20
     armijo_additive_eps:float = 1e-8
     armijo_param:float = 0.005
     let_newton_cook:float = 0.5
@@ -90,9 +90,12 @@ class GLQP():
         E,e,
         m,n,p,k) = parse_problem(f,A,Q,b,C,c,E,e,n)
 
-
         self.dummy_A = dummy_A
         self.dummy_ineq = dummy_ineq
+        if self.dummy_A is True:
+            self.QP_mode = True
+        else:
+            self.QP_mode = False
         self.f = f
         self.A = A
         self.Q = Q
@@ -269,7 +272,7 @@ class GLQP():
         rc = rc - mu
 
         
-        solver = None    
+        solver = None
         for iteration_number in range(settings.max_iter):
 
             #Put this check at start in case we barely time out later
@@ -277,7 +280,7 @@ class GLQP():
                 termination_tag = "max_time"
                 break
 
-            if maxnorm(rp)<1e-8:
+            if maxnorm(rp)<1e-8 and maxnorm(req)<1e-8:
                 feasible = True
             
             if kkt_res<=100*settings.tol:
@@ -344,7 +347,7 @@ class GLQP():
             
             #Accept every step if feasible is false and don't nan on the f
             #only enter linesearch if already feasible
-            if (feasible is True) and (step_finite is True):
+            if (feasible is True) or (step_finite is False):
                 #OK with a small additive error in line search
                 def merit_line(t):
                     primal = self.f(z+t*dz) + (1/2) * (x+t*dx).T@self.Q@(x+t*dx) - np.dot(x+t*dx,self.b)
@@ -369,11 +372,6 @@ class GLQP():
                     else:
                         t = 0.9*t
                 if successful ==False:
-                    print("diff merit",merit0 - new_merit)
-                    print("mu",mu)
-                    print("mu est",np.dot(s,y)/k)
-                    print("stepped mu est",np.dot(s+tmax*ds,y+tmax*dy)/k)
-                    
                     termination_tag = "failed_line_search"
                     break
                             
@@ -392,11 +390,11 @@ class GLQP():
 
             #If we're reasonably close to primal feasibility and 
             # complementarity aggressive mu update
-            if maxnorm(rc) + maxnorm(rp) + maxnorm(req)<=5*mu+np.minimum(1000 * mu,1000):
+            if  maxnorm(rx)+maxnorm(rc) + maxnorm(rp) + maxnorm(req)<=5*mu+np.minimum(1000 * mu,1000):
                 mu_est = np.dot(s,y)/self.k
                 xi = np.min(s*y)/mu_est
                 #Don't decrease by more than a factor of 100
-                mu_lower = np.maximum(mu*0.01,settings.min_mu)
+                mu_lower = np.maximum(mu*0.1,settings.min_mu)
                 mu = np.maximum(
                     mu_lower,
                     settings.gamma * 
