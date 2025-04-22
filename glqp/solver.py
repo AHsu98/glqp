@@ -28,6 +28,7 @@ class SolverSettings():
     tau_reg:float =5e-9
     max_linesearch_steps:int = 50
     max_iterative_refinement:int = 5
+    max_time:float = 300.
 
 @dataclass
 class SolverResults():
@@ -240,6 +241,7 @@ class GLQP():
         logger = Logger(verbose=verbose)
         settings = self.settings
         feasible = False
+        exception = None
         armijo_param = 0.01
 
         start = time.time()
@@ -264,6 +266,12 @@ class GLQP():
         
         solver = None    
         for iteration_number in range(settings.max_iter):
+
+            #Put this check at start in case we barely time out later
+            if time.time() - start>settings.max_time:
+                termination_tag = "max_time"
+                break
+
             if maxnorm(rp)<1e-8:
                 feasible = True
             
@@ -299,10 +307,8 @@ class GLQP():
                     solver = solver
                     )
             except Exception as ex:
-                termination_tag = (
-                    f"""Failed linear solve with error
-                    \n[\n {ex.__str__()} \n]\n
-                """)
+                termination_tag = "failed_linear_solve"
+                exception = ex
                 break
 
 
@@ -404,8 +410,9 @@ class GLQP():
             near_solved,
             termination_tag,
             kkt_res,
-            iteration_number,
-            time.time() - start
+            iteration_number+1,
+            time.time() - start,
+            exception = exception
         )
         if verbose is True:
             print(message)

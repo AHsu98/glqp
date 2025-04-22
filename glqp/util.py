@@ -39,7 +39,7 @@ def factor_and_solve(
             res = rhs - G@sol
             if norm2(res)>0.95*norm2(rhs):
                 raise ValueError(
-                    f"""Linear solve computed to unacceptable relative L2 error of 
+                    f"""ERROR: Linear solve computed to unacceptable relative L2 error of 
                     {np.sqrt(norm2(res)/norm2(rhs)):.4f}
                     """
                     )
@@ -200,7 +200,7 @@ class Logger:
         return (self._width(fmt) for fmt in self.col_specs.values())
 
 def build_solution_summary(
-    solved,near_solved,termination_tag,KKT_res,iter,elapsed
+    solved,near_solved,termination_tag,KKT_res,iter,elapsed,exception
 ):
     if solved ==True:
         termination_tag = 'optimal'
@@ -215,7 +215,7 @@ def build_solution_summary(
             else:
                 msg = f"Maximum of {iter} iterations reached in {elapsed:.2f}s. "
         
-        if termination_tag=="stagnated":
+        elif termination_tag=="stagnated":
             warn("Giving up due to stagnation")
             if near_solved is True:
                 termination_tag = f"near_opt_{termination_tag}"
@@ -223,7 +223,7 @@ def build_solution_summary(
             else:
                 msg = f"Progress stagnated after {iter} iterations in {elapsed:.2f}s."
         
-        if termination_tag=="failed_line_search":
+        elif termination_tag=="failed_line_search":
             warn("Failed Line Search")
             if near_solved is True:
                 termination_tag = f"near_opt_{termination_tag}"
@@ -231,14 +231,27 @@ def build_solution_summary(
             else:
                 msg = f"Failed line search after {iter} iterations in {elapsed:.2f}s."
         
-        if "Failed linear solve" in termination_tag:
+        elif termination_tag == 'failed_linear_solve':
+            #This implies that we have an exception given 
             warn("Failed Linear Solve")
             if near_solved is True:
-                msg = f"{termination_tag} after {iter} iterations in {elapsed:.2f}s. Tolerance was almost achieved."
+                msg = f"""Failed linear solve after {iter} iterations in {elapsed:.2f}s. Tolerance was almost achieved. 
+                [{exception.__str__()}]
+                """
+
                 termination_tag = f"near_opt_{termination_tag}"
                 
             else:
                 msg = f"{termination_tag} after {iter} iterations in {elapsed:.2f}s."
+        
+        elif termination_tag == "max_time":
+            warn("Solver timed out")
+            if near_solved is True:
+                termination_tag = f"near_opt_{termination_tag}"
+                msg = f"Solver timed out after {iter} iterations in {elapsed:.2f}s. Tolerance was almost achieved."
+            else:
+                msg = f"Solver timed out after {iter} iterations in {elapsed:.2f}s."
+
 
     msg = f"{msg} Final maxnorm KKT residual: {KKT_res:.2e}."
     return termination_tag,msg
