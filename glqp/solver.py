@@ -38,6 +38,11 @@ class SolverResults():
     x:np.ndarray
     y:np.ndarray
     s:np.ndarray
+    primal:float
+    time:float
+    cons_viol:float
+    feasible:bool
+    dual_res:float
     history:pd.DataFrame
     termination_tag:str
     exception:Exception|None
@@ -446,7 +451,12 @@ class GLQP():
             x,y,s,
             logger.to_dataframe(),
             termination_tag = termination_tag,
-            exception = exception
+            exception = exception,
+            primal = primal,
+            dual_res = maxnorm(rx),
+            cons_viol = np.maximum(maxnorm(rp),maxnorm(req)),
+            feasible = feasible,
+            time = time.time() - start,
             )
         return x,results
 
