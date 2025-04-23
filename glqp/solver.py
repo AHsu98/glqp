@@ -121,7 +121,7 @@ class GLQP():
             rhs = np.hstack([x,self.e])
             reg_shift = block_diag([0*self.In,-1*self.Ip])
             
-            sol,num_refine,solver = factor_and_solve(
+            sol,num_refine,solver,lin_rel_error = factor_and_solve(
                 G,rhs,
                 reg_shift=reg_shift,
                 init_tau_reg = self.settings.tau_reg,
