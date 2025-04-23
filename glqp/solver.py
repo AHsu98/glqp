@@ -434,6 +434,8 @@ class GLQP():
                 lin_rel_res = linsolve_rel_error
             )
 
+        #TODO: Maybe merge build_solution_summary and SolverResults together
+        #into a finish_opt function.
         termination_tag,message = build_solution_summary(
             solved,
             near_solved,
