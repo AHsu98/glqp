@@ -341,6 +341,7 @@ def parse_problem(
     elif Q is not None:
         Q = csc_array(Q)
         assert Q.shape[0]==Q.shape[1], "Q must be square"
+        assert np.min(Q.diagonal())>0, "Q must be positive semi-definite, diagonal check reveals it cannot be"
 
     assert (
         A.shape[1] == 

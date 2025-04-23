@@ -319,15 +319,13 @@ class GLQP():
                 termination_tag = "failed_linear_solve"
                 exception = ex
                 break
-
-
+            
             # Allow a greedier step when we have bad complementarity
             if (feasible is True) and maxnorm(rc)>10*maxnorm(rx):
                 boundary_frac = settings.greedy_boundary_frac
             else:
                 boundary_frac = settings.safe_boundary_frac
             tmax = get_step_size(s,ds,y,dy,frac = boundary_frac)
-
             #Perform a linesearch on the nonlinear part
 
             #Evaluate merit at current point
@@ -351,6 +349,7 @@ class GLQP():
                     primal = self.f(z+t*dz) + (1/2) * (x+t*dx).T@self.Q@(x+t*dx) - np.dot(x+t*dx,self.b)
                     barrier = -mu*np.sum(np.log(s+t*ds))
                     return primal + barrier
+                
                 successful = False
                 for linesearch_step in range(settings.max_linesearch_steps):
                     new_merit = merit_line(t)
