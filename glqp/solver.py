@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from scipy.sparse import csc_array,block_diag
 import qdldl
-from scipy.sparse import block_array,eye_array,tril,triu
+from scipy.sparse import block_array,eye_array
 from sparse_dot_mkl import dot_product_mkl
 from .util import (
     Logger,get_step_size,
@@ -11,8 +11,6 @@ from .util import (
     print_problem_summary,
     build_solution_summary,factor_and_solve,parse_problem
 )
-from .obj import DummyGLM
-from warnings import warn
 
 from dataclasses import dataclass
 
@@ -25,11 +23,14 @@ class SolverSettings():
     greedy_boundary_frac:float = 0.9999
     gamma:float = 0.5
     min_mu:float = 1e-12
-    tau_reg:float =5e-9
+    tau_reg:float =2e-8
     max_linesearch_steps:int = 50
     max_iterative_refinement:int = 5
     max_time:float = 600.
-    max_stagnation:int = 6
+    max_stagnation:int = 20
+    armijo_additive_eps:float = 1e-8
+    armijo_param:float = 0.005
+    let_newton_cook:float = 0.5
 
 @dataclass
 class SolverResults():
@@ -48,8 +49,7 @@ class GLQP():
         Q=None,b=None,
         C=None,c=None,
         E=None,e=None,
-        n = None,
-        settings = None
+        n = None
         ):
         """
         Problem 
@@ -74,12 +74,7 @@ class GLQP():
             equality constraint matrix, defaults to no constraints
         e : np.array, optional
             equality constraint rhs, defaults to no constraints
-        settings : SolverSettings, optional
-            settings for solver, by default SolverSettings()
         """
-        if settings is None:
-            settings = SolverSettings()
-        self.settings = settings
         (dummy_A,dummy_ineq,
         f,A,
         Q,b,
@@ -87,9 +82,12 @@ class GLQP():
         E,e,
         m,n,p,k) = parse_problem(f,A,Q,b,C,c,E,e,n)
 
-
         self.dummy_A = dummy_A
         self.dummy_ineq = dummy_ineq
+        if self.dummy_A is True:
+            self.QP_mode = True
+        else:
+            self.QP_mode = False
         self.f = f
         self.A = A
         self.Q = Q
@@ -121,17 +119,21 @@ class GLQP():
                 ],format = 'csc'
             )
             rhs = np.hstack([x,self.e])
-            reg_shift = block_diag([0*self.In,-1*self.Ip])
-            
-            sol,num_refine,solver = factor_and_solve(
-                G,rhs,
-                reg_shift=reg_shift,
-                init_tau_reg = self.settings.tau_reg,
-                solver = None,
-                target_atol = 1e-12,
-                max_solve_attempts=10,
-                max_refinement_steps=self.settings.max_iterative_refinement
-            )
+            if maxnorm(rhs)<=1e-15:
+                #If the rhs is 0, don't do the linear solve
+                #Just return the zero solution
+                sol = rhs
+            else:
+                reg_shift = block_diag([0*self.In,-1*self.Ip])
+                sol,num_refine,solver,lin_rel_error = factor_and_solve(
+                    G,rhs,
+                    reg_shift=reg_shift,
+                    init_tau_reg = self.settings.tau_reg,
+                    solver = None,
+                    target_atol = 1e-12,
+                    max_solve_attempts=10,
+                    max_refinement_steps=self.settings.max_iterative_refinement
+                )
             x = sol[:self.n]
             nu = sol[self.n:]
         else:
@@ -192,7 +194,7 @@ class GLQP():
             ],format = 'csc'
         )
 
-        sol,num_refine,solver = factor_and_solve(
+        sol,num_refine,solver,linsolve_rel_error = factor_and_solve(
             G,rhs,
             reg_shift=self.reg_shift,
             init_tau_reg = tau_reg,
@@ -207,7 +209,7 @@ class GLQP():
         ds = -rp - self.C@dx
         dnu = sol[self.n+self.k:]
 
-        return dx,ds,dy,dnu,solver,num_refine
+        return dx,ds,dy,dnu,solver,num_refine,linsolve_rel_error
     
     def get_H(self,z):
         D = self.f.d2f(z)[:,None]
@@ -220,10 +222,20 @@ class GLQP():
         y0=None,
         s0=None,
         mu0 = None,
-        verbose = True
+        verbose = True,
+        settings:SolverSettings|None = None
         ):
+        if settings is None:
+            settings = SolverSettings()
+            #TODO: Different default settings based on QP_mode
+        self.settings = settings
+        
         solved = False
         near_solved = False
+        logger = Logger(verbose=verbose)
+        feasible = False
+        exception = None
+
         termination_tag = 'not_optimal'
         x,y,s,nu = self.initialize(x0,y0,s0)
         if verbose is True:
@@ -240,11 +252,7 @@ class GLQP():
                 k=k
             )
 
-        logger = Logger(verbose=verbose)
-        settings = self.settings
-        feasible = False
-        exception = None
-        armijo_param = 0.01
+        
 
         start = time.time()
         if mu0 is None:
@@ -266,7 +274,7 @@ class GLQP():
         rc = rc - mu
 
         
-        solver = None    
+        solver = None
         for iteration_number in range(settings.max_iter):
 
             #Put this check at start in case we barely time out later
@@ -274,7 +282,7 @@ class GLQP():
                 termination_tag = "max_time"
                 break
 
-            if maxnorm(rp)<1e-8:
+            if maxnorm(rp)<1e-8 and maxnorm(req)<1e-8:
                 feasible = True
             
             if kkt_res<=100*settings.tol:
@@ -302,7 +310,7 @@ class GLQP():
                 prox_reg = 0.
             try:
                 #Solve KKT
-                dx,ds,dy,dnu,solver,num_refine = self.solve_KKT(
+                dx,ds,dy,dnu,solver,num_refine,linsolve_rel_error = self.solve_KKT(
                     x,y,s,
                     H,
                     rx,rp,rc,req,
@@ -315,15 +323,13 @@ class GLQP():
                 termination_tag = "failed_linear_solve"
                 exception = ex
                 break
-
-
+            
             # Allow a greedier step when we have bad complementarity
             if (feasible is True) and maxnorm(rc)>10*maxnorm(rx):
                 boundary_frac = settings.greedy_boundary_frac
             else:
                 boundary_frac = settings.safe_boundary_frac
             tmax = get_step_size(s,ds,y,dy,frac = boundary_frac)
-
             #Perform a linesearch on the nonlinear part
 
             #Evaluate merit at current point
@@ -341,16 +347,27 @@ class GLQP():
             
             #Accept every step if feasible is false and don't nan on the f
             #only enter linesearch if already feasible
-            if (feasible is True) and (step_finite is True):
-                ls_eps = 5e-15
+            if (feasible is True) or (step_finite is False):
+                #OK with a small additive error in line search
                 def merit_line(t):
-                    primal = self.f(z+t*dz) + (1/2) * (x+t*dx).T@self.Q@(x+t*dx) - np.dot(x,self.b)
+                    primal = self.f(z+t*dz) + (1/2) * (x+t*dx).T@self.Q@(x+t*dx) - np.dot(x+t*dx,self.b)
                     barrier = -mu*np.sum(np.log(s+t*ds))
                     return primal + barrier
+                
                 successful = False
                 for linesearch_step in range(settings.max_linesearch_steps):
                     new_merit = merit_line(t)
-                    if new_merit<merit0 + armijo_param * t * (np.dot(dx,gx) + np.dot(ds,gs)) + ls_eps:
+                    armijo_satisfied = (
+                        new_merit<(
+                            merit0 + 
+                            settings.armijo_param * t * (np.dot(dx,gx) + np.dot(ds,gs)) + 
+                            settings.armijo_additive_eps)
+                    )
+                    if armijo_satisfied:
+                        successful = True
+                        break
+                    #LET NEWTON COOK??
+                    if t<settings.let_newton_cook*tmax:
                         successful = True
                         break
                     else:
@@ -374,11 +391,11 @@ class GLQP():
 
             #If we're reasonably close to primal feasibility and 
             # complementarity aggressive mu update
-            if maxnorm(rc) + maxnorm(rp) + maxnorm(req)<=5*mu+np.minimum(1000 * mu,1000):
+            if  maxnorm(rx)+maxnorm(rc) + maxnorm(rp) + maxnorm(req)<=5*mu+np.minimum(1000 * mu,1000):
                 mu_est = np.dot(s,y)/self.k
                 xi = np.min(s*y)/mu_est
                 #Don't decrease by more than a factor of 100
-                mu_lower = np.maximum(mu*0.01,settings.min_mu)
+                mu_lower = np.maximum(mu*0.1,settings.min_mu)
                 mu = np.maximum(
                     mu_lower,
                     settings.gamma * 
@@ -407,7 +424,8 @@ class GLQP():
                 step=t,
                 KKT_res=kkt_res,
                 time=elapsed,
-                refine = num_refine
+                refine = num_refine,
+                lin_rel_res = linsolve_rel_error
             )
 
         termination_tag,message = build_solution_summary(

@@ -19,10 +19,17 @@ def maxnorm(x):
         return np.max(np.abs(x))
     
 def factor_and_solve(
-    G,rhs,reg_shift,init_tau_reg,solver,
+    G,rhs,reg_shift,
+    init_tau_reg,
+    solver,
     target_atol = 1e-10,
-    max_solve_attempts=10,max_refinement_steps = 5,
+    max_solve_attempts=20,
+    max_refinement_steps = 5,
 ):
+    #Set fixed target_rtol for now
+    target_rtol = 1e-4
+    tau_increase_factor = 10
+    
     succeeded = False
     tau_reg = init_tau_reg
     for i in range(max_solve_attempts):
@@ -37,7 +44,8 @@ def factor_and_solve(
                 raise ValueError(f"NaNs found in solution to linear system with tau = {tau_reg}")
             #Check if linear solve is terrible
             res = rhs - G@sol
-            if norm2(res)>0.95*norm2(rhs):
+            linsolve_rel_error = np.sqrt(norm2(res)/norm2(rhs))
+            if linsolve_rel_error>0.98 and (maxnorm(res)>0.98*maxnorm(rhs)):
                 raise ValueError(
                     f"""ERROR: Linear solve computed to unacceptable relative L2 error of 
                     {np.sqrt(norm2(res)/norm2(rhs)):.4f}
@@ -47,29 +55,40 @@ def factor_and_solve(
             num_refine = 0
             
             #Less stringent condition to perform 1 step of iterative refinement
-            if maxnorm(res)>=0.1*target_atol:
+            #Do 1 step under either condition
+            if maxnorm(res)>=0.1*target_atol or linsolve_rel_error>1e-3:
                 sol = sol + solver.solve(res)
                 res = rhs - G@sol
+                linsolve_rel_error = np.sqrt(norm2(res)/norm2(rhs))
                 num_refine += 1
             
             #Continue refinement until reaching at least target_atol
             for i in range(1,max_refinement_steps):
-                if maxnorm(res)>=target_atol:
+                #Refine if either condition is not satisfied
+                if (maxnorm(res)>target_atol and linsolve_rel_error>target_rtol):
                     sol = sol + solver.solve(res)
                     res = rhs - G@sol
                     num_refine += 1
-            if maxnorm(res)>target_atol:
-                warn(f"Poor linear solve: didn't reach target tolerance of {target_atol:.3e} in {num_refine} steps")
+
+                    linsolve_rel_error = np.sqrt(norm2(res)/norm2(rhs))
+            if maxnorm(res)>target_atol and linsolve_rel_error>target_rtol:
+                if maxnorm(res)>target_atol:
+                    warn(f"Poor linear solve: didn't reach target abs tolerance of {target_atol:.3e} in {num_refine} steps")
+                if linsolve_rel_error>target_rtol:
+                    warn(f"Poor linear solve: didn't reach target rel tolerance of {target_rtol:.3e} in {num_refine} steps")
+
+                
 
             succeeded = True
             break
         except Exception as ex:
             last_ex  = ex
-            tau_reg = 10*tau_reg
+            tau_reg = tau_increase_factor*tau_reg
     if succeeded is False:
         warn(f"Failed to solve with attempted reg {tau_reg:.2e} after {max_solve_attempts} attempts")
         raise last_ex
-    return sol,num_refine,solver
+    
+    return sol,num_refine,solver,linsolve_rel_error
 
 def get_step_size(s, ds, y, dy,frac = 0.99):
     """
@@ -127,7 +146,7 @@ class Logger:
         if col_specs is None:
             col_specs = OrderedDict([
                 ("iter",      "{:>4d}"),
-                ("primal",    "{:>9.4e}"),
+                ("primal",    "{:>10.3e}"),
                 ("dual_res", "{:>9.2e}"),
                 ("cons_viol", "{:>9.2e}"),
                 ("comp_res", "{:>9.2e}"),
@@ -137,6 +156,7 @@ class Logger:
                 ("step",      "{:>6.1e}"),
                 ("refine",    "{:>6d}"),
                 ("time",  "{:>6.2f}s"),
+                ("lin_rel_res", "{:8.4e}")
             ])
         if not isinstance(col_specs, OrderedDict):
             col_specs = OrderedDict(col_specs)
@@ -323,6 +343,7 @@ def parse_problem(
     elif Q is not None:
         Q = csc_array(Q)
         assert Q.shape[0]==Q.shape[1], "Q must be square"
+        assert np.min(Q.diagonal())>=0, "Q must be positive semi-definite, diagonal check reveals it cannot be"
 
     assert (
         A.shape[1] == 
