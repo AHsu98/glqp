@@ -451,7 +451,6 @@ class GLQP():
         results = SolverResults(
             settings,
             x,y,s,
-            logger.to_dataframe(),
             termination_tag = termination_tag,
             exception = exception,
             primal = primal,
@@ -459,6 +458,7 @@ class GLQP():
             cons_viol = np.maximum(maxnorm(rp),maxnorm(req)),
             feasible = feasible,
             time = time.time() - start,
+            history = logger.to_dataframe(),
             )
         return x,results
 
