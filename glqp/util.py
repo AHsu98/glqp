@@ -23,11 +23,13 @@ def factor_and_solve(
     init_tau_reg,
     solver,
     target_atol = 1e-10,
-    max_solve_attempts=10,
+    max_solve_attempts=20,
     max_refinement_steps = 5,
 ):
     #Set fixed target_rtol for now
     target_rtol = 1e-4
+    tau_increase_factor = 10
+    
     succeeded = False
     tau_reg = init_tau_reg
     for i in range(max_solve_attempts):
@@ -81,7 +83,7 @@ def factor_and_solve(
             break
         except Exception as ex:
             last_ex  = ex
-            tau_reg = 10*tau_reg
+            tau_reg = tau_increase_factor*tau_reg
     if succeeded is False:
         warn(f"Failed to solve with attempted reg {tau_reg:.2e} after {max_solve_attempts} attempts")
         raise last_ex

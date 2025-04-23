@@ -23,7 +23,7 @@ class SolverSettings():
     greedy_boundary_frac:float = 0.9999
     gamma:float = 0.5
     min_mu:float = 1e-12
-    tau_reg:float =5e-9
+    tau_reg:float =2e-8
     max_linesearch_steps:int = 50
     max_iterative_refinement:int = 5
     max_time:float = 600.
