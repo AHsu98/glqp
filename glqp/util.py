@@ -26,6 +26,8 @@ def factor_and_solve(
     max_solve_attempts=10,
     max_refinement_steps = 5,
 ):
+    #Set fixed target_rtol for now
+    target_rtol = 1e-4
     succeeded = False
     tau_reg = init_tau_reg
     for i in range(max_solve_attempts):
@@ -40,7 +42,8 @@ def factor_and_solve(
                 raise ValueError(f"NaNs found in solution to linear system with tau = {tau_reg}")
             #Check if linear solve is terrible
             res = rhs - G@sol
-            if norm2(res)>0.98*norm2(rhs) and (maxnorm(res)>0.98*maxnorm(rhs)):
+            linsolve_rel_error = np.sqrt(norm2(res)/norm2(rhs))
+            if linsolve_rel_error>0.98 and (maxnorm(res)>0.98*maxnorm(rhs)):
                 raise ValueError(
                     f"""ERROR: Linear solve computed to unacceptable relative L2 error of 
                     {np.sqrt(norm2(res)/norm2(rhs)):.4f}
@@ -50,19 +53,29 @@ def factor_and_solve(
             num_refine = 0
             
             #Less stringent condition to perform 1 step of iterative refinement
-            if maxnorm(res)>=0.1*target_atol:
+            #Do 1 step under either condition
+            if maxnorm(res)>=0.1*target_atol or linsolve_rel_error>1e-3:
                 sol = sol + solver.solve(res)
                 res = rhs - G@sol
                 num_refine += 1
             
             #Continue refinement until reaching at least target_atol
             for i in range(1,max_refinement_steps):
-                if maxnorm(res)>=target_atol:
+                linsolve_rel_error = np.sqrt(norm2(res)/norm2(rhs))
+
+                #Refine if either condition is not satisfied
+                if (maxnorm(res)>target_atol and linsolve_rel_error>target_rtol):
                     sol = sol + solver.solve(res)
                     res = rhs - G@sol
                     num_refine += 1
-            if maxnorm(res)>target_atol:
-                warn(f"Poor linear solve: didn't reach target tolerance of {target_atol:.3e} in {num_refine} steps")
+                    linsolve_rel_error = np.sqrt(norm2(res)/norm2(rhs))
+            if maxnorm(res)>target_atol and linsolve_rel_error>target_rtol:
+                if maxnorm(res)>target_atol:
+                    warn(f"Poor linear solve: didn't reach target abs tolerance of {target_atol:.3e} in {num_refine} steps")
+                if linsolve_rel_error>target_rtol:
+                    warn(f"Poor linear solve: didn't reach target rel tolerance of {target_rtol:.3e} in {num_refine} steps")
+
+                
 
             succeeded = True
             break
@@ -72,7 +85,8 @@ def factor_and_solve(
     if succeeded is False:
         warn(f"Failed to solve with attempted reg {tau_reg:.2e} after {max_solve_attempts} attempts")
         raise last_ex
-    return sol,num_refine,solver
+    
+    return sol,num_refine,solver,linsolve_rel_error
 
 def get_step_size(s, ds, y, dy,frac = 0.99):
     """
@@ -140,6 +154,7 @@ class Logger:
                 ("step",      "{:>6.1e}"),
                 ("refine",    "{:>6d}"),
                 ("time",  "{:>6.2f}s"),
+                ("lin_rel_error", "{:8.4e}")
             ])
         if not isinstance(col_specs, OrderedDict):
             col_specs = OrderedDict(col_specs)

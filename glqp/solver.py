@@ -190,7 +190,7 @@ class GLQP():
             ],format = 'csc'
         )
 
-        sol,num_refine,solver = factor_and_solve(
+        sol,num_refine,solver,linsolve_rel_error = factor_and_solve(
             G,rhs,
             reg_shift=self.reg_shift,
             init_tau_reg = tau_reg,
@@ -205,7 +205,7 @@ class GLQP():
         ds = -rp - self.C@dx
         dnu = sol[self.n+self.k:]
 
-        return dx,ds,dy,dnu,solver,num_refine
+        return dx,ds,dy,dnu,solver,num_refine,linsolve_rel_error
     
     def get_H(self,z):
         D = self.f.d2f(z)[:,None]
@@ -306,7 +306,7 @@ class GLQP():
                 prox_reg = 0.
             try:
                 #Solve KKT
-                dx,ds,dy,dnu,solver,num_refine = self.solve_KKT(
+                dx,ds,dy,dnu,solver,num_refine,linsolve_rel_error = self.solve_KKT(
                     x,y,s,
                     H,
                     rx,rp,rc,req,
@@ -421,7 +421,8 @@ class GLQP():
                 step=t,
                 KKT_res=kkt_res,
                 time=elapsed,
-                refine = num_refine
+                refine = num_refine,
+                lin_rel_error = linsolve_rel_error
             )
 
         termination_tag,message = build_solution_summary(
