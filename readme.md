@@ -2,18 +2,18 @@
 
 This package solves optimization problems of the form
 
-\[
+$$
 \begin{aligned}
 \text{minimize}\quad & f(Ax)\;+\;\tfrac12\,x^{\mathsf T}Qx\;-\;b^{\mathsf T}x \\
 \text{subject to}\quad & Ex = e,\\
 & Cx \le c,
 \end{aligned}
-\]
+$$
 
-for positive semidefinite \(Q\) and \(f\) a separable convex objective, e.g. \(f(z)=\sum_{i}f_i(z_i)\)
+for positive semidefinite $Q$ and $f$ a separable convex objective, e.g. $f(z)=\sum_{i}f_i(z_i)$
 using an interior-point method.
 
-We form the Hessian of \(f(Ax)\) explicitly and compute the term \(A^{\mathsf T} D A\) efficiently with **sparse\_dot\_mkl**.
+We form the Hessian of $f(Ax)$ explicitly and compute the term $A^{\mathsf T} D A$ efficiently with **sparse\_dot\_mkl**.
 
 All matrices should be supplied as `scipy.sparse.csc_array`; the library converts inputs to this format internally when needed.  
 Parts of the implementation were inspired by [[1]](#1), and conversations with its first author were especially helpful.
