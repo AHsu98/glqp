@@ -30,7 +30,7 @@ class SolverSettings():
     max_stagnation:int = 20
     armijo_additive_eps:float = 1e-8
     armijo_param:float = 0.005
-    let_newton_cook:float = 0.5
+    let_newton_cook:float = 0.
 
 @dataclass
 class SolverResults():
@@ -38,6 +38,11 @@ class SolverResults():
     x:np.ndarray
     y:np.ndarray
     s:np.ndarray
+    primal:float
+    time:float
+    cons_viol:float
+    feasible:bool
+    dual_res:float
     history:pd.DataFrame
     termination_tag:str
     exception:Exception|None
@@ -105,7 +110,17 @@ class GLQP():
         self.Ip = csc_array(eye_array(p))
         self.reg_shift = block_diag([self.In,-self.Ik,-self.Ip])
 
-    def initialize(self,x0=None,y0 = None,s0 = None):
+    def initialize(self,x0=None,y0 = None,s0 = None,settings = None):
+
+        if settings is None:
+            if self.QP_mode==True:
+                settings = SolverSettings(
+                    let_newton_cook=0.9
+                )
+            else:
+                settings = SolverSettings()
+        self.settings = settings
+
         if x0 is None:
             x = np.zeros(self.n)
         else:
@@ -138,8 +153,6 @@ class GLQP():
             nu = sol[self.n:]
         else:
             nu = np.ones((0,))
-
-        
         
         if s0 is None:
             if self.dummy_ineq:
@@ -159,7 +172,7 @@ class GLQP():
             y = np.copy(y0)
             assert np.min(y)>1e-10
 
-        return x,y,s,nu
+        return x,y,s,nu,settings
     
     def KKT_res(self,x,g,y,s,nu):
         rx = g + self.C.T@y + self.E.T@nu - self.b
@@ -224,12 +237,7 @@ class GLQP():
         mu0 = None,
         verbose = True,
         settings:SolverSettings|None = None
-        ):
-        if settings is None:
-            settings = SolverSettings()
-            #TODO: Different default settings based on QP_mode
-        self.settings = settings
-        
+        ):        
         solved = False
         near_solved = False
         logger = Logger(verbose=verbose)
@@ -237,7 +245,7 @@ class GLQP():
         exception = None
 
         termination_tag = 'not_optimal'
-        x,y,s,nu = self.initialize(x0,y0,s0)
+        x,y,s,nu,settings = self.initialize(x0,y0,s0,settings)
         if verbose is True:
             k = self.k
             if self.dummy_ineq is True:
@@ -251,8 +259,6 @@ class GLQP():
                 p=self.p,
                 k=k
             )
-
-        
 
         start = time.time()
         if mu0 is None:
@@ -428,6 +434,8 @@ class GLQP():
                 lin_rel_res = linsolve_rel_error
             )
 
+        #TODO: Maybe merge build_solution_summary and SolverResults together
+        #into a finish_opt function.
         termination_tag,message = build_solution_summary(
             solved,
             near_solved,
@@ -445,7 +453,12 @@ class GLQP():
             x,y,s,
             logger.to_dataframe(),
             termination_tag = termination_tag,
-            exception = exception
+            exception = exception,
+            primal = primal,
+            dual_res = maxnorm(rx),
+            cons_viol = np.maximum(maxnorm(rp),maxnorm(req)),
+            feasible = feasible,
+            time = time.time() - start,
             )
         return x,results
 
