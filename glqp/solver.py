@@ -422,7 +422,7 @@ class GLQP():
                 KKT_res=kkt_res,
                 time=elapsed,
                 refine = num_refine,
-                lin_rel_error = linsolve_rel_error
+                lin_rel_res = linsolve_rel_error
             )
 
         termination_tag,message = build_solution_summary(

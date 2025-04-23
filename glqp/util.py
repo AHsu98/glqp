@@ -154,7 +154,7 @@ class Logger:
                 ("step",      "{:>6.1e}"),
                 ("refine",    "{:>6d}"),
                 ("time",  "{:>6.2f}s"),
-                ("lin_rel_error", "{:8.4e}")
+                ("lin_rel_res", "{:8.4e}")
             ])
         if not isinstance(col_specs, OrderedDict):
             col_specs = OrderedDict(col_specs)
