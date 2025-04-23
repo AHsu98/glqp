@@ -1,16 +1,22 @@
-## Quadratic Probrams + GLM
+## Quadratic Programs + GLM
+
 This package solves optimization problems of the form
 
-minimize f(Ax) + (1/2) x^T Qx -x^T b
-subject to Ex=e, Cx<=c
+\[
+\begin{aligned}
+\text{minimize}\quad & f(Ax)\;+\;\tfrac12\,x^{\mathsf T}Qx\;-\;b^{\mathsf T}x \\
+\text{subject to}\quad & Ex = e,\\
+& Cx \le c,
+\end{aligned}
+\]
 
-using an interior point method. 
+for positive semidefinite \(Q\) and \(f\) a separable convex objective, e.g. \(f(z)=\sum_{i}f_i(z_i)\)
+using an interior-point method.
 
-We form the hessian of f(Ax) explicitly, using sparse_dot_mkl to compute A^T D A
-efficiently. 
+We form the Hessian of \(f(Ax)\) explicitly and compute the term \(A^{\mathsf T} D A\) efficiently with **sparse\_dot\_mkl**.
 
-All matrices we use should be specified as csc_array, and we internally attempt to 
-convert them to csc_array. 
+All matrices should be supplied as `scipy.sparse.csc_array`; the library converts inputs to this format internally when needed.  
+Parts of the implementation were inspired by [[1]](#1), and conversations with its first author were especially helpful.
 
 #### Requirements
 The main additional requirement comes from [sparse_dot_mkl](https://github.com/flatironinstitute/sparse_dot), 
@@ -21,8 +27,11 @@ In a later update, these may be made optional, but it sepeds up formation of the
 
 See https://github.com/flatironinstitute/sparse_dot for more details.
 
-We solve KKT systems using [qdldl](https://github.com/osqp/qdldl-python)[[1]](#1).
+We solve KKT systems using [qdldl](https://github.com/osqp/qdldl-python)[[2]](#2).
 
 ## References
-<a id="1">[1]</a> 
+<a id="1">[1]</a>
+Chari, G. M., & Açıkmeşe, B. (2025). QOCO: A Quadratic Objective Conic Optimizer with Custom Solver Generation. arXiv preprint arXiv:2503.12658. Retrieved from https://arxiv.org/abs/2503.12658
+
+<a id="2">[2]</a> 
 Stellato, B., Banjac, G., Goulart, P., Bemporad, A., & Boyd, S. (2020). OSQP: an operator splitting solver for quadratic programs. Mathematical Programming Computation, 12(4), 637–672. doi:10.1007/s12532-020-00179-2
