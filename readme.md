@@ -4,7 +4,7 @@ This package solves optimization problems of the form
 
 $$
 \begin{aligned}
-\text{minimize}\quad & f(Ax)\;+\;\tfrac12\,x^{\mathsf T}Qx\;-\;b^{\mathsf T}x \\
+\text{minimize}\quad & f(Ax)+\tfrac12\,x^{\mathsf T}Qx-b^{\mathsf T}x \\
 \text{subject to}\quad & Ex = e,\\
 & Cx \le c,
 \end{aligned}
