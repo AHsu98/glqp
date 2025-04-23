@@ -119,17 +119,21 @@ class GLQP():
                 ],format = 'csc'
             )
             rhs = np.hstack([x,self.e])
-            reg_shift = block_diag([0*self.In,-1*self.Ip])
-            
-            sol,num_refine,solver,lin_rel_error = factor_and_solve(
-                G,rhs,
-                reg_shift=reg_shift,
-                init_tau_reg = self.settings.tau_reg,
-                solver = None,
-                target_atol = 1e-12,
-                max_solve_attempts=10,
-                max_refinement_steps=self.settings.max_iterative_refinement
-            )
+            if maxnorm(rhs)<=1e-15:
+                #If the rhs is 0, don't do the linear solve
+                #Just return the zero solution
+                sol = rhs
+            else:
+                reg_shift = block_diag([0*self.In,-1*self.Ip])
+                sol,num_refine,solver,lin_rel_error = factor_and_solve(
+                    G,rhs,
+                    reg_shift=reg_shift,
+                    init_tau_reg = self.settings.tau_reg,
+                    solver = None,
+                    target_atol = 1e-12,
+                    max_solve_attempts=10,
+                    max_refinement_steps=self.settings.max_iterative_refinement
+                )
             x = sol[:self.n]
             nu = sol[self.n:]
         else:

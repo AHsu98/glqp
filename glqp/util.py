@@ -57,17 +57,17 @@ def factor_and_solve(
             if maxnorm(res)>=0.1*target_atol or linsolve_rel_error>1e-3:
                 sol = sol + solver.solve(res)
                 res = rhs - G@sol
+                linsolve_rel_error = np.sqrt(norm2(res)/norm2(rhs))
                 num_refine += 1
             
             #Continue refinement until reaching at least target_atol
             for i in range(1,max_refinement_steps):
-                linsolve_rel_error = np.sqrt(norm2(res)/norm2(rhs))
-
                 #Refine if either condition is not satisfied
                 if (maxnorm(res)>target_atol and linsolve_rel_error>target_rtol):
                     sol = sol + solver.solve(res)
                     res = rhs - G@sol
                     num_refine += 1
+
                     linsolve_rel_error = np.sqrt(norm2(res)/norm2(rhs))
             if maxnorm(res)>target_atol and linsolve_rel_error>target_rtol:
                 if maxnorm(res)>target_atol:
