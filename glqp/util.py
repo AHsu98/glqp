@@ -19,9 +19,12 @@ def maxnorm(x):
         return np.max(np.abs(x))
     
 def factor_and_solve(
-    G,rhs,reg_shift,init_tau_reg,solver,
+    G,rhs,reg_shift,
+    init_tau_reg,
+    solver,
     target_atol = 1e-10,
-    max_solve_attempts=10,max_refinement_steps = 5,
+    max_solve_attempts=10,
+    max_refinement_steps = 5,
 ):
     succeeded = False
     tau_reg = init_tau_reg

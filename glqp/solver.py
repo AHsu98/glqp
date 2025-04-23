@@ -49,8 +49,7 @@ class GLQP():
         Q=None,b=None,
         C=None,c=None,
         E=None,e=None,
-        n = None,
-        settings = None
+        n = None
         ):
         """
         Problem 
@@ -75,12 +74,7 @@ class GLQP():
             equality constraint matrix, defaults to no constraints
         e : np.array, optional
             equality constraint rhs, defaults to no constraints
-        settings : SolverSettings, optional
-            settings for solver, by default SolverSettings()
         """
-        if settings is None:
-            settings = SolverSettings()
-        self.settings = settings
         (dummy_A,dummy_ineq,
         f,A,
         Q,b,
@@ -224,10 +218,20 @@ class GLQP():
         y0=None,
         s0=None,
         mu0 = None,
-        verbose = True
+        verbose = True,
+        settings:SolverSettings|None = None
         ):
+        if settings is None:
+            settings = SolverSettings()
+            #TODO: Different default settings based on QP_mode
+        self.settings = settings
+        
         solved = False
         near_solved = False
+        logger = Logger(verbose=verbose)
+        feasible = False
+        exception = None
+
         termination_tag = 'not_optimal'
         x,y,s,nu = self.initialize(x0,y0,s0)
         if verbose is True:
@@ -244,10 +248,6 @@ class GLQP():
                 k=k
             )
 
-        logger = Logger(verbose=verbose)
-        settings = self.settings
-        feasible = False
-        exception = None
         
 
         start = time.time()
