@@ -63,3 +63,78 @@ class DummyGLM:
 
     def __call__(self, z):
         return self.f(z)
+    
+class GaussianNLL:
+    def __init__(self, y, w):
+        """
+        y: array-like of binary responses (0 or 1)
+        w: array-like of corresponding weights
+        """
+        self.y = np.array(y, dtype=float)
+        self.w = np.array(w, dtype=float)
+        self.m = len(self.y)
+
+    def f(self, z):
+        """
+        Computes the negative weighted least squares objective:
+        """
+        z = np.array(z[:self.m], dtype=float)
+        return 0.5 * np.dot(self.w,(self.y - z) ** 2)
+
+    def d1f(self, z):
+        """
+        Computes the first derivative (gradient) w.r.t. z:
+        """
+        tot_z = len(z)
+        z = np.array(z[:self.m], dtype=float)
+        grad = self.w*(z-self.y)
+        return np.hstack([grad,np.zeros(tot_z-self.m)])#zero pad
+
+    def d2f(self, z):
+        """
+        Computes the second derivative (Hessian diagonal) w.r.t. z:
+        """
+        tot_z = len(z)
+        return np.hstack([self.w*np.ones(tot_z),np.zeros(tot_z - self.m)])
+
+    def __call__(self, z):
+        return self.f(z)
+
+class PoissonNLL:
+    def __init__(self, y, w):
+        """
+        y: array-like of binary responses (0 or 1)
+        w: array-like of corresponding weights
+        """
+        self.y = np.array(y, dtype=float)
+        self.w = np.array(w, dtype=float)
+        self.m = len(self.y)
+
+    def f(self, z):
+        """
+        Computes the negative weighted least squares objective:
+        """
+        z = np.array(z[:self.m], dtype=float)
+        u = np.exp(z)
+        return 0.5 * np.dot(self.w,u - self.y*z)
+
+    def d1f(self, z):
+        """
+        Computes the first derivative (gradient) w.r.t. z:
+        """
+        tot_z = len(z)
+        z = np.array(z[:self.m], dtype=float)
+        u = np.exp(z)
+        grad = self.w*(u - self.y)
+        return np.hstack([grad,np.zeros(tot_z-self.m)])#zero pad
+
+    def d2f(self, z):
+        """
+        Computes the second derivative (Hessian diagonal) w.r.t. z:
+        """
+        tot_z = len(z)
+        u = np.exp(z)
+        return np.hstack([self.w*u,np.zeros(tot_z - self.m)])
+
+    def __call__(self, z):
+        return self.f(z)
