@@ -127,7 +127,7 @@ class Logger:
         if col_specs is None:
             col_specs = OrderedDict([
                 ("iter",      "{:>4d}"),
-                ("primal",    "{:>9.4e}"),
+                ("primal",    "{:>10.3e}"),
                 ("dual_res", "{:>9.2e}"),
                 ("cons_viol", "{:>9.2e}"),
                 ("comp_res", "{:>9.2e}"),

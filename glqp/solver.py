@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from scipy.sparse import csc_array,block_diag
 import qdldl
-from scipy.sparse import block_array,eye_array,tril,triu
+from scipy.sparse import block_array,eye_array
 from sparse_dot_mkl import dot_product_mkl
 from .util import (
     Logger,get_step_size,
@@ -11,8 +11,6 @@ from .util import (
     print_problem_summary,
     build_solution_summary,factor_and_solve,parse_problem
 )
-from .obj import DummyGLM
-from warnings import warn
 
 from dataclasses import dataclass
 
