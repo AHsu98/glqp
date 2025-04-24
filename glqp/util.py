@@ -361,9 +361,8 @@ def parse_problem(
     ncol(E) = {E.shape[1]}, len(b) = {len(b)},
     ncol(Q) = {Q.shape[1]}, n = {n}
     """
-
-    assert C.shape[0] == len(c)
-    assert E.shape[0] == e.shape[0]
+    assert C.shape[0] == len(c), f"Shape of C:{C.shape}, shape of c: {c.shape}"
+    assert E.shape[0] == e.shape[0], f"Shape of E:{E.shape}, shape of e: {e.shape}"
     p = E.shape[0]
 
 
