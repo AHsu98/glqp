@@ -398,7 +398,7 @@ class GLQP():
 
             #Update mu here
 
-            mu_lower_bound = np.maximum(mu*0.1,settings.min_mu,0.01*kkt_res)
+            mu_lower_bound = np.max([mu*0.1,settings.min_mu,0.01*kkt_res])
 
             #If we're reasonably close to primal feasibility and 
             # complementarity aggressive mu update
@@ -407,12 +407,9 @@ class GLQP():
                 xi = np.min(s*y)/mu_est
                 #Don't decrease by more than a factor of 100
                 
-                mu = np.maximum(
-                    mu_lower,
-                    settings.gamma * 
-                    np.minimum(
-                    (1-boundary_frac)*(1-xi)/xi + 0.1,2)**3 * mu_est
-                    )
+                mu = settings.gamma * ((1-boundary_frac)*(1-xi)/xi + 0.1,2)**3 * mu_est
+                    
+                    
             else:
                 # Otherwise, perform a modest centering update
                 mu_est = np.dot(s,y)/self.k
