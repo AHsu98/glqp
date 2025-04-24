@@ -42,18 +42,12 @@ def factor_and_solve(
             sol = solver.solve(rhs)
             if np.any(np.isnan(sol)):
                 raise ValueError(f"NaNs found in solution to linear system with tau = {tau_reg}")
-            #Check if linear solve is terrible
+            
+            #Start refinement loop
+            num_refine = 0
             res = rhs - G@sol
             linsolve_rel_error = np.sqrt(norm2(res)/norm2(rhs))
-            if linsolve_rel_error>0.98 and (maxnorm(res)>0.98*maxnorm(rhs)):
-                raise ValueError(
-                    f"""ERROR: Linear solve computed to unacceptable relative L2 error of 
-                    {np.sqrt(norm2(res)/norm2(rhs)):.4f}
-                    """
-                    )
-            
-            num_refine = 0
-            
+
             #Less stringent condition to perform 1 step of iterative refinement
             #Do 1 step under either condition
             if maxnorm(res)>=0.1*target_atol or linsolve_rel_error>1e-3:
@@ -61,6 +55,15 @@ def factor_and_solve(
                 res = rhs - G@sol
                 linsolve_rel_error = np.sqrt(norm2(res)/norm2(rhs))
                 num_refine += 1
+            
+            #Check if linear solve is terrible
+            if linsolve_rel_error>0.98 and (maxnorm(res)>0.98*maxnorm(rhs)):
+                raise ValueError(
+                    f"""ERROR: Linear solve computed to unacceptable relative L2 error of 
+                    {np.sqrt(norm2(res)/norm2(rhs)):.4f}
+                    """
+                    )
+            
             
             #Continue refinement until reaching at least target_atol
             for i in range(1,max_refinement_steps):
