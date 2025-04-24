@@ -38,6 +38,7 @@ class SolverResults():
     x:np.ndarray
     y:np.ndarray
     s:np.ndarray
+    nu:np.ndarray
     primal:float
     time:float
     cons_viol:float
@@ -450,7 +451,7 @@ class GLQP():
         
         results = SolverResults(
             settings,
-            x,y,s,
+            x,y,s,nu,
             termination_tag = termination_tag,
             exception = exception,
             primal = primal,
