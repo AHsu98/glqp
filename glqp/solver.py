@@ -407,7 +407,7 @@ class GLQP():
                 xi = np.min(s*y)/mu_est
                 #Don't decrease by more than a factor of 100
                 
-                mu = settings.gamma * ((1-boundary_frac)*(1-xi)/xi + 0.1,2)**3 * mu_est
+                mu = settings.gamma * np.minimum((1-boundary_frac)*(1-xi)/xi + 0.1,2)**3 * mu_est
                     
                     
             else:
