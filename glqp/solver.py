@@ -182,7 +182,7 @@ class GLQP():
         req = self.E@x - self.e
         return rx,rp,rc,req
     
-    def solve_KKT(
+    def old_solve_KKT(
         self,
         x,y,s,H,rx,rp,rc,req,mu,tau_reg=None,prox_reg = 0.,
         solver = None):
@@ -220,6 +220,49 @@ class GLQP():
                 
         dx = sol[:self.n]
         dy = w*sol[self.n:self.n+self.k]
+        ds = -rp - self.C@dx
+        dnu = sol[self.n+self.k:]
+
+        return dx,ds,dy,dnu,solver,num_refine,linsolve_rel_error
+
+    
+    def solve_KKT(
+        self,
+        x,y,s,H,rx,rp,rc,req,mu,
+        tau_reg=None,prox_reg = 1e-7,
+        solver = None):
+        #mu,x unused for now
+
+        if tau_reg is None:
+            tau_reg = self.settings.tau_reg
+
+        # "normal equations" Hessian for GLM part
+        rooty = np.sqrt(y)
+        CrootY = self.C.multiply(rooty[:,None])
+        rhs = np.hstack([-rx,(1/rooty) * rc - rooty*rp,-req])
+
+
+        G = block_array(
+            [
+                [H,     CrootY.T,       self.E.T],
+                [CrootY,    -1*np.diag(s), None],
+                [self.E,None,       None]
+            ],format = 'csc'
+        )
+        G = G + prox_reg*self.reg_shift
+
+        sol,num_refine,solver,linsolve_rel_error = factor_and_solve(
+            G,rhs,
+            reg_shift=self.reg_shift,
+            init_tau_reg = tau_reg,
+            solver = solver,
+            target_atol = 0.05*self.settings.tol,
+            max_solve_attempts=10,
+            max_refinement_steps=self.settings.max_iterative_refinement
+        )
+                
+        dx = sol[:self.n]
+        dy = rooty*sol[self.n:self.n+self.k]
         ds = -rp - self.C@dx
         dnu = sol[self.n+self.k:]
 
@@ -311,10 +354,13 @@ class GLQP():
             
             #Give some proximal regularization in primal
             #because we shortcut step acceptance while infeasible
-            if feasible is False:
-                prox_reg = 0.1 * np.mean(H.diagonal())
-            else:
-                prox_reg = 0.
+            # if feasible is False:
+            #     prox_reg = 0.1 * np.mean(H.diagonal())
+            # else:
+            #     prox_reg = 0.
+            prox_reg = 1e-7
+
+
             try:
                 #Solve KKT
                 dx,ds,dy,dnu,solver,num_refine,linsolve_rel_error = self.solve_KKT(
@@ -397,24 +443,32 @@ class GLQP():
             kkt_res = np.max([maxnorm(rx),maxnorm(rp),maxnorm(rc),maxnorm(req)])
 
             #Update mu here
-
             mu_lower_bound = np.max([mu*0.1,settings.min_mu,0.01*kkt_res])
+
+            mu_est = np.dot(s,y)/self.k
+
+            # fix_threshold = 0.05
+            # if tmax<1e-3 and np.min(s*y)/mu_est<fix_threshold:
+            #     print("OFF CENTERED: ",np.min(s*y)/mu_est)
+            #     args_to_fix = (s*y)/mu_est<=fix_threshold
+            #     s[args_to_fix] = fix_threshold*mu_est/(y[args_to_fix])
+                
 
             #If we're reasonably close to primal feasibility and 
             # complementarity aggressive mu update
             if  maxnorm(rx)+maxnorm(rc) + maxnorm(rp) + maxnorm(req)<=5*mu+np.minimum(1000 * mu,1000):
-                mu_est = np.dot(s,y)/self.k
                 xi = np.min(s*y)/mu_est
-                #Don't decrease by more than a factor of 100
-                
-                mu = settings.gamma * np.minimum((1-boundary_frac)*(1-xi)/xi + 0.1,2)**3 * mu_est
-                    
+                #Don't decrease by more than a factor of 10
+                mu = settings.gamma * np.minimum((1-boundary_frac)*(1-xi)/xi + 0.1,1.1)**3 * mu_est
                     
             else:
                 # Otherwise, perform a modest centering update
-                mu_est = np.dot(s,y)/self.k
                 mu = 0.9*mu_est
+
             mu = np.maximum(mu,mu_lower_bound)
+
+            
+
 
             comp_res = maxnorm(rc)
 
