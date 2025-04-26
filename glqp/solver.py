@@ -1,7 +1,7 @@
 import time
 import numpy as np
 import pandas as pd
-from scipy.sparse import csc_array,block_diag
+from scipy.sparse import csc_array,block_diag,diags_array
 import qdldl
 from scipy.sparse import block_array,eye_array
 from sparse_dot_mkl import dot_product_mkl
@@ -245,7 +245,7 @@ class GLQP():
         G = block_array(
             [
                 [H + prox_reg * self.In,     CrootY.T,       self.E.T],
-                [CrootY,    -(1+prox_reg)*np.diag(s), None],
+                [CrootY,    -(1+prox_reg)*diags_array(s), None],
                 [self.E,None,       -prox_reg*self.Ip]
             ],format = 'csc'
         )
