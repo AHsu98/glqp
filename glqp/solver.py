@@ -244,12 +244,12 @@ class GLQP():
 
         G = block_array(
             [
-                [H,     CrootY.T,       self.E.T],
-                [CrootY,    -1*np.diag(s), None],
-                [self.E,None,       None]
+                [H + prox_reg * self.In,     CrootY.T,       self.E.T],
+                [CrootY,    -(1+prox_reg)*np.diag(s), None],
+                [self.E,None,       -prox_reg*self.Ip]
             ],format = 'csc'
         )
-        G = G + prox_reg*self.reg_shift
+        # G = G + prox_reg*self.reg_shift
 
         sol,num_refine,solver,linsolve_rel_error = factor_and_solve(
             G,rhs,
@@ -314,6 +314,8 @@ class GLQP():
             mu = mu0
 
         z = self.A@x
+        primal = self.f(z) + (1/2) * x.T@self.Q@x - np.dot(x,self.b)
+        
         H = self.get_H(z)
         gradf = self.A.T@self.f.d1f(z) + self.Q@x
         rx,rp,rc,req = self.KKT_res(x,gradf,y,s,nu)
@@ -359,7 +361,6 @@ class GLQP():
             # else:
             #     prox_reg = 0.
             prox_reg = 1e-7
-
 
             try:
                 #Solve KKT
@@ -447,11 +448,10 @@ class GLQP():
 
             mu_est = np.dot(s,y)/self.k
 
-            # fix_threshold = 0.05
-            # if tmax<1e-3 and np.min(s*y)/mu_est<fix_threshold:
-            #     print("OFF CENTERED: ",np.min(s*y)/mu_est)
-            #     args_to_fix = (s*y)/mu_est<=fix_threshold
-            #     s[args_to_fix] = fix_threshold*mu_est/(y[args_to_fix])
+            fix_threshold = 0.05
+            if tmax<1e-3 and np.min(s*y)/mu_est<fix_threshold:
+                args_to_fix = (s*y)/mu_est<=fix_threshold
+                s[args_to_fix] = fix_threshold*mu_est/(y[args_to_fix])
                 
 
             #If we're reasonably close to primal feasibility and 
