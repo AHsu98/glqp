@@ -29,6 +29,11 @@ See https://github.com/flatironinstitute/sparse_dot for more details.
 
 We solve KKT systems using [qdldl](https://github.com/osqp/qdldl-python)[[2]](#2).
 
+#### Benchmark
+I ran a benchmark on the MM problems starting with the experiments and code from the assocated repository for [[1]] in this repo:
+https://github.com/AHsu98/glqp-benchmark
+The benchmark shows that with good QP settings, we complete 133/138 of them.
+
 ## References
 <a id="1">[1]</a>
 Chari, G. M., & Açıkmeşe, B. (2025). QOCO: A Quadratic Objective Conic Optimizer with Custom Solver Generation. arXiv preprint arXiv:2503.12658. Retrieved from https://arxiv.org/abs/2503.12658
