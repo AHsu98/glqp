@@ -43,7 +43,6 @@ def factor_and_solve(
             if np.any(np.isnan(sol)):
                 raise ValueError(f"NaNs found in solution to linear system with tau = {tau_reg}")
             w = G@sol
-            mult = np.dot(rhs,w)/norm2(w)
             sol = sol * np.dot(rhs,w)/norm2(w)
             
             #Start refinement loop
