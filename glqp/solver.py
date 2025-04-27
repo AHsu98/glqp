@@ -1,7 +1,7 @@
 import time
 import numpy as np
 import pandas as pd
-from scipy.sparse import csc_array,block_diag
+from scipy.sparse import csc_array,block_diag,diags_array
 import qdldl
 from scipy.sparse import block_array,eye_array
 from sparse_dot_mkl import dot_product_mkl
@@ -19,8 +19,7 @@ class SolverSettings():
     max_precenter:int = 100
     max_iter:int = 200
     tol:float = 1e-8
-    safe_boundary_frac:float = 0.99
-    greedy_boundary_frac:float = 0.9999
+    boundary_frac:float = 0.99
     gamma:float = 0.5
     min_mu:float = 1e-12
     tau_reg:float =2e-8
@@ -31,6 +30,7 @@ class SolverSettings():
     armijo_additive_eps:float = 1e-8
     armijo_param:float = 0.005
     let_newton_cook:float = 0.
+    prox_reg:float = 2e-8
 
 @dataclass
 class SolverResults():
@@ -181,32 +181,34 @@ class GLQP():
         rc = y * s
         req = self.E@x - self.e
         return rx,rp,rc,req
-    
+        
     def solve_KKT(
         self,
-        x,y,s,H,rx,rp,rc,req,mu,tau_reg=None,prox_reg = 0.,
+        x,y,s,H,rx,rp,rc,req,mu,
+        tau_reg=None,prox_reg = 1e-7,
         solver = None):
         #mu,x unused for now
 
         if tau_reg is None:
             tau_reg = self.settings.tau_reg
-        #Nesterov-Todd scaling
-        # Quasi definite for inequality constraints, 
+
         # "normal equations" Hessian for GLM part
-        w = np.sqrt(y/s)
-        wC = self.C.multiply(w[:,None])
-        rhs = np.hstack([-rx,-w*rp + (w/y) * rc,-req])
-        #Including tau-shift here
-        #later may want separate matrix,
-        #larger tau shift + iterative refine
+        w = np.sqrt(y + prox_reg)
+        Cw = self.C.multiply(w[:,None])
+        rhs = np.hstack([
+            -rx,
+            ( (1/w)*rc-w * rp),
+            -req])
+        middle_diag = diags_array(s+prox_reg*y + prox_reg**2)
 
         G = block_array(
             [
-                [H + prox_reg * self.In,     wC.T,       self.E.T],
-                [wC,    -1*self.Ik, None],
-                [self.E,None,       None]
+                [H + prox_reg * self.In ,Cw.T           ,self.E.T           ],
+                [Cw                     ,-middle_diag   ,None               ],
+                [self.E                 ,None           ,-prox_reg*self.Ip  ]
             ],format = 'csc'
         )
+        # G = G + prox_reg*self.reg_shift
 
         sol,num_refine,solver,linsolve_rel_error = factor_and_solve(
             G,rhs,
@@ -220,10 +222,11 @@ class GLQP():
                 
         dx = sol[:self.n]
         dy = w*sol[self.n:self.n+self.k]
-        ds = -rp - self.C@dx
+        ds =  - rp - self.C@dx + prox_reg*dy
         dnu = sol[self.n+self.k:]
 
         return dx,ds,dy,dnu,solver,num_refine,linsolve_rel_error
+
     
     def get_H(self,z):
         D = self.f.d2f(z)[:,None]
@@ -269,16 +272,21 @@ class GLQP():
                 mu = 100.
         else:
             mu = mu0
+        
 
         z = self.A@x
+        primal = self.f(z) + (1/2) * x.T@self.Q@x - np.dot(x,self.b)
+        
         H = self.get_H(z)
         gradf = self.A.T@self.f.d1f(z) + self.Q@x
         rx,rp,rc,req = self.KKT_res(x,gradf,y,s,nu)
         kkt_res = np.max(
                 np.abs(np.hstack([rx,rp,rc,req]))
             )
+        cons_viol = np.maximum(maxnorm(rp),maxnorm(req))
         #Perturb to interior complementarity
         rc = rc - mu
+        
 
         
         solver = None
@@ -308,13 +316,9 @@ class GLQP():
                 #Little progress in settings.max_stagnation
                 termination_tag = "stagnated"
                 break
+            prox_reg = np.minimum(settings.prox_reg,kkt_res*1e-3)
             
-            #Give some proximal regularization in primal
-            #because we shortcut step acceptance while infeasible
-            if feasible is False:
-                prox_reg = 0.1 * np.mean(H.diagonal())
-            else:
-                prox_reg = 0.
+
             try:
                 #Solve KKT
                 dx,ds,dy,dnu,solver,num_refine,linsolve_rel_error = self.solve_KKT(
@@ -330,14 +334,20 @@ class GLQP():
                 termination_tag = "failed_linear_solve"
                 exception = ex
                 break
+
+            #Stop step directions from going too much closer to boundary
+            #Freeze as if active set if step points towards boundary,
+            #and s or y are already very tiny
+            thresh = 1e-14
+            #Prevent from stopping others from stepping
+            s0_ind = s<=thresh
+            y0_ind = y<=thresh
+            ds[s0_ind] = np.maximum(-s[s0_ind],ds[s0_ind])
+            dy[y0_ind] = np.maximum(-y[y0_ind],dy[y0_ind])
             
-            # Allow a greedier step when we have bad complementarity
-            if (feasible is True) and maxnorm(rc)>10*maxnorm(rx):
-                boundary_frac = settings.greedy_boundary_frac
-            else:
-                boundary_frac = settings.safe_boundary_frac
+            boundary_frac = settings.boundary_frac
             tmax = get_step_size(s,ds,y,dy,frac = boundary_frac)
-            #Perform a linesearch on the nonlinear part
+            #Perform a linesearch so we converge on the nonlinear part
 
             #Evaluate merit at current point
             primal = self.f(z) + (1/2) * x.T@self.Q@x - np.dot(x,self.b)
@@ -382,7 +392,7 @@ class GLQP():
                 if successful ==False:
                     termination_tag = "failed_line_search"
                     break
-                            
+
             #Take step
             x  =  x + t*dx
             s  =  s + t*ds
@@ -397,26 +407,23 @@ class GLQP():
             kkt_res = np.max([maxnorm(rx),maxnorm(rp),maxnorm(rc),maxnorm(req)])
 
             #Update mu here
+            
+
+            mu_est = np.dot(s,y)/self.k
+            xi = np.min(s*y)/mu_est
+            mu = (np.minimum((1.02-xi),1)**3)*mu_est
 
             mu_lower_bound = np.max([mu*0.1,settings.min_mu,0.01*kkt_res])
-
-            #If we're reasonably close to primal feasibility and 
-            # complementarity aggressive mu update
-            if  maxnorm(rx)+maxnorm(rc) + maxnorm(rp) + maxnorm(req)<=5*mu+np.minimum(1000 * mu,1000):
-                mu_est = np.dot(s,y)/self.k
-                xi = np.min(s*y)/mu_est
-                #Don't decrease by more than a factor of 100
-                
-                mu = settings.gamma * np.minimum((1-boundary_frac)*(1-xi)/xi + 0.1,2)**3 * mu_est
-                    
-                    
-            else:
-                # Otherwise, perform a modest centering update
-                mu_est = np.dot(s,y)/self.k
-                mu = 0.9*mu_est
             mu = np.maximum(mu,mu_lower_bound)
 
+            fix_threshold = 0.1
+            if tmax<1e-4 and np.min(s*y)/mu_est<fix_threshold:
+                print("Adjusted")
+                args_to_fix = (s*y)/mu_est<=fix_threshold
+                s[args_to_fix] = fix_threshold*mu_est/(y[args_to_fix])
+
             comp_res = maxnorm(rc)
+            cons_viol = np.maximum(maxnorm(rp),maxnorm(req))
 
             #Perturb complementarity to new interior parameter
             rc = rc - mu
@@ -426,7 +433,7 @@ class GLQP():
                 iter=iteration_number+1,
                 primal = primal,
                 dual_res = maxnorm(rx),
-                cons_viol = np.maximum(maxnorm(rp),maxnorm(req)),
+                cons_viol = cons_viol,
                 comp_res = comp_res,
                 mu=mu,
                 Δx = maxnorm(t*dx),

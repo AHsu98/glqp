@@ -27,7 +27,7 @@ def factor_and_solve(
     max_refinement_steps = 5,
 ):
     #Set fixed target_rtol for now
-    target_rtol = 1e-4
+    target_rtol = 1e-6
     tau_increase_factor = 10
     
     succeeded = False
@@ -42,6 +42,9 @@ def factor_and_solve(
             sol = solver.solve(rhs)
             if np.any(np.isnan(sol)):
                 raise ValueError(f"NaNs found in solution to linear system with tau = {tau_reg}")
+            w = G@sol
+            mult = np.dot(rhs,w)/norm2(w)
+            sol = sol * np.dot(rhs,w)/norm2(w)
             
             #Start refinement loop
             num_refine = 0
@@ -50,12 +53,14 @@ def factor_and_solve(
 
             #Less stringent condition to perform 1 step of iterative refinement
             #Do 1 step under either condition
-            if maxnorm(res)>=0.1*target_atol or linsolve_rel_error>1e-3:
-                sol = sol + solver.solve(res)
-                res = rhs - G@sol
+            if maxnorm(res)>=0.1*target_atol or linsolve_rel_error>target_rtol:
+                d = solver.solve(res)
+                w = G@d
+                alpha = np.dot(res,w)/norm2(w)
+                sol = sol + alpha * d
+                res = rhs - G@sol#Fully recompute residual to avoid roundoff
                 linsolve_rel_error = np.sqrt(norm2(res)/norm2(rhs))
                 num_refine += 1
-            
             #Check if linear solve is terrible
             if linsolve_rel_error>0.98 and (maxnorm(res)>0.98*maxnorm(rhs)):
                 raise ValueError(
@@ -69,18 +74,19 @@ def factor_and_solve(
             for i in range(1,max_refinement_steps):
                 #Refine if either condition is not satisfied
                 if (maxnorm(res)>target_atol and linsolve_rel_error>target_rtol):
-                    sol = sol + solver.solve(res)
-                    res = rhs - G@sol
-                    num_refine += 1
-
+                    d = solver.solve(res)
+                    w = G@d
+                    alpha = np.dot(res,w)/norm2(w)
+                    sol = sol + alpha * d
+                    res = res - alpha * w
+                    # res = rhs - G@sol
                     linsolve_rel_error = np.sqrt(norm2(res)/norm2(rhs))
+                    num_refine += 1
             if maxnorm(res)>target_atol and linsolve_rel_error>target_rtol:
                 if maxnorm(res)>target_atol:
                     warn(f"Poor linear solve: didn't reach target abs tolerance of {target_atol:.3e} in {num_refine} steps")
                 if linsolve_rel_error>target_rtol:
                     warn(f"Poor linear solve: didn't reach target rel tolerance of {target_rtol:.3e} in {num_refine} steps")
-
-                
 
             succeeded = True
             break
@@ -102,7 +108,7 @@ def get_step_size(s, ds, y, dy,frac = 0.99):
     # For s + alpha*ds > 0  =>  alpha < -s[i] / ds[i] for ds[i] < 0
     idx_s_neg = ds < 0
     if np.any(idx_s_neg):
-        alpha_s = np.min(-s[idx_s_neg] / ds[idx_s_neg])
+        alpha_s = np.min(-(s[idx_s_neg]) / ds[idx_s_neg])
     else:
         alpha_s = np.inf  # If ds >= 0, it doesn't limit alpha
     
