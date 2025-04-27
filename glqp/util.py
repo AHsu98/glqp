@@ -96,12 +96,7 @@ def factor_and_solve(
     if succeeded is False:
         warn(f"Failed to solve with attempted reg {tau_reg:.2e} after {max_solve_attempts} attempts")
         raise last_ex
-    # if linsolve_rel_error>target_rtol:
-    #     print("tau: ",tau_reg)
-    #     print("rel error: ",linsolve_rel_error)
-    #     print('abs error: ',maxnorm(res))
-    #     print("maxnorm(rhs): ",maxnorm(rhs))
-
+    
     return sol,num_refine,solver,linsolve_rel_error
 
 def get_step_size(s, ds, y, dy,frac = 0.99):

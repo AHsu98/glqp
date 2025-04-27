@@ -181,95 +181,8 @@ class GLQP():
         rc = y * s
         req = self.E@x - self.e
         return rx,rp,rc,req
-    
-    def old_solve_KKT(
-        self,
-        x,y,s,H,rx,rp,rc,req,mu,tau_reg=None,prox_reg = 0.,
-        solver = None):
-        #mu,x unused for now
-
-        if tau_reg is None:
-            tau_reg = self.settings.tau_reg
-        #Nesterov-Todd scaling
-        # Quasi definite for inequality constraints, 
-        # "normal equations" Hessian for GLM part
-        w = np.sqrt(y/s)
-        wC = self.C.multiply(w[:,None])
-        rhs = np.hstack([-rx,-w*rp + (w/y) * rc,-req])
-        #Including tau-shift here
-        #later may want separate matrix,
-        #larger tau shift + iterative refine
-
-        G = block_array(
-            [
-                [H + prox_reg * self.In,     wC.T,       self.E.T],
-                [wC,    -(1+prox_reg)*self.Ik, None],
-                [self.E,None,       -prox_reg * self.Ip]
-            ],format = 'csc'
-        )
-        #Added prox reg here for testing?
-
-        sol,num_refine,solver,linsolve_rel_error = factor_and_solve(
-            G,rhs,
-            reg_shift=self.reg_shift,
-            init_tau_reg = tau_reg,
-            solver = solver,
-            target_atol = 0.05*self.settings.tol,
-            max_solve_attempts=10,
-            max_refinement_steps=self.settings.max_iterative_refinement
-        )
-                
-        dx = sol[:self.n]
-        dy = w*sol[self.n:self.n+self.k]
-        ds = -rp - self.C@dx
-        dnu = sol[self.n+self.k:]
-
-        return dx,ds,dy,dnu,solver,num_refine,linsolve_rel_error
-
-    
+        
     def solve_KKT(
-        self,
-        x,y,s,H,rx,rp,rc,req,mu,
-        tau_reg=None,prox_reg = 1e-7,
-        solver = None):
-        #mu,x unused for now
-
-        if tau_reg is None:
-            tau_reg = self.settings.tau_reg
-
-        # "normal equations" Hessian for GLM part
-        rooty = np.sqrt(y)
-        CrootY = self.C.multiply(rooty[:,None])
-        rhs = np.hstack([-rx,(1/rooty) * rc - rooty*rp,-req])
-
-
-        G = block_array(
-            [
-                [H + prox_reg * self.In,     CrootY.T,       self.E.T],
-                [CrootY,    -(1+prox_reg)*diags_array(s), None],
-                [self.E,None,       -prox_reg*self.Ip]
-            ],format = 'csc'
-        )
-        # G = G + prox_reg*self.reg_shift
-
-        sol,num_refine,solver,linsolve_rel_error = factor_and_solve(
-            G,rhs,
-            reg_shift=self.reg_shift,
-            init_tau_reg = tau_reg,
-            solver = solver,
-            target_atol = 0.05*self.settings.tol,
-            max_solve_attempts=10,
-            max_refinement_steps=self.settings.max_iterative_refinement
-        )
-                
-        dx = sol[:self.n]
-        dy = rooty*sol[self.n:self.n+self.k]
-        ds = -rp - self.C@dx
-        dnu = sol[self.n+self.k:]
-
-        return dx,ds,dy,dnu,solver,num_refine,linsolve_rel_error
-    
-    def adj_solve_KKT(
         self,
         x,y,s,H,rx,rp,rc,req,mu,
         tau_reg=None,prox_reg = 1e-7,
@@ -408,7 +321,7 @@ class GLQP():
 
             try:
                 #Solve KKT
-                dx,ds,dy,dnu,solver,num_refine,linsolve_rel_error = self.adj_solve_KKT(
+                dx,ds,dy,dnu,solver,num_refine,linsolve_rel_error = self.solve_KKT(
                     x,y,s,
                     H,
                     rx,rp,rc,req,
@@ -434,7 +347,7 @@ class GLQP():
             
             boundary_frac = settings.boundary_frac
             tmax = get_step_size(s,ds,y,dy,frac = boundary_frac)
-            #Perform a linesearch on the nonlinear part
+            #Perform a linesearch so we converge on the nonlinear part
 
             #Evaluate merit at current point
             primal = self.f(z) + (1/2) * x.T@self.Q@x - np.dot(x,self.b)
@@ -479,8 +392,6 @@ class GLQP():
                 if successful ==False:
                     termination_tag = "failed_line_search"
                     break
-            
-            
 
             #Take step
             x  =  x + t*dx
@@ -510,19 +421,6 @@ class GLQP():
                 print("Adjusted")
                 args_to_fix = (s*y)/mu_est<=fix_threshold
                 s[args_to_fix] = fix_threshold*mu_est/(y[args_to_fix])
-                # mu = np.max(s*y)
-
-            # #If we're reasonably close to primal feasibility and 
-            # # complementarity aggressive mu update
-            # if  maxnorm(rx)+maxnorm(rc) + maxnorm(rp) + maxnorm(req)<=5*mu+np.minimum(1000 * mu,1000):
-            #     xi = np.min(s*y)/mu_est
-            #     #Don't decrease by more than a factor of 10
-            #     mu = settings.gamma * np.minimum((1-boundary_frac)*(1-xi)/xi + 0.1,1.1)**3 * mu_est
-            #     mu = 0.5*mu_est
-                    
-            # else:
-            #     # Otherwise, perform a modest centering update
-            #     mu = 0.5*mu_est
 
             comp_res = maxnorm(rc)
             cons_viol = np.maximum(maxnorm(rp),maxnorm(req))
