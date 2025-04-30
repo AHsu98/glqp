@@ -19,4 +19,4 @@ dependencies = [
 ]
 
 [tool.setuptools]
-packages = ["glqp"]
+packages = ["glqp","glqp_tests"]

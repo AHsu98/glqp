@@ -147,7 +147,7 @@ class GLQP():
                     init_tau_reg = self.settings.tau_reg,
                     solver = None,
                     target_atol = 1e-12,
-                    max_solve_attempts=10,
+                    max_solve_attempts=12,
                     max_refinement_steps=self.settings.max_iterative_refinement
                 )
             x = sol[:self.n]
@@ -203,7 +203,7 @@ class GLQP():
 
         G = block_array(
             [
-                [H + prox_reg * self.In ,Cw.T           ,self.E.T           ],
+                [H +(prox_reg)*self.In  ,Cw.T           ,self.E.T           ],
                 [Cw                     ,-middle_diag   ,None               ],
                 [self.E                 ,None           ,-prox_reg*self.Ip  ]
             ],format = 'csc'
@@ -216,7 +216,7 @@ class GLQP():
             init_tau_reg = tau_reg,
             solver = solver,
             target_atol = 0.05*self.settings.tol,
-            max_solve_attempts=10,
+            max_solve_attempts=12,
             max_refinement_steps=self.settings.max_iterative_refinement
         )
                 
@@ -280,9 +280,7 @@ class GLQP():
         H = self.get_H(z)
         gradf = self.A.T@self.f.d1f(z) + self.Q@x
         rx,rp,rc,req = self.KKT_res(x,gradf,y,s,nu)
-        kkt_res = np.max(
-                np.abs(np.hstack([rx,rp,rc,req]))
-            )
+        kkt_res = maxnorm(np.hstack([rx,rp,rc,req]))
         cons_viol = np.maximum(maxnorm(rp),maxnorm(req))
         #Perturb to interior complementarity
         rc = rc - mu
@@ -317,7 +315,6 @@ class GLQP():
                 termination_tag = "stagnated"
                 break
             prox_reg = np.minimum(settings.prox_reg,kkt_res*1e-3)
-            
 
             try:
                 #Solve KKT
@@ -350,45 +347,64 @@ class GLQP():
             #Perform a linesearch so we converge on the nonlinear part
 
             #Evaluate merit at current point
-            primal = self.f(z) + (1/2) * x.T@self.Q@x - np.dot(x,self.b)
+            Qx = self.Q@x
+            primal = self.f(z) + (1/2) * x.T@Qx - np.dot(x,self.b)
             barrier = -mu*np.sum(np.log(s))
             merit0 = primal + barrier
 
-            gx = self.A.T@self.f.d1f(z) + self.Q@x - self.b
+            gx = self.A.T@self.f.d1f(z) + Qx - self.b
             gs = -mu/s
+
+            dx_gx = np.dot(dx,gx)
+            ds_gs = np.dot(ds,gs)
 
             t = tmax
             dz = self.A@dx
+            Qdx = self.Q@dx
             #Check implicit feasibility of f(x+t*dz)
             step_finite = self.f(z + t*dz)<np.inf
             
-            #Accept every step if feasible is false and don't nan on the f
-            #only enter linesearch if already feasible
-            if (feasible is True) or (step_finite is False):
-                #OK with a small additive error in line search
-                def merit_line(t):
-                    primal = self.f(z+t*dz) + (1/2) * (x+t*dx).T@self.Q@(x+t*dx) - np.dot(x+t*dx,self.b)
-                    barrier = -mu*np.sum(np.log(s+t*ds))
-                    return primal + barrier
+            #Enter line search
+
+            #OK with a small additive error in line search
+            def merit_line(t):
+                primal = (
+                    self.f(z+t*dz)
+                    + (1/2) * (np.dot(x,Qx) + 2*np.dot(x,Qdx) + np.dot(dx,Qdx))
+                        - np.dot(x+t*dx,self.b)
+                )
+                barrier = -mu*np.sum(np.log(s+t*ds))
+                return primal + barrier
+            
+            successful = False
+            for linesearch_step in range(settings.max_linesearch_steps):
+                #Check armijo
+                new_merit = merit_line(t)
+                armijo_satisfied = (
+                    new_merit<(
+                        merit0 + 
+                        settings.armijo_param * t * (dx_gx + ds_gs) + 
+                        settings.armijo_additive_eps)
+                )
+                if armijo_satisfied:
+                    successful = True
+                    break
                 
-                successful = False
-                for linesearch_step in range(settings.max_linesearch_steps):
-                    new_merit = merit_line(t)
-                    armijo_satisfied = (
-                        new_merit<(
-                            merit0 + 
-                            settings.armijo_param * t * (np.dot(dx,gx) + np.dot(ds,gs)) + 
-                            settings.armijo_additive_eps)
-                    )
-                    if armijo_satisfied:
-                        successful = True
-                        break
-                    #LET NEWTON COOK??
-                    if t<settings.let_newton_cook*tmax:
-                        successful = True
-                        break
-                    else:
-                        t = 0.9*t
+                #Check KKT residual
+                ls_gradf = self.A.T@self.f.d1f(z+t*dz) + Qx + t*Qdx
+                ls_kkt_res = maxnorm(np.hstack(
+                    self.KKT_res(x+t*dx,ls_gradf,y+t*dy,s+t*ds,nu+t*dnu)
+                    ))
+                #Accept under either condition
+                if ls_kkt_res<(1-settings.armijo_param*t)*kkt_res or ls_kkt_res<settings.tol:
+                    successful = True
+                    break
+                if t<settings.let_newton_cook*tmax:
+                    successful = True
+                    break
+                else:
+                    t = 0.9*t
+
                 if successful ==False:
                     termination_tag = "failed_line_search"
                     break
