@@ -30,9 +30,9 @@ See https://github.com/flatironinstitute/sparse_dot for more details.
 We solve KKT systems using [qdldl](https://github.com/osqp/qdldl-python)[[2]](#2).
 
 #### Benchmark
-I ran a benchmark on the MM problems starting with the experiments and code from the assocated repository for [[1]] in this repo:
+I ran a benchmark on the MM problems [[7]](#7) starting with the experiments and code from the assocated repository for [[1]](#1) in this repo:
 https://github.com/AHsu98/glqp-benchmark
-The benchmark shows that with good QP settings, we complete 133/138 of them.
+The benchmark shows that with well tuned QP settings, we complete 133/138 of them.
 
 ## References
 <a id="1">[1]</a>
@@ -57,7 +57,9 @@ Math. Prog. Comp. 4, 71–107 (2012). https://doi.org/10.1007/s12532-012-0035-2
 Ghannad, A., Orban, D., & Saunders, M. A. (2021). Linear systems arising in interior methods for convex optimization: a symmetric formulation with bounded condition number. 
 Optimization Methods and Software, 37(4), 1344–1369. https://doi.org/10.1080/10556788.2021.1965599
 
-
+<a id="7">[7]</a> 
+Maros, I., & Mészáros, C. (1999). A repository of convex quadratic programming problems. 
+Optimization Methods and Software, 11(1–4), 671–681. https://doi.org/10.1080/10556789908805768
 
 
 
