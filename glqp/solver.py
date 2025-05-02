@@ -254,7 +254,7 @@ class GLQP():
             k = self.k
             if self.dummy_ineq is True:
                 k = 0
-            m = self.m 
+            m = self.m
             if self.dummy_A is True:
                 m = 0
             print_problem_summary(
@@ -423,8 +423,6 @@ class GLQP():
             kkt_res = np.max([maxnorm(rx),maxnorm(rp),maxnorm(rc),maxnorm(req)])
 
             #Update mu here
-            
-
             mu_est = np.dot(s,y)/self.k
             xi = np.min(s*y)/mu_est
             mu = (np.minimum((1.02-xi),1)**3)*mu_est
@@ -437,6 +435,9 @@ class GLQP():
                 print("Adjusted")
                 args_to_fix = (s*y)/mu_est<=fix_threshold
                 s[args_to_fix] = fix_threshold*mu_est/(y[args_to_fix])
+            if self.dummy_ineq:
+                #If no inequality constraints, ignore the above
+                mu = settings.min_mu
 
             comp_res = maxnorm(rc)
             cons_viol = np.maximum(maxnorm(rp),maxnorm(req))
