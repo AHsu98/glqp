@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "glqp"
-version = "0.1.2"
+version = "0.2.0"
 description = "Quadratic Programs with additional GLM terms"
 authors = [
     {name = "Alexander W. Hsu", email = "owlx@uw.edu"},
@@ -19,4 +19,4 @@ dependencies = [
 ]
 
 [tool.setuptools]
-packages = ["glqp"]
+packages = ["glqp","glqp_tests"]
