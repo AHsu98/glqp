@@ -413,11 +413,11 @@ class GLQP():
                 ls_kkt_res = maxnorm(np.hstack(
                     self.KKT_res(x+t*dx,ls_gradf,y+t*dy,s+t*ds,nu+t*dnu)
                     ))
-                # A descent direction must satisfy its merit decrease test.
-                # Alternating objective decreases with residual-only steps
-                # that increase the objective can cycle even for convex GLMs.
-                # Keep residual acceptance for non-descent/restoration steps.
-                if merit_slope >= 0 and np.isfinite(ls_kkt_res) and (
+                # Preserve residual acceptance for QPs, including restoration
+                # from an inconsistent positive slack warm start. For nonlinear
+                # GLMs, alternating merit decreases and residual-only steps can
+                # cycle: descent directions must pass the merit test there.
+                if (self.QP_mode or merit_slope >= 0) and np.isfinite(ls_kkt_res) and (
                     ls_kkt_res<(1-settings.armijo_param*t)*kkt_res
                     or ls_kkt_res<settings.tol
                 ):

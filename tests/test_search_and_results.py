@@ -88,6 +88,24 @@ def test_non_descent_restoration_can_still_accept_a_kkt_improvement(monkeypatch)
     assert result.history.iloc[0]["KKT_res"] < 3.
 
 
+def test_quadratic_restoration_keeps_residual_acceptance_for_descent_direction(monkeypatch):
+    # A supplied slack can be positive but inconsistent with Cx + s = c.
+    # Preserve the QP residual test while restoring that consistency, even
+    # when a merit-descent direction fails Armijo at its full trial step.
+    p = GLQP(Q=csc_array([[1.]]), b=np.zeros(1), C=csc_array([[1.]]), c=np.array([10.]))
+    monkeypatch.setattr(p, "solve_KKT", lambda *args, **kwargs:
+                        (np.array([-4.]), np.array([8.]), np.array([-.99]),
+                         np.zeros(0), None, 0, 0.))
+    settings = SolverSettings(max_iter=1, let_newton_cook=0., armijo_additive_eps=0.)
+    with pytest.warns(UserWarning):
+        x, result = p.solve(x0=np.ones(1), s0=np.ones(1), y0=np.ones(1),
+                            mu0=.001, settings=settings, verbose=False)
+    assert result.history.iloc[0]["step"] == 1.
+    assert_allclose(x, [-3.])
+    assert result.history.iloc[0]["KKT_res"] < 8.
+    assert .5*x@x - .001*np.log(result.s).sum() > .5
+
+
 @pytest.mark.parametrize("name,value", [
     ("s0", [-1.]), ("s0", [0.]), ("s0", [np.nan]), ("s0", [np.inf]),
     ("y0", [-1.]), ("y0", [0.]), ("y0", [np.nan]), ("y0", [np.inf]),
