@@ -15,7 +15,9 @@ patterns, fractional quadratic merit, backtracking and failed searches, finite
 trial objectives, warm-start validation, empty inequalities, and reported
 objectives. Stopping tests also cover accumulated complementarity, amplification
 of slack-consistency errors by large duals, cancellation of signed products, and
-objective scaling. They require no downloaded benchmark problems.
+objective scaling. Slack-repair tests check that logged residuals and the next
+Newton right-hand side match the adjusted iterate. They require no downloaded
+benchmark problems.
 
 Performance and the broader known-bug inventory are tracked separately in
 [glqp-bench](https://github.com/AHsu98/glqp-bench). Run comparisons between committed

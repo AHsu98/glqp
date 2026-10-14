@@ -487,6 +487,13 @@ class GLQP():
                     print("Adjusted")
                     args_to_fix = (s*y)/mu_est<=fix_threshold
                     s[args_to_fix] = fix_threshold*mu_est/(y[args_to_fix])
+                    # The repair changes the iterate after the residuals were
+                    # evaluated. Refresh both slack-dependent equations before
+                    # logging, convergence checks, or the next Newton solve.
+                    # Keep the barrier target chosen from the accepted step.
+                    rp = self.C@x + s - self.c
+                    rc = y*s
+                    kkt_res = max(maxnorm(rx), maxnorm(rp), maxnorm(rc), maxnorm(req))
 
             comp_res = maxnorm(rc)
             cons_viol = np.maximum(maxnorm(rp),maxnorm(req))
