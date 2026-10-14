@@ -370,7 +370,7 @@ class GLQP():
             def merit_line(t):
                 primal = (
                     self.f(z+t*dz)
-                    + (1/2) * (np.dot(x,Qx) + 2*np.dot(x,Qdx) + np.dot(dx,Qdx))
+                    + (1/2) * (np.dot(x,Qx) + 2*t*np.dot(x,Qdx) + t*t*np.dot(dx,Qdx))
                         - np.dot(x+t*dx,self.b)
                 )
                 barrier = -mu*np.sum(np.log(s+t*ds))
