@@ -13,7 +13,9 @@ These tests use small analytical solutions, independent dense linear solves, and
 controlled search directions. They cover zero right-hand sides, changing sparse
 patterns, fractional quadratic merit, backtracking and failed searches, finite
 trial objectives, warm-start validation, empty inequalities, and reported
-objectives. They require no downloaded benchmark problems.
+objectives. Stopping tests also cover accumulated complementarity, amplification
+of slack-consistency errors by large duals, cancellation of signed products, and
+objective scaling. They require no downloaded benchmark problems.
 
 Performance and the broader known-bug inventory are tracked separately in
 [glqp-bench](https://github.com/AHsu98/glqp-bench). Run comparisons between committed

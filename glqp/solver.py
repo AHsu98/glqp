@@ -18,6 +18,7 @@ from dataclasses import dataclass
 class SolverSettings():
     max_precenter:int = 100
     max_iter:int = 200
+    # Absolute max-norm KKT tolerance and relative aggregate complementarity.
     tol:float = 1e-8
     boundary_frac:float = 0.99
     gamma:float = 0.5
@@ -188,6 +189,23 @@ class GLQP():
         rc = y * s
         req = self.E@x - self.e
         return rx,rp,rc,req
+
+    def _relative_complementarity(self, x, y, primal):
+        """Total complementarity in the original constraints, scaled by objective.
+
+        Small individual products need not have a small sum. Stored slack can
+        also differ from c-Cx by a tiny primal residual that large duals amplify.
+        Use absolute products to prevent cancellation at slightly infeasible x.
+        This supplements, rather than replaces, the absolute KKT stopping test.
+        """
+        if not np.isfinite(primal):
+            return np.inf
+        if self.dummy_ineq:
+            return 0.
+        with np.errstate(over='ignore', invalid='ignore'):
+            total = np.sum(np.abs(y * (self.c - self.C@x)))
+            residual = total / max(1., abs(primal))
+        return float(residual) if np.isfinite(residual) else np.inf
         
     def solve_KKT(
         self,
@@ -305,11 +323,15 @@ class GLQP():
             if maxnorm(rp)<1e-8 and maxnorm(req)<1e-8:
                 feasible = True
             
-            if kkt_res<=100*settings.tol:
-                near_solved = True
+            # Evaluate the aggregate test only near convergence. Keep the
+            # Newton system, line search, and existing absolute KKT test intact.
+            relative_comp_res = (self._relative_complementarity(x, y, primal)
+                                 if kkt_res <= 100*settings.tol else np.inf)
+            near_solved = (kkt_res <= 100*settings.tol
+                           and relative_comp_res <= 100*settings.tol)
             
             #Check for convergence
-            if kkt_res<=settings.tol:
+            if kkt_res<=settings.tol and relative_comp_res<=settings.tol:
                 solved = True
                 break
             
