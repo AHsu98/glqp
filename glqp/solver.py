@@ -31,7 +31,8 @@ class SolverSettings():
     armijo_additive_eps:float = 1e-8
     armijo_param:float = 0.005
     let_newton_cook:float = 0.
-    prox_reg:float = 2e-8
+    # Disable the proximal Newton perturbation; tau_reg still stabilizes factors.
+    prox_reg:float = 0.
 
 @dataclass
 class SolverResults():
