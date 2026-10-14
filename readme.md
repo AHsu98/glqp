@@ -29,6 +29,26 @@ See https://github.com/flatironinstitute/sparse_dot for more details.
 
 We solve KKT systems using [qdldl](https://github.com/osqp/qdldl-python)[[2]](#2).
 
+#### Convergence tolerance
+
+An `optimal` result requires the existing absolute maximum-norm KKT residual to
+be at most `SolverSettings.tol`, together with
+
+```text
+sum(abs(y * (c - C @ x))) / max(1, abs(primal_objective)) <= tol
+```
+
+The additional condition controls total complementarity using the actual
+constraint slack at the returned `x`. A small largest product alone can hide
+many accumulated errors; the stored interior slack can also differ slightly
+from `c - C @ x`, which matters when dual values are large. Absolute products
+prevent cancellation. Problems without inequalities have zero aggregate
+complementarity. Nonfinite values cannot satisfy this condition.
+
+This supplements the original absolute KKT test; its tolerance, Newton equations,
+and line-search settings are unchanged. Some problems consequently require more
+iterations or reach their iteration/time limit before receiving `optimal` status.
+
 #### Benchmark
 I ran a benchmark on the MM problems [[7]](#7) starting with the experiments and code from the assocated repository for [[1]](#1) in this repo:
 https://github.com/AHsu98/glqp-benchmark

@@ -18,6 +18,7 @@ from dataclasses import dataclass
 class SolverSettings():
     max_precenter:int = 100
     max_iter:int = 200
+    # Absolute max-norm KKT tolerance and relative aggregate complementarity.
     tol:float = 1e-8
     boundary_frac:float = 0.99
     gamma:float = 0.5
@@ -30,7 +31,8 @@ class SolverSettings():
     armijo_additive_eps:float = 1e-8
     armijo_param:float = 0.005
     let_newton_cook:float = 0.
-    prox_reg:float = 2e-8
+    # Disable the proximal Newton perturbation; tau_reg still stabilizes factors.
+    prox_reg:float = 0.
 
 @dataclass
 class SolverResults():
@@ -113,6 +115,14 @@ class GLQP():
 
     def initialize(self,x0=None,y0 = None,s0 = None,settings = None):
 
+        def warm_start(value, size, name, positive=False):
+            value = np.asarray(value, dtype=float)
+            if value.shape != (size,) or not np.all(np.isfinite(value)):
+                raise ValueError(f"{name} must be a finite vector with shape ({size},)")
+            if positive and np.any(value <= 0):
+                raise ValueError(f"{name} must be strictly positive")
+            return value.copy()
+
         if settings is None:
             if self.QP_mode==True:
                 settings = SolverSettings(
@@ -125,7 +135,7 @@ class GLQP():
         if x0 is None:
             x = np.zeros(self.n)
         else:
-            x = np.copy(x0)
+            x = warm_start(x0, self.n, "x0")
         
         if self.E.shape[0]>0:
             G = block_array(
@@ -161,7 +171,7 @@ class GLQP():
             else:
                 s = np.maximum(self.c - self.C@x,0.01)
         else:
-            s = np.copy(s0)
+            s = warm_start(s0, self.k, "s0", positive=True)
 
 
         if y0 is None:
@@ -170,8 +180,7 @@ class GLQP():
             else:
                 y = np.ones(self.k)
         else:
-            y = np.copy(y0)
-            assert np.min(y)>1e-10
+            y = warm_start(y0, self.k, "y0", positive=True)
 
         return x,y,s,nu,settings
     
@@ -181,6 +190,23 @@ class GLQP():
         rc = y * s
         req = self.E@x - self.e
         return rx,rp,rc,req
+
+    def _relative_complementarity(self, x, y, primal):
+        """Total complementarity in the original constraints, scaled by objective.
+
+        Small individual products need not have a small sum. Stored slack can
+        also differ from c-Cx by a tiny primal residual that large duals amplify.
+        Use absolute products to prevent cancellation at slightly infeasible x.
+        This supplements, rather than replaces, the absolute KKT stopping test.
+        """
+        if not np.isfinite(primal):
+            return np.inf
+        if self.dummy_ineq:
+            return 0.
+        with np.errstate(over='ignore', invalid='ignore'):
+            total = np.sum(np.abs(y * (self.c - self.C@x)))
+            residual = total / max(1., abs(primal))
+        return float(residual) if np.isfinite(residual) else np.inf
         
     def solve_KKT(
         self,
@@ -298,11 +324,15 @@ class GLQP():
             if maxnorm(rp)<1e-8 and maxnorm(req)<1e-8:
                 feasible = True
             
-            if kkt_res<=100*settings.tol:
-                near_solved = True
+            # Evaluate the aggregate test only near convergence. Keep the
+            # Newton system, line search, and existing absolute KKT test intact.
+            relative_comp_res = (self._relative_complementarity(x, y, primal)
+                                 if kkt_res <= 100*settings.tol else np.inf)
+            near_solved = (kkt_res <= 100*settings.tol
+                           and relative_comp_res <= 100*settings.tol)
             
             #Check for convergence
-            if kkt_res<=settings.tol:
+            if kkt_res<=settings.tol and relative_comp_res<=settings.tol:
                 solved = True
                 break
             
@@ -357,20 +387,18 @@ class GLQP():
 
             dx_gx = np.dot(dx,gx)
             ds_gs = np.dot(ds,gs)
+            merit_slope = dx_gx + ds_gs
 
             t = tmax
             dz = self.A@dx
             Qdx = self.Q@dx
-            #Check implicit feasibility of f(x+t*dz)
-            step_finite = self.f(z + t*dz)<np.inf
-            
             #Enter line search
 
             #OK with a small additive error in line search
             def merit_line(t):
                 primal = (
                     self.f(z+t*dz)
-                    + (1/2) * (np.dot(x,Qx) + 2*np.dot(x,Qdx) + np.dot(dx,Qdx))
+                    + (1/2) * (np.dot(x,Qx) + 2*t*np.dot(x,Qdx) + t*t*np.dot(dx,Qdx))
                         - np.dot(x+t*dx,self.b)
                 )
                 barrier = -mu*np.sum(np.log(s+t*ds))
@@ -378,12 +406,25 @@ class GLQP():
             
             successful = False
             for linesearch_step in range(settings.max_linesearch_steps):
+                if not np.isfinite(t) or t <= 0:
+                    break
+                trial_s, trial_y = s + t*ds, y + t*dy
+                if (not np.all(np.isfinite(x + t*dx))
+                        or not np.all(np.isfinite(trial_s))
+                        or not np.all(np.isfinite(trial_y))
+                        or np.any(trial_s <= 0) or np.any(trial_y <= 0)):
+                    t = 0.9*t
+                    continue
                 #Check armijo
-                new_merit = merit_line(t)
+                with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
+                    new_merit = merit_line(t)
+                if not np.isfinite(new_merit):
+                    t = 0.9*t
+                    continue
                 armijo_satisfied = (
                     new_merit<(
                         merit0 + 
-                        settings.armijo_param * t * (dx_gx + ds_gs) + 
+                        settings.armijo_param * t * merit_slope +
                         settings.armijo_additive_eps)
                 )
                 if armijo_satisfied:
@@ -395,19 +436,26 @@ class GLQP():
                 ls_kkt_res = maxnorm(np.hstack(
                     self.KKT_res(x+t*dx,ls_gradf,y+t*dy,s+t*ds,nu+t*dnu)
                     ))
-                #Accept under either condition
-                if ls_kkt_res<(1-settings.armijo_param*t)*kkt_res or ls_kkt_res<settings.tol:
+                # Preserve residual acceptance for QPs, including restoration
+                # from an inconsistent positive slack warm start. For nonlinear
+                # GLMs, alternating merit decreases and residual-only steps can
+                # cycle: descent directions must pass the merit test there.
+                if (self.QP_mode or merit_slope >= 0) and np.isfinite(ls_kkt_res) and (
+                    ls_kkt_res<(1-settings.armijo_param*t)*kkt_res
+                    or ls_kkt_res<settings.tol
+                ):
                     successful = True
                     break
-                if t<settings.let_newton_cook*tmax:
+                # Preserve the explicitly configured Newton fallback, but
+                # never use it to accept nonfinite or non-interior trials.
+                if np.isfinite(ls_kkt_res) and t<settings.let_newton_cook*tmax:
                     successful = True
                     break
-                else:
-                    t = 0.9*t
+                t = 0.9*t
 
-                if successful ==False:
-                    termination_tag = "failed_line_search"
-                    break
+            if not successful:
+                termination_tag = "failed_line_search"
+                break
 
             #Take step
             x  =  x + t*dx
@@ -416,28 +464,37 @@ class GLQP():
             z  =  z + t*dz
             nu = nu + t*dnu
 
-            gradf = self.A.T@self.f.d1f(z) + self.Q@x
+            Qx = self.Q@x
+            primal = self.f(z) + 0.5*np.dot(x,Qx) - np.dot(x,self.b)
+            gradf = self.A.T@self.f.d1f(z) + Qx
             rx,rp,rc,req = self.KKT_res(x,gradf,y,s,nu)
 
             H = self.get_H(z)
             kkt_res = np.max([maxnorm(rx),maxnorm(rp),maxnorm(rc),maxnorm(req)])
 
             #Update mu here
-            mu_est = np.dot(s,y)/self.k
-            xi = np.min(s*y)/mu_est
-            mu = (np.minimum((1.02-xi),1)**3)*mu_est
-
-            mu_lower_bound = np.max([mu*0.1,settings.min_mu,0.01*kkt_res])
-            mu = np.maximum(mu,mu_lower_bound)
-
-            fix_threshold = 0.1
-            if tmax<1e-4 and np.min(s*y)/mu_est<fix_threshold:
-                print("Adjusted")
-                args_to_fix = (s*y)/mu_est<=fix_threshold
-                s[args_to_fix] = fix_threshold*mu_est/(y[args_to_fix])
             if self.dummy_ineq:
-                #If no inequality constraints, ignore the above
                 mu = settings.min_mu
+            else:
+                mu_est = np.dot(s,y)/self.k
+                xi = np.min(s*y)/mu_est
+                mu = (np.minimum((1.02-xi),1)**3)*mu_est
+
+                mu_lower_bound = np.max([mu*0.1,settings.min_mu,0.01*kkt_res])
+                mu = np.maximum(mu,mu_lower_bound)
+
+                fix_threshold = 0.1
+                if tmax<1e-4 and np.min(s*y)/mu_est<fix_threshold:
+                    print("Adjusted")
+                    args_to_fix = (s*y)/mu_est<=fix_threshold
+                    s[args_to_fix] = fix_threshold*mu_est/(y[args_to_fix])
+                    # The repair changes the iterate after the residuals were
+                    # evaluated. Refresh both slack-dependent equations before
+                    # logging, convergence checks, or the next Newton solve.
+                    # Keep the barrier target chosen from the accepted step.
+                    rp = self.C@x + s - self.c
+                    rc = y*s
+                    kkt_res = max(maxnorm(rx), maxnorm(rp), maxnorm(rc), maxnorm(req))
 
             comp_res = maxnorm(rc)
             cons_viol = np.maximum(maxnorm(rp),maxnorm(req))
@@ -474,6 +531,10 @@ class GLQP():
         )
         if verbose is True:
             print(message)
+
+        # Report the returned iterate, including when the final step reaches
+        # the iteration/time limit or a later line search fails.
+        primal = self.f(self.A@x) + 0.5*np.dot(x,self.Q@x) - np.dot(x,self.b)
         
         results = SolverResults(
             settings,
