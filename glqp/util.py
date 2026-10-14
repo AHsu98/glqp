@@ -382,7 +382,7 @@ def parse_problem(
         assert C.ndim == 2
         #Need c if C is not None
         assert c is not None, "Need c if inequality matrix C is given"
-        dummy_ineq = False
+        dummy_ineq = C.shape[0] == 0
     k = C.shape[0]
     
     #Setup equality constraints
