@@ -60,7 +60,9 @@ class KKTWorkspace:
         keys = mc * size + mr
 
         def slots(rows, cols):
-            return np.searchsorted(keys, cols * size + rows)
+            # Linearized coordinates can exceed int32 even though each CSC
+            # index fits. Widen before multiplying, including transposed blocks.
+            return np.searchsorted(keys, np.asarray(cols, dtype=np.int64) * size + rows)
 
         self._h_slots = slots(hr, hc)
         self._c_lower = slots(cr + n, cc)

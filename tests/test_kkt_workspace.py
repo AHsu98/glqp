@@ -107,6 +107,24 @@ def test_unsorted_duplicate_input_entries_are_combined_without_mutation():
             assert_array_equal(actual, original)
 
 
+def test_large_sparse_block_maps_do_not_overflow_compact_indices():
+    # KKT column*dimension exceeds int32 in the transposed constraint blocks.
+    # Keep this sparse: its dense equivalent would require about 20 GB.
+    n = 25000
+    H, C = csc_array(eye_array(n)), csc_array(eye_array(n))
+    E = csc_array(([1., 2.], ([0, 1], [0, n-1])), shape=(2, n))
+    y, s = np.linspace(.1, 2., n), np.ones(n)
+    args = (y, s, np.ones(n), np.ones(n), np.ones(n), np.ones(2), .01)
+    workspace = KKTWorkspace(H, C, E)
+    matrix, rhs, _ = workspace.assemble(H, *args)
+    expected, expected_rhs, _ = reference_assembly(H, C, E, *args)
+    assert matrix.indices.dtype == np.int32
+    assert_array_equal(matrix.indptr, expected.indptr)
+    assert_array_equal(matrix.indices, expected.indices)
+    assert_array_equal(matrix.data, expected.data)
+    assert_array_equal(rhs, expected_rhs)
+
+
 @pytest.mark.parametrize("rho", [0., .03])
 def test_newton_direction_matches_independent_dense_system(rho):
     problem = GLQP(Q=csc_array([[3., .2], [.2, 2.]]),
