@@ -128,6 +128,8 @@ def factor_and_solve(
     Timeouts and programming/input errors propagate. A zero initial shift
     disables shift escalation. At most max_refinement_steps corrections are
     tried per factorization; an unhelpful correction never replaces the best one.
+    With a nonzero residual, the first correction also polishes an otherwise
+    accurate direction when abs_error >= 0.1 * atol or rel_error > rtol.
     """
     G = csc_array(G)
     reg_shift = csc_array(reg_shift)
@@ -184,7 +186,13 @@ def factor_and_solve(
             reason, refinements = 'refinement_limit', 0
             for _ in range(max_refinement_steps):
                 relative = _relative_linear_error(residual, rhs)
-                if _maxnorm(residual) <= target_atol or relative <= target_rtol:
+                absolute = _maxnorm(residual)
+                already_accurate = absolute <= target_atol or relative <= target_rtol
+                # Restore the original first-polish trigger within the same
+                # bounded loop; subsequent corrections use the final criterion.
+                polish = refinements == 0 and absolute > 0 and (
+                    absolute >= 0.1 * target_atol or relative > target_rtol)
+                if already_accurate and not polish:
                     reason = 'tolerance'
                     break
                 correction = solver.solve(residual)
@@ -207,7 +215,7 @@ def factor_and_solve(
                     break
                 trial_relative = _relative_linear_error(trial_residual, rhs)
                 accurate = _maxnorm(trial_residual) <= target_atol or trial_relative <= target_rtol
-                if trial_relative >= relative and not accurate:
+                if trial_relative >= relative and (already_accurate or not accurate):
                     reason = 'stagnated'
                     break
                 x, residual = trial, trial_residual

@@ -41,7 +41,8 @@ def scripted_backend(monkeypatch, answers):
     return calls
 
 
-def test_rounding_worsens_a_correction_and_the_best_iterate_is_preserved(monkeypatch):
+@pytest.mark.parametrize('rtol', [1e-6, 2.])
+def test_rounding_worsens_a_correction_and_the_best_iterate_is_preserved(monkeypatch, rtol):
     # Even an exact correction in real arithmetic can lose low bits when added
     # to a large iterate. A recursive residual misses this deterioration.
     eps = np.finfo(float).eps
@@ -52,13 +53,33 @@ def test_rounding_worsens_a_correction_and_the_best_iterate_is_preserved(monkeyp
     correction = np.linalg.solve(G.toarray(), residual)
     assert np.linalg.norm(rhs-G@(initial+correction)) > np.linalg.norm(residual)
     calls = scripted_backend(monkeypatch, [initial, correction])
-    result = solve(G, rhs, max_refinement_steps=10)
+    result = solve(G, rhs, max_refinement_steps=10, target_rtol=rtol)
     assert_allclose(result.solution, initial, atol=0., rtol=0.)
     assert len(calls) == 2
     assert result.info.refinements == 1
-    assert result.info.status == 'inaccurate'
+    assert result.info.status == ('accurate' if rtol == 2. else 'inaccurate')
     assert result.info.stop_reason == 'stagnated'
     assert_allclose(result.info.relative_error, np.linalg.norm(residual)/np.linalg.norm(rhs))
+
+
+@pytest.mark.parametrize('rhs,budget,expected_refinements', [
+    ([1., 1e-8], 5, 1),       # Relative criterion already passes.
+    ([1., 5e-15], 5, 1),      # Both pass, but absolute error triggers polishing.
+    ([1e-12, 5e-16], 5, 1),   # Absolute error is tiny, but relative error is large.
+    ([1., 5e-16], 5, 0),      # Neither first-polish condition triggers.
+    ([1., 0.], 5, 0),         # An exact direction needs no correction.
+    ([1., 1e-8], 0, 0),       # Polishing must respect a zero refinement budget.
+])
+def test_first_polish_restores_accuracy_without_exceeding_the_budget(
+        monkeypatch, rhs, budget, expected_refinements):
+    calls = scripted_backend(monkeypatch, [[rhs[0], 0.], [0., rhs[1]]])
+    result = solve(np.eye(2), rhs, max_refinement_steps=budget)
+    assert len(calls) == 1 + expected_refinements
+    assert result.info.refinements == expected_refinements
+    assert result.info.status == 'accurate'
+    expected = rhs if expected_refinements else [rhs[0], 0.]
+    assert_allclose(result.solution, expected, rtol=0., atol=0.)
+    assert result.info.absolute_error == max(abs(np.asarray(rhs)-result.solution))
 
 
 @pytest.mark.parametrize('budget,expected_calls', [(0, 1), (5, 2)])

@@ -27,7 +27,8 @@ correct.
 
 `test_linear_accuracy.py` verifies reported residuals against independent matrix
 products, retention of a better iterate after a rounded correction, explicit
-inaccurate status, bounded refinement, actual factorization shifts, timeout and
+inaccurate status, bounded refinement, the first-polish trigger and budget,
+actual factorization shifts, timeout and
 error propagation, and the linear diagnostics exposed in solver results. See
 [the linear-solve contract](../docs/linear-solves.md) for the accuracy policy and
 backend boundary.

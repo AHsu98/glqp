@@ -24,14 +24,20 @@ The initial direction and corrections retain the residual-minimizing scalar
 projection. Every trial correction recomputes `rhs - G @ trial_solution` after
 floating-point addition. A correction that fails to improve the relative L2
 residual, and does not meet the requested accuracy, is discarded and refinement
-stops. Nonfinite or unusable corrections also leave the best finite iterate
-intact. The configured refinement limit includes every attempted correction;
+stops. A polishing correction to an already accurate direction must improve its
+relative residual to replace it. Nonfinite or unusable corrections also leave
+the best finite iterate intact. The configured refinement limit includes every attempted correction;
 zero means no corrections.
 
 One accuracy rule applies throughout: the absolute infinity-norm residual must
 be at most `target_atol`, **or** the relative L2 residual must be at most
 `target_rtol` (default 1e-6). This is the previous final acceptance rule. The
-previous extra first correction even after that rule was satisfied is removed.
+original first-polish policy is also retained: for a nonzero initial residual,
+attempt one correction when its absolute error is at least `0.1 * target_atol`
+or its relative error exceeds `target_rtol`, even if the final accuracy rule
+already passes. This correction counts toward the configured refinement budget;
+a zero budget still means no corrections. Subsequent corrections use the final
+accuracy rule. Every correction, including the polish, uses a fresh residual.
 These are linear-system tolerances, not a claim of nonlinear or QP optimality.
 
 `LinearSolveResult` provides `solution`, `factorization`, and `info`. For existing
