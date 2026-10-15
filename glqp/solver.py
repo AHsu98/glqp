@@ -15,6 +15,12 @@ from .linear import LinearSolveError
 
 from dataclasses import dataclass
 
+
+def _no_glm_hessian(z):
+    """An absent GLM contributes no matrix and requires no sparse arithmetic."""
+    return None
+
+
 @dataclass
 class SolverSettings():
     max_precenter:int = 100
@@ -101,6 +107,8 @@ class GLQP():
         self.f = f
         self.A = A
         self.Q = Q
+        self._glm_hessian = (_no_glm_hessian if dummy_A
+                             else self._evaluate_glm_hessian)
         self.b = b
         self.C = C
         self.c = c
@@ -268,9 +276,16 @@ class GLQP():
 
     
     def get_H(self,z):
+        """Combine the fixed quadratic Hessian with optional GLM curvature.
+
+        The returned matrix may be self.Q itself. Callers must not modify it.
+        """
+        glm_H = self._glm_hessian(z)
+        return self.Q if glm_H is None else self.Q + glm_H
+
+    def _evaluate_glm_hessian(self,z):
         D = self.f.d2f(z)[:,None]
-        AtDa = dot_product_mkl(self.A.T,csc_array(self.A.multiply(D)))
-        return AtDa + self.Q
+        return dot_product_mkl(self.A.T,csc_array(self.A.multiply(D)))
     
     def solve(
         self,
