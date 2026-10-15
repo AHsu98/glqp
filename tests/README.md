@@ -32,3 +32,11 @@ actual factorization shifts, timeout and
 error propagation, and the linear diagnostics exposed in solver results. See
 [the linear-solve contract](../docs/linear-solves.md) for the accuracy policy and
 backend boundary.
+
+`test_glm_objectives.py` checks Gaussian, logistic, and Poisson gradients and
+Hessian diagonals against finite differences, including nonuniform and zero
+weights, a single observation, and padded predictor vectors. It also checks the
+standard Poisson likelihood scale, ignores extreme padded coordinates, and
+compares constrained Gaussian and Poisson solves with independent dense KKT and
+scalar reference solutions. Those solve tests verify original KKT conditions and
+reported objective values, including the quadratic and linear terms.
