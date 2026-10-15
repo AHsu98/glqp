@@ -1,3 +1,10 @@
+"""Separable GLM losses evaluated on the first ``len(y)`` predictors.
+
+Predictor vectors may include trailing coordinates unused by the likelihood.
+Gradients and Hessian diagonals have the input length, with zeros in those
+coordinates. Likelihood constants independent of the predictors are omitted.
+"""
+
 import numpy as np
 from scipy.special import expit
 from numpy import logaddexp
@@ -67,7 +74,7 @@ class DummyGLM:
 class GaussianNLL:
     def __init__(self, y, w):
         """
-        y: array-like of binary responses (0 or 1)
+        y: array-like of real-valued responses
         w: array-like of corresponding weights
         """
         self.y = np.array(y, dtype=float)
@@ -76,7 +83,8 @@ class GaussianNLL:
 
     def f(self, z):
         """
-        Computes the negative weighted least squares objective:
+        Computes the weighted least squares objective:
+            0.5 * sum_i w_i * (z_i - y_i)**2
         """
         z = np.array(z[:self.m], dtype=float)
         return 0.5 * np.dot(self.w,(self.y - z) ** 2)
@@ -95,7 +103,7 @@ class GaussianNLL:
         Computes the second derivative (Hessian diagonal) w.r.t. z:
         """
         tot_z = len(z)
-        return np.hstack([self.w*np.ones(tot_z),np.zeros(tot_z - self.m)])
+        return np.hstack([self.w,np.zeros(tot_z - self.m)])
 
     def __call__(self, z):
         return self.f(z)
@@ -103,7 +111,7 @@ class GaussianNLL:
 class PoissonNLL:
     def __init__(self, y, w):
         """
-        y: array-like of binary responses (0 or 1)
+        y: array-like of nonnegative count responses
         w: array-like of corresponding weights
         """
         self.y = np.array(y, dtype=float)
@@ -112,11 +120,13 @@ class PoissonNLL:
 
     def f(self, z):
         """
-        Computes the negative weighted least squares objective:
+        Computes the negative weighted Poisson log-likelihood:
+            sum_i w_i * (exp(z_i) - y_i * z_i)
+        Omits the constant sum_i w_i * log(y_i!).
         """
         z = np.array(z[:self.m], dtype=float)
         u = np.exp(z)
-        return 0.5 * np.dot(self.w,u - self.y*z)
+        return np.dot(self.w,u - self.y*z)
 
     def d1f(self, z):
         """
@@ -133,6 +143,7 @@ class PoissonNLL:
         Computes the second derivative (Hessian diagonal) w.r.t. z:
         """
         tot_z = len(z)
+        z = np.array(z[:self.m], dtype=float)
         u = np.exp(z)
         return np.hstack([self.w*u,np.zeros(tot_z - self.m)])
 

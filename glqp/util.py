@@ -1,6 +1,5 @@
 from collections import OrderedDict
 import numpy  as np
-import qdldl
 from warnings import warn
 import pandas as pd
 from scipy.sparse import csc_array,eye_array
@@ -17,86 +16,12 @@ def maxnorm(x):
         return 0.
     else:
         return np.max(np.abs(x))
-    
-def factor_and_solve(
-    G,rhs,reg_shift,
-    init_tau_reg,
-    solver,
-    target_atol = 1e-10,
-    max_solve_attempts=20,
-    max_refinement_steps = 5,
-):
-    #Set fixed target_rtol for now
-    target_rtol = 1e-6
-    tau_increase_factor = 10
-    
-    succeeded = False
-    tau_reg = init_tau_reg
-    for i in range(max_solve_attempts):
-        try:
-            Gshift = G + tau_reg*reg_shift
-            if solver is None:
-                solver = qdldl.Solver(Gshift)
-            else:
-                solver.update(Gshift)
-            sol = solver.solve(rhs)
-            if np.any(np.isnan(sol)):
-                raise ValueError(f"NaNs found in solution to linear system with tau = {tau_reg}")
-            w = G@sol
-            sol = sol * np.dot(rhs,w)/norm2(w)
-            
-            #Start refinement loop
-            num_refine = 0
-            res = rhs - G@sol
-            linsolve_rel_error = np.sqrt(norm2(res)/norm2(rhs))
 
-            #Less stringent condition to perform 1 step of iterative refinement
-            #Do 1 step under either condition
-            if maxnorm(res)>=0.1*target_atol or linsolve_rel_error>target_rtol:
-                d = solver.solve(res)
-                w = G@d
-                alpha = np.dot(res,w)/norm2(w)
-                sol = sol + alpha * d
-                res = rhs - G@sol#Fully recompute residual to avoid roundoff
-                linsolve_rel_error = np.sqrt(norm2(res)/norm2(rhs))
-                num_refine += 1
-            #Check if linear solve is terrible
-            if linsolve_rel_error>0.98 and (maxnorm(res)>0.98*maxnorm(rhs)):
-                raise ValueError(
-                    f"""ERROR: Linear solve computed to unacceptable relative L2 error of 
-                    {np.sqrt(norm2(res)/norm2(rhs)):.4f}
-                    """
-                    )
-            
-            
-            #Continue refinement until reaching at least target_atol
-            for i in range(1,max_refinement_steps):
-                #Refine if either condition is not satisfied
-                if (maxnorm(res)>target_atol and linsolve_rel_error>target_rtol):
-                    d = solver.solve(res)
-                    w = G@d
-                    alpha = np.dot(res,w)/norm2(w)
-                    sol = sol + alpha * d
-                    res = res - alpha * w
-                    # res = rhs - G@sol
-                    linsolve_rel_error = np.sqrt(norm2(res)/norm2(rhs))
-                    num_refine += 1
-            if maxnorm(res)>target_atol and linsolve_rel_error>target_rtol:
-                if maxnorm(res)>target_atol:
-                    warn(f"Poor linear solve: didn't reach target abs tolerance of {target_atol:.3e} in {num_refine} steps")
-                if linsolve_rel_error>target_rtol:
-                    warn(f"Poor linear solve: didn't reach target rel tolerance of {target_rtol:.3e} in {num_refine} steps")
 
-            succeeded = True
-            break
-        except Exception as ex:
-            last_ex  = ex
-            tau_reg = tau_increase_factor*tau_reg
-    if succeeded is False:
-        warn(f"Failed to solve with attempted reg {tau_reg:.2e} after {max_solve_attempts} attempts")
-        raise last_ex
-    
-    return sol,num_refine,solver,linsolve_rel_error
+# Compatibility exports for callers and existing instrumentation.
+from .linear import (
+    factor_and_solve, _QDLDLFactorization, _projection_scale, _relative_linear_error,
+)
 
 def get_step_size(s, ds, y, dy,frac = 0.99):
     """
@@ -329,7 +254,7 @@ def parse_problem(
         assert C.ndim == 2
         #Need c if C is not None
         assert c is not None, "Need c if inequality matrix C is given"
-        dummy_ineq = False
+        dummy_ineq = C.shape[0] == 0
     k = C.shape[0]
     
     #Setup equality constraints
