@@ -24,3 +24,10 @@ Performance and the broader known-bug inventory are tracked separately in
 revisions with the same settings, problem inputs, and machine. Passing these
 focused tests does not imply that every objective class or benchmark problem is
 correct.
+
+`test_linear_accuracy.py` verifies reported residuals against independent matrix
+products, retention of a better iterate after a rounded correction, explicit
+inaccurate status, bounded refinement, actual factorization shifts, timeout and
+error propagation, and the linear diagnostics exposed in solver results. See
+[the linear-solve contract](../docs/linear-solves.md) for the accuracy policy and
+backend boundary.

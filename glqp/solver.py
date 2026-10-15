@@ -2,7 +2,6 @@ import time
 import numpy as np
 import pandas as pd
 from scipy.sparse import csc_array,block_diag,diags_array
-import qdldl
 from scipy.sparse import block_array,eye_array
 from sparse_dot_mkl import dot_product_mkl
 from .util import (
@@ -11,6 +10,8 @@ from .util import (
     print_problem_summary,
     build_solution_summary,factor_and_solve,parse_problem
 )
+
+from .linear import LinearSolveError
 
 from dataclasses import dataclass
 
@@ -48,6 +49,8 @@ class SolverResults():
     history:pd.DataFrame
     termination_tag:str
     exception:Exception|None
+    initialization_linear_solve:dict|None = None
+    last_linear_solve:dict|None = None
 
 class GLQP():
     def __init__(
@@ -130,6 +133,7 @@ class GLQP():
             else:
                 settings = SolverSettings()
         self.settings = settings
+        self._initial_linear_info = None
 
         if x0 is None:
             x = np.zeros(self.n)
@@ -150,15 +154,18 @@ class GLQP():
                 sol = rhs
             else:
                 reg_shift = block_diag([0*self.In,-1*self.Ip])
-                sol,num_refine,solver,lin_rel_error = factor_and_solve(
+                linear_result = factor_and_solve(
                     G,rhs,
                     reg_shift=reg_shift,
                     init_tau_reg = self.settings.tau_reg,
                     solver = None,
                     target_atol = 1e-12,
                     max_solve_attempts=12,
-                    max_refinement_steps=self.settings.max_iterative_refinement
+                    max_refinement_steps=self.settings.max_iterative_refinement,
+                    residual_blocks={'primal': slice(0, self.n), 'equality': slice(self.n, None)},
                 )
+                sol, num_refine, solver, lin_rel_error = linear_result
+                self._initial_linear_info = linear_result.info
             x = sol[:self.n]
             nu = sol[self.n:]
         else:
@@ -235,15 +242,22 @@ class GLQP():
         )
         # G = G + prox_reg*self.reg_shift
 
-        sol,num_refine,solver,linsolve_rel_error = factor_and_solve(
+        linear_result = factor_and_solve(
             G,rhs,
             reg_shift=self.reg_shift,
             init_tau_reg = tau_reg,
             solver = solver,
             target_atol = 0.05*self.settings.tol,
             max_solve_attempts=12,
-            max_refinement_steps=self.settings.max_iterative_refinement
+            max_refinement_steps=self.settings.max_iterative_refinement,
+            residual_blocks={'stationarity': slice(0, self.n),
+                             'scaled_inequality': slice(self.n, self.n+self.k),
+                             'equality': slice(self.n+self.k, None)},
         )
+        sol, num_refine, solver, linsolve_rel_error = linear_result
+        self._linear_info = linear_result.info
+        # Finite inexact directions remain subject to the existing line search
+        # and original KKT stopping tests. Their accuracy status is explicit.
                 
         dx = sol[:self.n]
         dy = w*sol[self.n:self.n+self.k]
@@ -313,6 +327,7 @@ class GLQP():
 
         
         solver = None
+        self._linear_info = None
         for iteration_number in range(settings.max_iter):
 
             #Put this check at start in case we barely time out later
@@ -345,6 +360,7 @@ class GLQP():
                 break
             prox_reg = np.minimum(settings.prox_reg,kkt_res*1e-3)
 
+            self._linear_info = None
             try:
                 #Solve KKT
                 dx,ds,dy,dnu,solver,num_refine,linsolve_rel_error = self.solve_KKT(
@@ -356,7 +372,7 @@ class GLQP():
                     prox_reg = prox_reg,
                     solver = solver
                     )
-            except Exception as ex:
+            except LinearSolveError as ex:
                 termination_tag = "failed_linear_solve"
                 exception = ex
                 break
@@ -514,7 +530,8 @@ class GLQP():
                 KKT_res=kkt_res,
                 time=elapsed,
                 refine = num_refine,
-                lin_rel_res = linsolve_rel_error
+                **({'lin_rel_res': linsolve_rel_error} if self._linear_info is None
+                   else self._linear_info.history_fields())
             )
 
         #TODO: Maybe merge build_solution_summary and SolverResults together
@@ -546,6 +563,10 @@ class GLQP():
             feasible = feasible,
             time = time.time() - start,
             history = logger.to_dataframe(),
+            initialization_linear_solve=(None if self._initial_linear_info is None
+                                        else self._initial_linear_info.history_fields()),
+            last_linear_solve=(None if self._linear_info is None
+                               else self._linear_info.history_fields()),
             )
         return x,results
 

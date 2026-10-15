@@ -1,6 +1,5 @@
 from collections import OrderedDict
 import numpy  as np
-import qdldl
 from warnings import warn
 import pandas as pd
 from scipy.sparse import csc_array,eye_array
@@ -19,137 +18,10 @@ def maxnorm(x):
         return np.max(np.abs(x))
 
 
-class _QDLDLFactorization:
-    """Reuse numerical factors only while the canonical CSC pattern is fixed."""
-
-    def __init__(self, matrix):
-        self.shape = matrix.shape
-        self.indptr = matrix.indptr.copy()
-        self.indices = matrix.indices.copy()
-        self.factor = qdldl.Solver(matrix)
-
-    def matches(self, matrix):
-        return (self.shape == matrix.shape
-                and np.array_equal(self.indptr, matrix.indptr)
-                and np.array_equal(self.indices, matrix.indices))
-
-    def update(self, matrix):
-        self.factor.update(matrix)
-
-    def solve(self, rhs):
-        return self.factor.solve(rhs)
-
-
-def _projection_scale(rhs, image):
-    denominator = norm2(image)
-    if denominator == 0 or not np.isfinite(denominator):
-        # Scale before squaring to handle under/overflow, but a genuinely
-        # zero image cannot provide a direction for a nonzero residual.
-        scale = maxnorm(image)
-        if scale == 0 or not np.isfinite(scale):
-            raise ValueError("Linear solve direction has no finite nonzero image")
-        scaled = image / scale
-        value = np.dot(rhs / scale, scaled) / norm2(scaled)
-    else:
-        value = np.dot(rhs, image) / denominator
-    if not np.isfinite(value):
-        raise ValueError("Nonfinite linear refinement step")
-    return value
-
-
-def _relative_linear_error(residual, rhs):
-    denominator = norm2(rhs)
-    if denominator == 0 or not np.isfinite(denominator):
-        scale = maxnorm(rhs)
-        return np.sqrt(norm2(residual / scale) / norm2(rhs / scale))
-    return np.sqrt(norm2(residual) / denominator)
-    
-def factor_and_solve(
-    G,rhs,reg_shift,
-    init_tau_reg,
-    solver,
-    target_atol = 1e-10,
-    max_solve_attempts=20,
-    max_refinement_steps = 5,
-):
-    rhs = np.asarray(rhs, dtype=float)
-    if not np.all(np.isfinite(rhs)):
-        raise ValueError("Linear system right-hand side must be finite")
-    if not np.any(rhs):
-        return np.zeros_like(rhs), 0, solver, 0.
-    #Set fixed target_rtol for now
-    target_rtol = 1e-6
-    tau_increase_factor = 10
-    
-    succeeded = False
-    tau_reg = init_tau_reg
-    for i in range(max_solve_attempts):
-        try:
-            Gshift = csc_array(G + tau_reg*reg_shift)
-            Gshift.sum_duplicates()
-            Gshift.sort_indices()
-            if not isinstance(solver, _QDLDLFactorization) or not solver.matches(Gshift):
-                solver = _QDLDLFactorization(Gshift)
-            else:
-                solver.update(Gshift)
-            sol = solver.solve(rhs)
-            if not np.all(np.isfinite(sol)):
-                raise ValueError(f"Nonfinite solution to linear system with tau = {tau_reg}")
-            w = G@sol
-            sol = sol * _projection_scale(rhs, w)
-            
-            #Start refinement loop
-            num_refine = 0
-            res = rhs - G@sol
-            linsolve_rel_error = _relative_linear_error(res, rhs)
-
-            #Less stringent condition to perform 1 step of iterative refinement
-            #Do 1 step under either condition
-            if np.any(res) and (maxnorm(res)>=0.1*target_atol or linsolve_rel_error>target_rtol):
-                d = solver.solve(res)
-                w = G@d
-                alpha = _projection_scale(res, w)
-                sol = sol + alpha * d
-                res = rhs - G@sol#Fully recompute residual to avoid roundoff
-                linsolve_rel_error = _relative_linear_error(res, rhs)
-                num_refine += 1
-            #Check if linear solve is terrible
-            if linsolve_rel_error>0.98 and (maxnorm(res)>0.98*maxnorm(rhs)):
-                raise ValueError(
-                    f"""ERROR: Linear solve computed to unacceptable relative L2 error of 
-                    {linsolve_rel_error:.4f}
-                    """
-                    )
-            
-            
-            #Continue refinement until reaching at least target_atol
-            for i in range(1,max_refinement_steps):
-                #Refine if either condition is not satisfied
-                if (maxnorm(res)>target_atol and linsolve_rel_error>target_rtol):
-                    d = solver.solve(res)
-                    w = G@d
-                    alpha = _projection_scale(res, w)
-                    sol = sol + alpha * d
-                    res = res - alpha * w
-                    # res = rhs - G@sol
-                    linsolve_rel_error = _relative_linear_error(res, rhs)
-                    num_refine += 1
-            if maxnorm(res)>target_atol and linsolve_rel_error>target_rtol:
-                if maxnorm(res)>target_atol:
-                    warn(f"Poor linear solve: didn't reach target abs tolerance of {target_atol:.3e} in {num_refine} steps")
-                if linsolve_rel_error>target_rtol:
-                    warn(f"Poor linear solve: didn't reach target rel tolerance of {target_rtol:.3e} in {num_refine} steps")
-
-            succeeded = True
-            break
-        except Exception as ex:
-            last_ex  = ex
-            tau_reg = tau_increase_factor*tau_reg
-    if succeeded is False:
-        warn(f"Failed to solve with attempted reg {tau_reg:.2e} after {max_solve_attempts} attempts")
-        raise last_ex
-    
-    return sol,num_refine,solver,linsolve_rel_error
+# Compatibility exports for callers and existing instrumentation.
+from .linear import (
+    factor_and_solve, _QDLDLFactorization, _projection_scale, _relative_linear_error,
+)
 
 def get_step_size(s, ds, y, dy,frac = 0.99):
     """
