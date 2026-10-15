@@ -1,7 +1,7 @@
 import time
 import numpy as np
 import pandas as pd
-from scipy.sparse import csc_array,block_diag,diags_array
+from scipy.sparse import csc_array,block_diag
 from scipy.sparse import block_array,eye_array
 from sparse_dot_mkl import dot_product_mkl
 from .util import (
@@ -12,6 +12,7 @@ from .util import (
 )
 
 from .linear import LinearSolveError
+from .kkt import KKTWorkspace
 
 from dataclasses import dataclass
 
@@ -122,6 +123,7 @@ class GLQP():
         self.Ik = csc_array(eye_array(k))
         self.Ip = csc_array(eye_array(p))
         self.reg_shift = block_diag([self.In,-self.Ik,-self.Ip])
+        self._kkt_workspace = None
 
     def initialize(self,x0=None,y0 = None,s0 = None,settings = None):
 
@@ -142,6 +144,8 @@ class GLQP():
                 settings = SolverSettings()
         self.settings = settings
         self._initial_linear_info = None
+        # Problem matrices may have been replaced since the previous solve.
+        self._kkt_workspace = None
 
         if x0 is None:
             x = np.zeros(self.n)
@@ -232,23 +236,9 @@ class GLQP():
         if tau_reg is None:
             tau_reg = self.settings.tau_reg
 
-        # "normal equations" Hessian for GLM part
-        w = np.sqrt(y + prox_reg)
-        Cw = self.C.multiply(w[:,None])
-        rhs = np.hstack([
-            -rx,
-            ( (1/w)*rc-w * rp),
-            -req])
-        middle_diag = diags_array(s+prox_reg*y + prox_reg**2)
-
-        G = block_array(
-            [
-                [H +(prox_reg)*self.In  ,Cw.T           ,self.E.T           ],
-                [Cw                     ,-middle_diag   ,None               ],
-                [self.E                 ,None           ,-prox_reg*self.Ip  ]
-            ],format = 'csc'
-        )
-        # G = G + prox_reg*self.reg_shift
+        if self._kkt_workspace is None:
+            self._kkt_workspace = KKTWorkspace(H, self.C, self.E)
+        G, rhs, w = self._kkt_workspace.assemble(H, y, s, rx, rp, rc, req, prox_reg)
 
         linear_result = factor_and_solve(
             G,rhs,
