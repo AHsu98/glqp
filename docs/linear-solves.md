@@ -20,14 +20,29 @@ failures; GLQP only labels `LinearSolveError` as a linear-solve termination.
 
 ## Refinement and accuracy
 
-The initial direction and corrections retain the residual-minimizing scalar
-projection. Every trial correction recomputes `rhs - G @ trial_solution` after
-floating-point addition. A correction that fails to improve the relative L2
-residual, and does not meet the requested accuracy, is discarded and refinement
-stops. A polishing correction to an already accurate direction must improve its
-relative residual to replace it. Nonfinite or unusable corrections also leave
-the best finite iterate intact. The configured refinement limit includes every attempted correction;
-zero means no corrections.
+The initial direction retains the residual-minimizing scalar projection.
+Refinement uses one right-preconditioned GMRES correction solve, with up to
+ten inner iterations by default. The existing `max_iterative_refinement`
+setting controls the budget; zero means no correction. Each iteration applies
+the cached factor inverse once. Its preconditioned direction is stored, used
+in the Arnoldi matrix product, and reused in the physical correction. This
+avoids remapping the combined basis through a differently rounded factor solve.
+Two-pass modified Gram-Schmidt and a small SVD least-squares solve avoid
+explicit normal equations. There are no restarts or adaptive cycle lengths.
+
+Every candidate recomputes `rhs - G @ candidate` after the float64 solution
+update, with matrix products and subtraction accumulated in `np.longdouble`.
+The initial correction RHS uses the same computation, rounded to float64 for
+GMRES. Factors, Arnoldi products, Krylov vectors, and returned solutions remain
+float64. On platforms where longdouble equals float64 there is no extra
+residual precision. Relative error always uses the original right-hand side.
+
+The best verified direction is retained; an unhelpful intermediate GMRES
+iterate does not discard the accumulated search space. A polishing correction
+to an already accurate direction must improve its relative residual to replace
+it. An accurate candidate can replace an inaccurate one under the existing
+absolute-or-relative rule. Nonfinite candidates leave the best finite direction
+intact. The budget counts attempted inner factor solves, including polishing.
 
 One accuracy rule applies throughout: the absolute infinity-norm residual must
 be at most `target_atol`, **or** the relative L2 residual must be at most
@@ -44,8 +59,10 @@ These are linear-system tolerances, not a claim of nonlinear or QP optimality.
 callers, four-value unpacking and indexing still return the solution, attempted
 refinement count, cached factorization, and freshly evaluated relative error.
 `info.status` is explicitly `accurate` or `inaccurate`; `stop_reason` distinguishes
-tolerance, refinement limit, stagnation, unusable/nonfinite corrections, and a
-zero right-hand side. It also records the actual shift, factorization attempts,
+tolerance, refinement limit, unhelpful polishing, Arnoldi breakdown,
+small-system solve failure, nonfinite corrections, and a zero right-hand side.
+Arnoldi breakdown alone is not a certificate of accuracy.
+It also records the actual shift, factorization attempts,
 absolute error, requested tolerances, and equation-block errors.
 
 A finite inaccurate direction remains eligible for GLQP's existing line search.
