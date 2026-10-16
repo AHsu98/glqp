@@ -23,7 +23,7 @@ trajectories; compare independently validated solutions, not just factor speed.
 
 | Name | Factorization | Reused on a fixed pattern | Numerical threading |
 | --- | --- | --- | --- |
-| `qdldl` | Symmetric quasi-definite LDLᵀ | Symbolic ordering and factor storage | Serial |
+| `qdldl` | Symmetric quasi-definite LDLᵀ | Upper-triangle value map, symbolic ordering, factor storage | Serial |
 | `superlu` | General pivoted sparse LU | SciPy exposes no separate symbolic reuse | Serial factorization |
 | `feral` | Rust multifrontal symmetric indefinite LDLᵀ | Native matrix, triangular value map, symbolic analysis | Rayon when explicitly budgeted |
 | `pardiso` | oneMKL symmetric indefinite LDLᵀ | Triangular value map, index buffers, symbolic analysis | oneMKL/OpenMP budget |
@@ -41,6 +41,12 @@ The factor cache identity includes the backend, canonical options, and complete
 sparse pattern. A changed identity closes the old factor and rebuilds it.
 `solve` preserves its RHS and returns a new vector. Native resources are closed
 on replacement and numerical failure; PARDISO also has destructor cleanup.
+
+QDLDL's adapter uses its explicit `upper=True` input interface and a cached
+upper-CSC value map. Numeric updates refill one existing buffer, avoiding a
+SciPy triangular extraction and sparse object construction per Newton step.
+Regression tests compare permutation, factor arrays, and inverse applications
+bit for bit against QDLDL's original full-matrix interface across updates.
 
 Only numerical factorization failures are eligible for the existing shift retry.
 Memory, malformed input, unknown options, and unexpected backend errors propagate.

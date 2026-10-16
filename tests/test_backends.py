@@ -216,3 +216,41 @@ def test_feral_auto_ordering_still_uses_verified_float64_solve():
         linear_solver_backend='feral', linear_solver_options={'ordering': 'auto'}))
     assert result.termination_tag == 'optimal'
     assert_allclose(np.array([[2., .5], [.5, 1.]]) @ x, [1., 2.], atol=1e-6)
+
+
+def test_qdldl_cached_upper_triangle_is_bitwise_identical_to_native_full_input():
+    import qdldl
+    from glqp.backends import QDLDLFactorization
+    matrix = saddle_matrix()
+    cached = QDLDLFactorization(matrix)
+    reference = qdldl.Solver(matrix)
+    rhs = np.random.default_rng(43).normal(size=matrix.shape[0])
+    upper = cached._upper
+    upper_data = upper.data
+    for scale in (1., 1.1, 1e-7, 1e7, .5):
+        updated = matrix * scale
+        cached.update(updated)
+        reference.update(updated)
+        left_l, left_d, left_p = cached.factor.factors()
+        right_l, right_d, right_p = reference.factors()
+        for left, right in ((left_l.data, right_l.data), (left_l.indices, right_l.indices),
+                            (left_l.indptr, right_l.indptr), (left_d, right_d), (left_p, right_p),
+                            (cached.solve(rhs), reference.solve(rhs))):
+            np.testing.assert_array_equal(left, right)
+        assert cached._upper is upper
+        assert cached._upper.data is upper_data
+
+
+def test_qdldl_updates_do_not_reextract_sparse_triangles(monkeypatch):
+    import scipy.sparse
+    from glqp.backends import QDLDLFactorization
+    matrix = saddle_matrix()
+    cached = QDLDLFactorization(matrix)
+
+    def unexpected(*args, **kwargs):
+        raise AssertionError('Sparse triangular extraction should not run during updates')
+
+    monkeypatch.setattr(scipy.sparse, 'triu', unexpected)
+    cached.update(matrix * 1.1)
+    assert_allclose(matrix @ cached.solve(np.ones(matrix.shape[0])),
+                    np.ones(matrix.shape[0]) / 1.1, atol=1e-12)

@@ -61,11 +61,11 @@ class SparseFactorization:
             raise ValueError('Backend RHS must be a vector matching the matrix dimension')
         return rhs
 
-    def _lower_pattern(self):
-        # Lower CSC is also upper CSR for a symmetric matrix. Cache this gather
-        # map once; later iterations neither sort nor rebuild sparse matrices.
+    def _triangle_pattern(self, *, upper=False):
+        # QDLDL uses upper CSC; FERAL uses lower CSC, which is also upper CSR
+        # for PARDISO. Later iterations only gather values into this pattern.
         columns = np.repeat(np.arange(self.shape[0]), np.diff(self.indptr))
-        positions = np.flatnonzero(self.indices >= columns)
+        positions = np.flatnonzero(self.indices <= columns if upper else self.indices >= columns)
         return (positions, np.searchsorted(positions, self.indptr),
                 self.indices[positions])
 
@@ -75,14 +75,17 @@ class QDLDLFactorization(SparseFactorization):
 
     def __init__(self, matrix, options=None):
         super().__init__(matrix, options)
+        self._positions, indptr, indices = self._triangle_pattern(upper=True)
+        self._upper = csc_array((matrix.data[self._positions], indices, indptr), shape=matrix.shape)
         try:
-            self.factor = qdldl.Solver(matrix)
+            self.factor = qdldl.Solver(self._upper, upper=True)
         except RuntimeError as exc:
             raise FactorizationError(str(exc)) from exc
 
     def update(self, matrix):
+        np.take(matrix.data, self._positions, out=self._upper.data)
         try:
-            self.factor.update(matrix)
+            self.factor.update(self._upper, upper=True)
         except RuntimeError as exc:
             raise FactorizationError(str(exc)) from exc
 
@@ -145,7 +148,7 @@ class FeralFactorization(SparseFactorization):
         self.factor = feral.Solver(parallel=threads > 1, ordering=self.options['ordering'],
                                   scaling=self.options['scaling'],
                                   partial_singular_warning=False)
-        self._positions, indptr, indices = self._lower_pattern()
+        self._positions, indptr, indices = self._triangle_pattern()
         self.matrix = feral.CscMatrix(matrix.shape[0], indptr.astype(np.int64),
             indices.astype(np.int64), np.asarray(matrix.data[self._positions], dtype=float))
         self._factor()
@@ -195,7 +198,7 @@ class PardisoFactorization(SparseFactorization):
         from sparse_dot_mkl.solvers import pardisoinit
         self._mkl = MKL
         self._closed = True
-        self._positions, indptr, indices = self._lower_pattern()
+        self._positions, indptr, indices = self._triangle_pattern()
         if max(matrix.shape[0], len(indices)) > np.iinfo(MKL.MKL_INT_NUMPY).max:
             raise OverflowError('PARDISO matrix exceeds the active MKL integer interface')
         self._indptr = np.ascontiguousarray(indptr, dtype=MKL.MKL_INT_NUMPY)
@@ -278,6 +281,18 @@ class PardisoFactorization(SparseFactorization):
 BACKENDS = {backend.name: backend for backend in (
     QDLDLFactorization, SuperLUFactorization, FeralFactorization, PardisoFactorization)}
 
+_OPTION_DEFAULTS = {
+    'qdldl': {},
+    'superlu': {'ordering': 'COLAMD'},
+    'feral': {'ordering': 'amd', 'scaling': 'auto'},
+    'pardiso': {'ordering': 'metis', 'scaling': True, 'matching': True, 'pivot_exponent': 8},
+}
+_ORDERINGS = {
+    'superlu': ('COLAMD', 'MMD_AT_PLUS_A', 'MMD_ATA', 'NATURAL'),
+    'feral': ('amd', 'amf', 'metis', 'scotch', 'kahip', 'auto', 'auto_race'),
+    'pardiso': ('amd', 'metis'),
+}
+
 
 def backend_type(name):
     """Resolve an explicit backend name; never silently fall back."""
@@ -294,13 +309,7 @@ def backend_options(name, supplied=None):
     refinement, automatic fallback, and outer regularization are not options.
     """
     backend_type(name)
-    defaults = {
-        'qdldl': {},
-        'superlu': {'ordering': 'COLAMD'},
-        'feral': {'ordering': 'amd', 'scaling': 'auto'},
-        'pardiso': {'ordering': 'metis', 'scaling': True, 'matching': True,
-                    'pivot_exponent': 8},
-    }[name]
+    defaults = _OPTION_DEFAULTS[name]
     if supplied is None:
         supplied = {}
     if not isinstance(supplied, dict):
@@ -309,12 +318,7 @@ def backend_options(name, supplied=None):
     if unknown:
         raise ValueError(f'Unsupported {name} options: {sorted(map(str, unknown))}')
     options = {**defaults, **supplied}
-    orderings = {
-        'superlu': ('COLAMD', 'MMD_AT_PLUS_A', 'MMD_ATA', 'NATURAL'),
-        'feral': ('amd', 'amf', 'metis', 'scotch', 'kahip', 'auto', 'auto_race'),
-        'pardiso': ('amd', 'metis'),
-    }
-    if name in orderings and options['ordering'] not in orderings[name]:
+    if name in _ORDERINGS and options['ordering'] not in _ORDERINGS[name]:
         raise ValueError(f'Invalid {name} ordering {options["ordering"]!r}')
     if name == 'feral' and options['scaling'] not in ('auto', 'none', 'infnorm', 'mc64'):
         raise ValueError(f'Invalid FERAL scaling {options["scaling"]!r}')

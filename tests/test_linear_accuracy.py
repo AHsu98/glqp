@@ -109,11 +109,11 @@ def test_nonfinite_correction_does_not_replace_a_finite_iterate(monkeypatch):
 def test_numerical_backend_failure_retries_and_reports_the_actual_shift(monkeypatch):
     factory = linear.qdldl.Solver
     shifts = []
-    def fail_once(matrix):
+    def fail_once(matrix, **kwargs):
         shifts.append(matrix.diagonal()[0]-2.)
         if len(shifts) == 1:
             raise RuntimeError('injected numerical factorization failure')
-        return factory(matrix)
+        return factory(matrix, **kwargs)
     monkeypatch.setattr(linear.qdldl, 'Solver', fail_once)
     result = solve(np.diag([2., -3.]), [4., 3.], init_tau_reg=2e-8)
     assert result.info.attempts == 2
@@ -125,7 +125,7 @@ def test_numerical_backend_failure_retries_and_reports_the_actual_shift(monkeypa
 @pytest.mark.parametrize('error', [TimeoutError, TypeError, ValueError])
 def test_timeout_and_programming_errors_do_not_retry_as_factorization_failures(monkeypatch, error):
     calls = []
-    def fail(matrix):
+    def fail(matrix, **kwargs):
         calls.append(1)
         raise error('injected non-numerical failure')
     monkeypatch.setattr(linear.qdldl, 'Solver', fail)
