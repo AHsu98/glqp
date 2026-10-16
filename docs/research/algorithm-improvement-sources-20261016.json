@@ -1,0 +1,48 @@
+{
+  "accessed_date": "2026-10-16",
+  "scope": "Primary-source research; version pins are the inspected versions, not a claim about future latest releases",
+  "code": [
+    {
+      "name": "PIQP",
+      "tag": "v0.6.3",
+      "commit": "8279ed73a42ddc55e3a8be561dfab7be9b3146b8",
+      "repository": "https://github.com/PREDICT-EPFL/piqp",
+      "archive_url": "https://api.github.com/repos/PREDICT-EPFL/piqp/tarball/8279ed73a42ddc55e3a8be561dfab7be9b3146b8",
+      "archive_sha256": "d3889930a0a25e38b974cd9ab620b986636c7eb39f0e64553d6ddc07836933f5",
+      "inspected_paths": ["include/piqp/solver.tpp", "include/piqp/settings.hpp", "include/piqp/sparse/preconditioner.tpp"]
+    },
+    {
+      "name": "Clarabel.rs",
+      "tag": "v0.11.1",
+      "commit": "25540f559592068d0c8a80e46ded1b21760212a1",
+      "repository": "https://github.com/oxfordcontrol/Clarabel.rs",
+      "archive_url": "https://api.github.com/repos/oxfordcontrol/Clarabel.rs/tarball/25540f559592068d0c8a80e46ded1b21760212a1",
+      "archive_sha256": "6ab2d793f3ba58797ec8e80396dbd6f31a0a6f75ba284baf3b077a073f09a5c1",
+      "inspected_paths": ["src/solver/core/solver.rs", "src/solver/core/kktsolvers/direct/quasidef/directldlkktsolver.rs", "src/solver/implementations/default/settings.rs"]
+    },
+    {
+      "name": "QOCO",
+      "tag": "v0.3.2",
+      "commit": "598de4e1aeaa9c522b3bc5bb1a56f3d7287dc14f",
+      "repository": "https://github.com/qoco-org/qoco",
+      "archive_url": "https://api.github.com/repos/qoco-org/qoco/tarball/598de4e1aeaa9c522b3bc5bb1a56f3d7287dc14f",
+      "archive_sha256": "117003dfb9ff928aab17be61c01b870e710c3dfcadcbcf460acbfd686e77b63a",
+      "inspected_paths": ["src/kkt.c", "src/cone.c", "src/qoco_utils.c", "src/equilibration.c", "include/structs.h"]
+    },
+    {
+      "name": "POUNCE",
+      "commit": "c70e06dc82504118836046188d5f4e8f019e4a53",
+      "repository": "https://github.com/jkitchin/pounce",
+      "local_checkout": ".conda/research/pounce",
+      "inspected_paths": ["crates/pounce-algorithm/src/ipopt_alg.rs", "crates/pounce-algorithm/src/mu/monotone.rs", "crates/pounce-convex/src/ipm.rs", "crates/pounce-convex/src/correctors.rs"]
+    }
+  ],
+  "papers": [
+    {"title": "PIQP: A Proximal Interior-Point Quadratic Programming Solver", "version": "2304.00290v2, 2023-09-15", "url": "https://arxiv.org/pdf/2304.00290v2", "doi": "10.1109/CDC49753.2023.10383915"},
+    {"title": "Clarabel: An interior-point solver for conic programs with quadratic objectives", "version": "2405.12762v1, 2024-05-21", "url": "https://arxiv.org/html/2405.12762v1"},
+    {"title": "QOCO: A Quadratic Objective Conic Optimizer with Custom Solver Generation", "version": "2503.12658v3", "url": "https://arxiv.org/html/2503.12658v3", "doi": "10.1007/s12532-026-00311-8"},
+    {"title": "On the Implementation of an Interior-Point Filter Line-Search Algorithm for Large-Scale Nonlinear Programming", "version": "Author-hosted preprint March 2004; published 2006", "url": "https://cepac.cheme.cmu.edu/pasi2011/library/biegler/ipopt.pdf", "doi": "10.1007/s10107-004-0559-y"},
+    {"title": "An Interior Point-Proximal Method of Multipliers for Convex Quadratic Programming", "version": "Author-hosted manuscript 2020-10-22; published 2021", "url": "https://www.pure.ed.ac.uk/ws/portalfiles/portal/174251471/ProxIPM_22oct20.pdf", "doi": "10.1007/s10589-020-00240-9"},
+    {"title": "Multiple centrality corrections in a primal-dual method for linear programming", "version": "1996", "url": "https://www.research.ed.ac.uk/en/publications/multiple-centrality-corrections-in-a-primal-dual-method-for-linea/", "doi": "10.1007/BF00249643"}
+  ]
+}

@@ -1,0 +1,299 @@
+{
+  "purpose": "Algebra and retained-history checks only; no performance measurements",
+  "captured_date": "2026-10-16",
+  "repo_head_at_capture": "d9bf350c2893307f862329d06db6eda08d4e38c6",
+  "file_sha256": {
+    "glqp/solver.py": "cd08aeaad162aba372e0d11b433911dc368c6183d76c26bdeacca4bf04cac328",
+    "glqp/kkt.py": "fdf0f2fad742e419cd1e762cf59f842d0f028fedef6e14885d01af8eb62a5f46",
+    "glqp/linear.py": "bbb31a692583297f822ebe9da32a80cb982eca0c18d8ff410d08887fce64ae66",
+    "glqp/util.py": "a6a2d09f549118a09c5933f8b49e7e3169ac31e9a02d707005938a7af3969c3a"
+  },
+  "cpu_affinity": [
+    12
+  ],
+  "numpy_version": "2.2.6",
+  "algebra": {
+    "dense_checks": [
+      {
+        "rho": 0.0,
+        "requested_system_residual_inf": 4.440892098500626e-16,
+        "original_newton_defect_inf": {
+          "stationarity": 4.996003610813204e-16,
+          "inequality": 5.551115123125783e-17,
+          "equality": 2.7755575615628914e-17,
+          "complementarity": 4.440892098500626e-16
+        },
+        "derived_defect_identity_error_inf": {
+          "stationarity": 4.996003610813204e-16,
+          "inequality": 5.551115123125783e-17,
+          "equality": 2.7755575615628914e-17,
+          "complementarity": 4.440892098500626e-16
+        }
+      },
+      {
+        "rho": 2e-08,
+        "requested_system_residual_inf": 2.220446049250313e-16,
+        "original_newton_defect_inf": {
+          "stationarity": 5.008456538391215e-09,
+          "inequality": 1.9906130577229675e-08,
+          "equality": 2.74828946822403e-08,
+          "complementarity": 8.097462367295805e-09
+        },
+        "derived_defect_identity_error_inf": {
+          "stationarity": 2.94229386310392e-16,
+          "inequality": 1.0859567880008519e-17,
+          "equality": 1.9894184084567437e-16,
+          "complementarity": 3.640873417198655e-16
+        }
+      },
+      {
+        "rho": 0.01,
+        "requested_system_residual_inf": 2.220446049250313e-16,
+        "original_newton_defect_inf": {
+          "stationarity": 0.00245665975677134,
+          "inequality": 0.009831891742492882,
+          "equality": 0.013367704809632536,
+          "complementarity": 0.0038042706978279606
+        },
+        "derived_defect_identity_error_inf": {
+          "stationarity": 5.65682483494312e-17,
+          "inequality": 5.204170427930421e-18,
+          "equality": 5.724587470723463e-17,
+          "complementarity": 1.3183898417423734e-16
+        }
+      }
+    ],
+    "conditional_repair_example": {
+      "assumptions": "C=I, x=0, c=s; the tiny-step trigger is assumed, not simulated",
+      "s": [
+        1e-06,
+        1.0
+      ],
+      "y": [
+        1e-09,
+        1.0
+      ],
+      "mu_bar": 0.5000000000000006,
+      "target_product": 0.05000000000000006,
+      "slack_only_new_s0": 50000000.00000005,
+      "slack_only_primal_residual_increase": 49999999.999999054,
+      "dual_only_new_y0": 50000.00000000006,
+      "dual_only_stationarity_residual_change": 49999.99999999906
+    }
+  },
+  "retained_history": {
+    "qpcboei2": {
+      "csv": ".conda/iteration-work-round5-shift/QPCBOEI2-candidate.csv",
+      "csv_sha256": "b2a6746a939b8ba43f5c10d4de11935f7bce6b64db87f78eb34974ed2ecf6020",
+      "source_manifest": ".conda/iteration-work-round5-shift/summary.json",
+      "source_manifest_sha256": "62196cef60365e81b46de475e6e10907ca90b8d07c0917d39ee7b9b909a5bc11",
+      "source_file_sha256": {
+        "glqp/solver.py": "cd08aeaad162aba372e0d11b433911dc368c6183d76c26bdeacca4bf04cac328",
+        "glqp/kkt.py": "fdf0f2fad742e419cd1e762cf59f842d0f028fedef6e14885d01af8eb62a5f46",
+        "glqp/linear.py": "bbb31a692583297f822ebe9da32a80cb982eca0c18d8ff410d08887fce64ae66"
+      },
+      "settings": {
+        "tol": 1e-07,
+        "max_iterative_refinement": 10,
+        "max_stagnation": 5000,
+        "max_iter": 10000,
+        "max_linesearch_steps": 40,
+        "let_newton_cook": 0.5,
+        "max_time": 60
+      },
+      "original_affinity": [
+        11
+      ],
+      "iterations": 3322,
+      "linear_status_accurate": 3322,
+      "mu_equals_0_01_kkt": 3214,
+      "step_equals_0_9_power_7": 2798,
+      "selected_rows": [
+        {
+          "iter": "1",
+          "KKT_res": "99998.94544589723",
+          "dual_res": "1241.8586340011968",
+          "cons_viol": "9448.730047849684",
+          "comp_res": "99998.94544589723",
+          "mu": "999.9894544589723",
+          "step": "8.277840359755086e-06"
+        },
+        {
+          "iter": "101",
+          "KKT_res": "0.01228601717864443",
+          "dual_res": "6.20441805987415e-08",
+          "cons_viol": "0.01228601717864443",
+          "comp_res": "0.0001340505969891299",
+          "mu": "0.0001247281811926511",
+          "step": "0.00398429169645614"
+        },
+        {
+          "iter": "1001",
+          "KKT_res": "0.001047390433635961",
+          "dual_res": "2.5510889789526203e-09",
+          "cons_viol": "0.001047390433635961",
+          "comp_res": "1.0519521456774918e-05",
+          "mu": "1.047390433635961e-05",
+          "step": "0.47829690000000014"
+        },
+        {
+          "iter": "2001",
+          "KKT_res": "0.0001477960337663206",
+          "dual_res": "2.755165096068879e-08",
+          "cons_viol": "0.0001477960337663206",
+          "comp_res": "1.484396072243121e-06",
+          "mu": "1.4779603376632061e-06",
+          "step": "0.47829690000000014"
+        },
+        {
+          "iter": "3001",
+          "KKT_res": "2.085532518130423e-05",
+          "dual_res": "2.250671427006523e-09",
+          "cons_viol": "2.085532518130423e-05",
+          "comp_res": "2.0946135681272734e-07",
+          "mu": "2.085532518130423e-07",
+          "step": "0.47829690000000014"
+        },
+        {
+          "iter": "3322",
+          "KKT_res": "2.250671427006523e-09",
+          "dual_res": "2.250671427006523e-09",
+          "cons_viol": "1.416667322166705e-09",
+          "comp_res": "2.6629784044952344e-10",
+          "mu": "2.302507725290119e-10",
+          "step": "1.0"
+        }
+      ],
+      "limitation": "Acceptance branch, repair size, and original Newton defect were not logged"
+    },
+    "full_qp_candidate": {
+      "total": 178,
+      "accepted": 169,
+      "failures": [
+        {
+          "problem_id": "BOYD1",
+          "status": "timeout",
+          "solver_status": null,
+          "iterations": null,
+          "failure_reasons": null,
+          "residuals": {},
+          "record": "glqp-bench/runs/research2-20261016-implementation-full/source/benchmark/runs/mm/records/glqp_candidate/BOYD1__r000.json",
+          "sha256": "09689b823637b69c2315d6614c81257eaff866be53b652a8b80c0d7d47ca353d"
+        },
+        {
+          "problem_id": "BOYD2",
+          "status": "timeout",
+          "solver_status": null,
+          "iterations": null,
+          "failure_reasons": null,
+          "residuals": {},
+          "record": "glqp-bench/runs/research2-20261016-implementation-full/source/benchmark/runs/mm/records/glqp_candidate/BOYD2__r000.json",
+          "sha256": "8fec3d7596315055b6922c938bcf2b91f3de7d33de6d64e855cb0216924a2390"
+        },
+        {
+          "problem_id": "CONT-300",
+          "status": "timeout",
+          "solver_status": null,
+          "iterations": null,
+          "failure_reasons": null,
+          "residuals": {},
+          "record": "glqp-bench/runs/research2-20261016-implementation-full/source/benchmark/runs/mm/records/glqp_candidate/CONT-300__r000.json",
+          "sha256": "9184d1c8e829e908fbc2a389890991f7211df5ba97839f1efa5a45694a3ad03a"
+        },
+        {
+          "problem_id": "CVXQP1_L",
+          "status": "timeout",
+          "solver_status": null,
+          "iterations": null,
+          "failure_reasons": null,
+          "residuals": {},
+          "record": "glqp-bench/runs/research2-20261016-implementation-full/source/benchmark/runs/mm/records/glqp_candidate/CVXQP1_L__r000.json",
+          "sha256": "734dbb47b1db9f8714f59c92ced23d6c37883399f4cc9611110906f483539822"
+        },
+        {
+          "problem_id": "CVXQP3_L",
+          "status": "timeout",
+          "solver_status": null,
+          "iterations": null,
+          "failure_reasons": null,
+          "residuals": {},
+          "record": "glqp-bench/runs/research2-20261016-implementation-full/source/benchmark/runs/mm/records/glqp_candidate/CVXQP3_L__r000.json",
+          "sha256": "0b767e4a4dfc932aef47f3cb9dfde65ef2962c31482ce968209a27c12ef227bd"
+        },
+        {
+          "problem_id": "LISWET12",
+          "status": "inaccurate",
+          "solver_status": "maximum_iter",
+          "iterations": 10000,
+          "failure_reasons": [
+            "complementarity"
+          ],
+          "residuals": {
+            "complementarity_residual_scaled": 0.3598529150926702,
+            "dual_sign_violation_scaled": 0.0,
+            "primal_residual_scaled": 3.527493058208542e-07,
+            "stationarity_residual_scaled": 6.315935040855864e-10,
+            "tolerance": 1e-06
+          },
+          "record": "glqp-bench/runs/research2-20261016-implementation-full/source/benchmark/runs/mm/records/glqp_candidate/LISWET12__r000.json",
+          "sha256": "01d79af92ed260fc3339b93de22a6f886a1b957d60df76bde97b3f175757f129"
+        },
+        {
+          "problem_id": "LISWET8",
+          "status": "inaccurate",
+          "solver_status": "stagnated",
+          "iterations": 5026,
+          "failure_reasons": [
+            "complementarity"
+          ],
+          "residuals": {
+            "complementarity_residual_scaled": 0.0039021008908337704,
+            "dual_sign_violation_scaled": 0.0,
+            "primal_residual_scaled": 3.9618627090121095e-07,
+            "stationarity_residual_scaled": 5.0231476359585315e-11,
+            "tolerance": 1e-06
+          },
+          "record": "glqp-bench/runs/research2-20261016-implementation-full/source/benchmark/runs/mm/records/glqp_candidate/LISWET8__r000.json",
+          "sha256": "336afac8a61fc40163f0d22863fe1056d94dbbdf00c16180c0fc250f52193987"
+        },
+        {
+          "problem_id": "LISWET9",
+          "status": "inaccurate",
+          "solver_status": "maximum_iter",
+          "iterations": 10000,
+          "failure_reasons": [
+            "complementarity"
+          ],
+          "residuals": {
+            "complementarity_residual_scaled": 0.37898726405167893,
+            "dual_sign_violation_scaled": 0.0,
+            "primal_residual_scaled": 4.405210902724832e-07,
+            "stationarity_residual_scaled": 3.3742811704435225e-10,
+            "tolerance": 1e-06
+          },
+          "record": "glqp-bench/runs/research2-20261016-implementation-full/source/benchmark/runs/mm/records/glqp_candidate/LISWET9__r000.json",
+          "sha256": "b65cd536640132e3fc45b3d058a29c864f0fcad3345a0a7f888a505584677c99"
+        },
+        {
+          "problem_id": "QPILOTNO",
+          "status": "inaccurate",
+          "solver_status": "near_opt_maximum_iter",
+          "iterations": 10000,
+          "failure_reasons": [
+            "primal_feasibility",
+            "complementarity"
+          ],
+          "residuals": {
+            "complementarity_residual_scaled": 3.3791581884709437e-06,
+            "dual_sign_violation_scaled": 0.0,
+            "primal_residual_scaled": 3.331269104155583e-06,
+            "stationarity_residual_scaled": 5.970536124235851e-11,
+            "tolerance": 1e-06
+          },
+          "record": "glqp-bench/runs/research2-20261016-implementation-full/source/benchmark/runs/mm/records/glqp_candidate/QPILOTNO__r000.json",
+          "sha256": "61061b5de53e03d441023b2c1bad3de31ed0675cadfdb2d3ee93e2f08f6b2795"
+        }
+      ]
+    }
+  }
+}
