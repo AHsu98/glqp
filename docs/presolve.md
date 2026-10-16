@@ -11,9 +11,11 @@ exactly matching opposite bounds, propagate those substitutions, remove
 certified empty rows, and retain strongest singleton inequalities. Singleton
 equality elimination, fixed-bound elimination, and redundant-bound removal
 have separate switches; empty-row removal is part of propagation.
-No approximate equality or small coefficient
-is used as an elimination rule. General aggregation, scaling, Hessian-based
-fixing, and GLM predictor substitution are outside this version's scope.
+An additional opt-in pass minimizes independent positive scalar quadratics
+over their remaining singleton bounds. No approximate equality or small
+coefficient is used as an elimination rule. General aggregation, scaling,
+coupled quadratic substitution, and GLM predictor substitution are outside
+this version's scope.
 
 ```python
 from glqp.presolve import PresolveOptions, prepare_native, presolve_qp
@@ -31,8 +33,8 @@ reduced.close()
 For the solver's convention, use `q=-problem.b`, `A=problem.E`, `b=problem.e`,
 `G=problem.C`, and `h=problem.c`. A reduction to zero variables needs no
 numerical solve: call `recover([])` and use the objective offset. Removed
-inequalities receive zero duals, except an exactly fixed bound pair, whose
-appropriate nonnegative multiplier is reconstructed. Equality pivots are
+inequalities receive zero duals, except an exactly fixed bound pair or an
+active scalar-minimum bound, whose nonnegative multiplier is reconstructed. Equality pivots are
 undone in reverse order, updating the stationarity residual along their
 original sparse rows. This is necessary when singleton equalities emerge
 after earlier fixed variables are removed.
@@ -78,6 +80,34 @@ An initially empty row with a guarded contradiction, or arithmetic overflow,
 still causes the original whole-problem fallback. The option is false by default, and
 does not relax any constraint or increase the infeasibility guard.
 
+## Independent scalar quadratics
+
+`PresolveOptions(separable_quadratics=True)` additionally minimizes
+`0.5*d*x*x + q*x` when `d>0`, the original Hessian column has no off-diagonal
+entries, and every remaining constraint on the variable is a singleton
+inequality. The optimum is `-q/d`, clipped to the strongest lower and upper
+bounds. This removes a variable at its optimum; it does not assert that the
+original feasible set fixed that variable. The remaining QP and objective
+offset preserve the optimum.
+
+The pass uses outward quotient intervals to distinguish an interior minimum
+from a lower-bound or upper-bound minimum. Overlapping intervals retain the
+variable. A preflight checks every other bound before removing any row or
+changing reconstruction state. Unrepresentable scalar quotients likewise
+retain that variable. `separable_variables` counts accepted minima, and
+`separable_ambiguous_variables` counts otherwise eligible variables retained
+because the arithmetic or an earlier deferred decision prevented certification.
+The option is false by default and independent of `local_fallback`.
+
+Interior minima need no additional multiplier. For a clipped minimum the
+reverse tape reconstructs `z = -(d*x+q)/a` on its active bound `a*x<=h`,
+including the original row scale. The sign is nonnegative by the certified
+activity decision. Original bound rows may also contain variables fixed by
+earlier equality or bound pivots; reversing the tape propagates their dual
+contribution before reconstructing those earlier multipliers. Columns coupled
+to an earlier fixed variable are intentionally excluded: supporting them
+would require certified intervals for the shifted linear objective.
+
 ## Build and reproducibility
 
 `prepare_native()` compiles lazily using `$CXX` or `c++`. The compiler must
@@ -100,9 +130,10 @@ It copies input data, owns all reconstruction state, and has no global mutable
 solver state. Free its opaque result with `gqp_free`. Output pointers are
 valid until that call. `gqp_recover` handles primal and dual recovery.
 
-Adding `local_fallback` changes the native `gqp_options` layout. Rebuild C and
-C++ clients together with this experimental library; previously compiled
-clients are not ABI-compatible with the new layout. The Python build cache
+Adding experimental option fields changes the native `gqp_options` layout.
+Rebuild C and C++ clients together with this library; previously compiled
+clients must not be mixed with the new layout, even when the structure's size
+is unchanged because a new field occupies former padding. The Python build cache
 includes both the header and source in its key, so this change selects a new
 matching native build automatically.
 
@@ -112,6 +143,7 @@ To build without Python:
 cmake -S glqp/_native -B build/presolve -DCMAKE_BUILD_TYPE=Release
 cmake --build build/presolve
 build/presolve/glqp-presolve original.gqp > reduced.gqp
+build/presolve/glqp-presolve --local-fallback --separable-quadratics original.gqp > reduced.gqp
 ```
 
 The CLI accepts a `GQP1` text stream. Its first line is `GQP1`, then
@@ -123,6 +155,11 @@ The output uses the same format with the new objective constant. Diagnostic
 text goes to stderr. Exit codes 2, 3, 4, and 5 mean infeasible, inconclusive,
 invalid input, and internal error respectively. Use the library API when
 dual reconstruction is required.
+
+The CLI also exposes `--no-singleton-equalities`, `--no-fixed-bounds`,
+`--no-redundant-bounds`, and `--infeasibility-guard NUMBER`. An omitted filename
+or `-` reads standard input. `--help` lists all switches. The default CLI
+options match `PresolveOptions()`.
 
 ## Experiments
 
@@ -248,3 +285,36 @@ takes 1,785 iterations, so keeping those barrier terms is not a remedy.
 All recovered solutions pass original-data validation.
 This evidence reinforces keeping presolve optional and its passes explicit;
 there is no input-specific heuristic or default promotion.
+
+The fifth iteration adds the separately enabled scalar-quadratic pass. The
+[all-problem structural validation](experiments/presolve/iteration-5-structural.json)
+uses `local_fallback=True, separable_quadratics=True` and validates objective
+and retained-row identities at three random reduced points per input. It
+accepts 6,546 additional scalar minima across nine of the 138 QPs, with no
+ambiguous scalar decisions or whole-problem fallbacks in this collection.
+Totals become 11,414 eliminated variables, 4,518 removed equalities, and
+17,955 removed inequalities; 49 problems have a reduction.
+
+| Problem | Scalar variables removed | Variables before/after scalar pass | Inequalities before/after scalar pass |
+| --- | ---: | ---: | ---: |
+| MOSARQP1 | 1,743 | 2,500 / 757 | 3,200 / 1,457 |
+| MOSARQP2 | 267 | 900 / 633 | 1,500 / 1,233 |
+| PRIMAL1 | 125 | 325 / 200 | 86 / 86 |
+| PRIMAL2 | 254 | 649 / 395 | 97 / 97 |
+| PRIMAL3 | 72 | 745 / 673 | 112 / 112 |
+| PRIMAL4 | 242 | 1,489 / 1,247 | 76 / 76 |
+| Q25FV47 | 1 | 1,546 / 1,545 | 1,848 / 1,847 |
+| STCQP1 | 2,560 | 3,830 / 1,270 | 7,660 / 2,540 |
+| STCQP2 | 1,282 | 2,045 / 763 | 4,090 / 1,526 |
+
+The [disabled-option comparison](experiments/presolve/iteration-5-default-compatibility.json)
+against `d9bf350` preserves every reduced matrix, vector, map, objective
+offset, and recovered primal/dual array bitwise on all 138 inputs, with three
+checks per input. Both diagnostics omit timing observations because they ran
+outside an exclusive measurement window. Structural reductions do not by
+themselves establish faster solves, and this pass does not alter QFFFFF80.
+The [native sanitizer validation](experiments/presolve/iteration-5-sanitizer.json)
+passes 39,097 assertions, including free and clipped scalar minima, original
+scaled-bound multipliers, reverse equality-pivot propagation, and uncertain
+activity retention. Python tests add 12 randomized original-KKT cases and
+exercise every standalone CLI option.

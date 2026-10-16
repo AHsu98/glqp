@@ -4,6 +4,8 @@ The reference directory must contain an exported glqp/presolve.py and its
 glqp/_native sources. This tool never imports a reference solver algorithm.
 """
 import argparse
+from dataclasses import asdict
+import hashlib
 import importlib.util
 import json
 import os
@@ -25,15 +27,24 @@ def main():
     parser.add_argument("--reference-commit", required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--repeats", type=int, default=5)
+    parser.add_argument("--local-fallback", action="store_true")
+    parser.add_argument("--separable-quadratics", action="store_true")
+    parser.add_argument("--validation-only", action="store_true", help="omit timings outside an exclusive measurement window")
     args = parser.parse_args()
     spec = importlib.util.spec_from_file_location("presolve_reference", args.reference / "glqp/presolve.py")
     reference = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = reference
     spec.loader.exec_module(reference)
     versions = {"reference": reference, "candidate": candidate}
-    evidence = {"kind": "interleaved presolve-only diagnostic, not solve speedup",
+    selected = {name: True for name in ("local_fallback", "separable_quadratics")
+                if getattr(args, name)}
+    options = {name: module.PresolveOptions(**selected) for name, module in versions.items()}
+    timing_keys = () if args.validation_only else ("native_seconds", "total_seconds")
+    evidence = {"kind": "output and recovery validation; timings omitted" if args.validation_only else
+                        "interleaved presolve-only diagnostic, not solve speedup",
                 "reference_commit": args.reference_commit,
                 "builds": {name: module.prepare_native() for name, module in versions.items()},
+                "options": {name: asdict(option) for name, option in options.items()},
                 "affinity": sorted(os.sched_getaffinity(0)), "repeats": args.repeats,
                 "problems": []}
     rng = np.random.default_rng(200814)
@@ -44,8 +55,9 @@ def main():
             order = list(versions) if (index + repeat) % 2 == 0 else list(reversed(versions))
             result = {}
             for name in order:
-                result[name] = versions[name].presolve_qp(qp.P, qp.q, qp.A, qp.b, qp.G, qp.h)
-                samples[name].append({key: result[name].stats[key] for key in ("native_seconds", "total_seconds")})
+                result[name] = versions[name].presolve_qp(qp.P, qp.q, qp.A, qp.b, qp.G, qp.h,
+                                                       options=options[name])
+                samples[name].append({key: result[name].stats[key] for key in timing_keys})
             old, new = result["reference"], result["candidate"]
             assert old.status == new.status
             for name in ("Q", "A", "G"):
@@ -61,12 +73,13 @@ def main():
             old.close()
             new.close()
         medians = {name: {key: statistics.median(row[key] for row in rows)
-                          for key in ("native_seconds", "total_seconds")}
+                          for key in timing_keys}
                    for name, rows in samples.items()}
-        evidence["problems"].append({"name": qp.name, "samples": samples, "medians": medians,
+        evidence["problems"].append({"name": qp.name, "input_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                                      "samples": samples, "medians": medians,
                                       "output_and_recovery_identical": True})
     evidence["summary"] = {"problems": len(evidence["problems"]), "identical_outputs": True}
-    for key in ("native_seconds", "total_seconds"):
+    for key in timing_keys:
         ratios = [row["medians"]["candidate"][key] / row["medians"]["reference"][key]
                   for row in evidence["problems"]]
         evidence["summary"][key + "_geomean_ratio"] = float(np.exp(np.mean(np.log(ratios))))

@@ -26,11 +26,15 @@ def main():
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--repeats", type=int, default=5)
     parser.add_argument("--local-fallback", action="store_true")
+    parser.add_argument("--separable-quadratics", action="store_true")
+    parser.add_argument("--validation-only", action="store_true", help="omit timings outside an exclusive measurement window")
     args = parser.parse_args()
     if args.repeats < 1:
         parser.error("repeats must be positive")
-    options = PresolveOptions(local_fallback=args.local_fallback)
-    evidence = {"kind": "presolve-only diagnostic, not solver performance", "native": prepare_native(),
+    options = PresolveOptions(local_fallback=args.local_fallback,
+                              separable_quadratics=args.separable_quadratics)
+    evidence = {"kind": "structural validation; timings omitted" if args.validation_only else
+                        "presolve-only diagnostic, not solver performance", "native": prepare_native(),
                 "options": asdict(options), "affinity": sorted(os.sched_getaffinity(0)),
                 "repeats": args.repeats, "problems": []}
     rng = np.random.default_rng(20261016)
@@ -39,7 +43,8 @@ def main():
         samples = []
         for _ in range(args.repeats):
             with presolve_qp(qp.P, qp.q, qp.A, qp.b, qp.G, qp.h, options=options) as reduced:
-                samples.append(dict(reduced.stats))
+                samples.append({name: value for name, value in reduced.stats.items()
+                                if not args.validation_only or not name.endswith("_seconds")})
                 x = rng.standard_normal(reduced.n)
                 original_x, _, _ = reduced.recover(x)
                 original_objective = .5 * original_x @ (qp.P @ original_x) + qp.q @ original_x
@@ -56,8 +61,9 @@ def main():
                                     reduced.Q.nnz + reduced.A.nnz + reduced.G.nnz],
                         "status": reduced.status, "message": reduced.message}
         item["samples"] = samples
-        item["median_seconds"] = {name: statistics.median(sample[name] for sample in samples)
-                                  for name in ("pack_seconds", "native_seconds", "total_seconds")}
+        if not args.validation_only:
+            item["median_seconds"] = {name: statistics.median(sample[name] for sample in samples)
+                                      for name in ("pack_seconds", "native_seconds", "total_seconds")}
         evidence["problems"].append(item)
     evidence["summary"] = {
         "problems": len(evidence["problems"]),
@@ -66,8 +72,12 @@ def main():
         "fixed_variables": sum(p["original"][0] - p["reduced"][0] for p in evidence["problems"]),
         "removed_equalities": sum(p["original"][1] - p["reduced"][1] for p in evidence["problems"]),
         "removed_inequalities": sum(p["original"][2] - p["reduced"][2] for p in evidence["problems"]),
-        "median_problem_seconds": statistics.median(p["median_seconds"]["total_seconds"] for p in evidence["problems"]),
+        "separable_variables": sum(p["samples"][0]["separable_variables"] for p in evidence["problems"]),
+        "separable_ambiguous_variables": sum(p["samples"][0]["separable_ambiguous_variables"] for p in evidence["problems"]),
     }
+    if not args.validation_only:
+        evidence["summary"]["median_problem_seconds"] = statistics.median(
+            p["median_seconds"]["total_seconds"] for p in evidence["problems"])
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(evidence, indent=2) + "\n")
     print(json.dumps(evidence["summary"], indent=2))

@@ -31,6 +31,9 @@ typedef struct {
      * when fixing it would create an ambiguous constant constraint, or when
      * its singleton bounds contradict each other within the guard. */
     int local_fallback;
+    /* Opt-in: minimize an independent positive scalar quadratic over its
+     * remaining singleton bounds; ambiguous active-bound decisions are kept. */
+    int separable_quadratics;
 } gqp_options;
 
 enum gqp_status {
@@ -55,7 +58,9 @@ const double *gqp_get_vector(const void *result, int which);
  * stats: 0=fixed variables, 1=removed equalities, 2=removed inequalities,
  * 3=processed singleton rows, 4=propagation visits, 5=original nonzeros,
  * 6=variables retained because an elimination decision was ambiguous,
- * 7=retained rows that blocked elimination or exposed a guarded bound conflict. */
+ * 7=retained rows that blocked elimination or exposed a guarded bound conflict,
+ * 8=variables minimized by the separable-quadratic pass,
+ * 9=eligible scalar quadratics retained because certification was ambiguous. */
 const int64_t *gqp_get_map(const void *result, int which);
 int64_t gqp_get_stat(const void *result, int which);
 /* Reconstruct primal and both dual vectors. Input lengths are reduced

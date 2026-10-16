@@ -18,7 +18,7 @@ using Index = int64_t;
 using Vector = std::vector<double>;
 using Dense = std::vector<Vector>;
 using Result = std::unique_ptr<void, decltype(&gqp_free)>;
-constexpr gqp_options options{1, 1, 1, 1e-12, 0};
+constexpr gqp_options options{1, 1, 1, 1e-12, 0, 0};
 int checks = 0;
 
 void require(bool condition, const char *description) {
@@ -235,8 +235,8 @@ void malformed_inputs() {
     bad = valid; bad.data[0] = 0.; expect_invalid(bad.view(), q.data());
     bad = valid; bad.data[0] = std::numeric_limits<double>::quiet_NaN(); expect_invalid(bad.view(), q.data());
     bad = valid; bad.data[1] += .25; expect_invalid(bad.view(), q.data());
-    expect_invalid(valid.view(), q.data(), {1, 1, 1, -1., 0});
-    expect_invalid(valid.view(), q.data(), {1, 1, 1, std::numeric_limits<double>::infinity(), 0});
+    expect_invalid(valid.view(), q.data(), {1, 1, 1, -1., 0, 0});
+    expect_invalid(valid.view(), q.data(), {1, 1, 1, std::numeric_limits<double>::infinity(), 0, 0});
 }
 
 void infeasible_and_uncertain() {
@@ -278,6 +278,27 @@ void local_deferrals() {
     require(kept.rows == 2 && kept.nnz == 2, "Local deferral dropped conflicting bounds");
     require(gqp_get_vector(result.get(), 2)[1] == h[1], "Local deferral changed conflicting RHS");
 }
+
+void scalar_quadratics() {
+    auto scalar = options;
+    scalar.separable_quadratics = 1;
+    Matrix Q({{2., 0., 0.}, {0., 4., 0.}, {0., 0., 8.}}, 3), empty({}, 3);
+    check_known_solution(Q, empty, empty, {-.5, 1., -.75}, {}, {}, {}, 3, scalar);
+    Matrix G({{-2., 0., 0.}, {-1., 0., 0.}, {0., 2., 0.},
+              {0., 1., 0.}, {0., 0., -1.}, {0., 0., 1.}}, 3);
+    check_known_solution(Q, empty, G, {-1., 2., .5}, {}, {2., 0., 4., 0., 0., 0.},
+                         {0., 1., 0., 1., .5, .5}, 3, scalar);
+    Matrix chained_Q({{1., 0.}, {0., 3.}}, 2), A({{1., 0.}}, 2), bound({{1., -1.}}, 2);
+    check_known_solution(chained_Q, A, bound, {2., 3.}, {-11.}, {9.}, {0.}, 2, scalar);
+    Matrix uncertain_Q({{3., 0.}, {0., 2.}}, 2), uncertain_G({{-3., 0.}}, 2), empty2({}, 2);
+    Vector q{1., -2.}, h{1.};
+    Result result(gqp_presolve(uncertain_Q.view(), q.data(), empty2.view(), nullptr,
+                               uncertain_G.view(), h.data(), scalar), gqp_free);
+    require(gqp_status_code(result.get()) == GQP_REDUCED, "Scalar local ambiguity fallback failed");
+    require(gqp_get_stat(result.get(), 8) == 1 && gqp_get_stat(result.get(), 9) == 1,
+            "Wrong separable scalar statistics");
+    require(gqp_get_matrix(result.get(), 2).rows == 1, "Ambiguous scalar bound was dropped");
+}
 } // namespace
 
 int main() {
@@ -288,6 +309,7 @@ int main() {
         malformed_inputs();
         infeasible_and_uncertain();
         local_deferrals();
+        scalar_quadratics();
         std::cout << "Native presolver validation passed: " << checks
                   << " assertions, 100 mixed cascades, malformed-input and lifetime cases\n";
         return 0;

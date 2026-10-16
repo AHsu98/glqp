@@ -6,6 +6,7 @@
 #include <iostream>
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <tuple>
 #include <vector>
 
@@ -66,13 +67,37 @@ void write_matrix(gqp_matrix matrix) {
 
 int main(int argc, char **argv) {
     try {
-        if (argc > 2) throw std::runtime_error("Usage: glqp-presolve [problem.gqp] > reduced.gqp");
+        gqp_options options{1, 1, 1, 1e-12, 0, 0};
+        std::string filename;
+        for (int i = 1; i < argc; ++i) {
+            std::string arg = argv[i];
+            if (arg == "--separable-quadratics") options.separable_quadratics = 1;
+            else if (arg == "--local-fallback") options.local_fallback = 1;
+            else if (arg == "--no-singleton-equalities") options.singleton_equalities = 0;
+            else if (arg == "--no-fixed-bounds") options.fixed_bounds = 0;
+            else if (arg == "--no-redundant-bounds") options.redundant_bounds = 0;
+            else if (arg == "--infeasibility-guard" && i + 1 < argc) {
+                std::string value = argv[++i];
+                size_t used = 0;
+                options.infeasibility_guard = std::stod(value, &used);
+                if (used != value.size()) throw std::runtime_error("Invalid infeasibility guard");
+            } else if (arg == "--help") {
+                std::cout << "Usage: glqp-presolve [options] [problem.gqp|-] > reduced.gqp\n"
+                          << "  --separable-quadratics  --local-fallback\n"
+                          << "  --no-singleton-equalities  --no-fixed-bounds  --no-redundant-bounds\n"
+                          << "  --infeasibility-guard NUMBER\n";
+                return 0;
+            } else if (arg.rfind("--", 0) == 0 || !filename.empty()) {
+                throw std::runtime_error("Unknown option or extra input; see --help");
+            } else filename = arg;
+        }
         std::ifstream file;
-        if (argc == 2) {
-            file.open(argv[1]);
+        bool from_file = !filename.empty() && filename != "-";
+        if (from_file) {
+            file.open(filename);
             if (!file) throw std::runtime_error("Cannot open input");
         }
-        std::istream &input = argc == 2 ? file : std::cin;
+        std::istream &input = from_file ? file : std::cin;
         std::string version;
         Index n, p, m;
         double offset;
@@ -81,7 +106,7 @@ int main(int argc, char **argv) {
         auto q = read_vector(input, n), b = read_vector(input, p), h = read_vector(input, m);
         auto Q = read_matrix(input, n, n), A = read_matrix(input, p, n), G = read_matrix(input, m, n);
         std::unique_ptr<void, decltype(&gqp_free)> result(
-            gqp_presolve(Q.view(), q.data(), A.view(), b.data(), G.view(), h.data(), {1, 1, 1, 1e-12, 0}), gqp_free);
+            gqp_presolve(Q.view(), q.data(), A.view(), b.data(), G.view(), h.data(), options), gqp_free);
         int status = gqp_status_code(result.get());
         std::cerr << gqp_message(result.get()) << '\n';
         if (status > GQP_REDUCED) return status;

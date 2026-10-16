@@ -114,7 +114,7 @@ struct Result {
     std::array<Matrix, 3> original, reduced;
     std::array<std::vector<double>, 3> original_rhs, rhs;
     std::array<std::vector<Index>, 3> maps;
-    std::array<Index, 8> stats{};
+    std::array<Index, 10> stats{};
     std::vector<Pivot> tape;
     std::vector<double> fixed_values;
     // Shared CSR of original A/G, retained for reverse dual reconstruction.
@@ -163,7 +163,8 @@ class Presolver {
         std::vector<unsigned char> pivot_row(p + m);
         for (const auto &pivot : r.tape) {
             if (pivot.equality >= 0) pivot_row[pivot.equality] = 1;
-            else pivot_row[p + pivot.lower] = pivot_row[p + pivot.upper] = 1;
+            if (pivot.lower >= 0) pivot_row[p + pivot.lower] = 1;
+            if (pivot.upper >= 0) pivot_row[p + pivot.upper] = 1;
         }
         r.row_ptr.assign(p + m + 1, 0);
         for (int matrix = 1; matrix <= 2; ++matrix)
@@ -252,11 +253,11 @@ class Presolver {
                     // global infeasibility certificate, not an ambiguity.
                     if ((next.lo > 0. || next.hi < 0.) &&
                         std::min(std::abs(next.lo), std::abs(next.hi)) > guard) continue;
-                    ambiguous[row] = 1;
+                    if (options.local_fallback) ambiguous[row] = 1;
                     return true;
                 }
                 if (next.lo < 0. && !(next.hi < 0. && -next.hi > guard)) {
-                    ambiguous[row] = 1;
+                    if (options.local_fallback) ambiguous[row] = 1;
                     return true;
                 }
             }
@@ -272,7 +273,8 @@ class Presolver {
             return;
         }
         if (pivot.equality >= 0) removed[pivot.equality] = 1;
-        else removed[p + pivot.lower] = removed[p + pivot.upper] = 1;
+        if (pivot.lower >= 0) removed[p + pivot.lower] = 1;
+        if (pivot.upper >= 0) removed[p + pivot.upper] = 1;
         fixed[variable] = 1;
         r.fixed_values[variable] = value;
         r.tape.push_back(pivot);
@@ -343,6 +345,76 @@ class Presolver {
                       {variable, -1, low - p, high - p, 0., a, b});
         }
         return true;
+    }
+
+    bool independent_quadratic(Index variable) const {
+        const auto &Q = r.original[0];
+        Index first = Q.ptr[variable];
+        // Restrict the first pass to originally diagonal columns. Coupling to
+        // earlier fixed variables would need objective coefficient intervals.
+        if (Q.ptr[variable + 1] != first + 1 || Q.idx[first] != variable || Q.data[first] <= 0.)
+            return false;
+        for (int matrix = 1; matrix <= 2; ++matrix) {
+            const auto &a = r.original[matrix];
+            for (Index k = a.ptr[variable]; k < a.ptr[variable + 1]; ++k) {
+                Index row = a.idx[k] + (matrix == 2 ? p : 0);
+                if (!removed[row] && (matrix == 1 || count[row] != 1)) return false;
+            }
+        }
+        return true;
+    }
+
+    bool choose_scalar_minimum(Index variable, double &value, Interval &range, Pivot &pivot) {
+        double diagonal = r.original[0].data[r.original[0].ptr[variable]];
+        double linear = r.original_rhs[0][variable];
+        range = quotient(-linear, diagonal);
+        value = -linear / diagonal;
+        Index low = lower_row[variable], high = upper_row[variable];
+        Interval lower = low < 0 ? Interval{-inf, -inf} : divide({lo[low], hi[low]}, singleton_coefficient[low]);
+        Interval upper = high < 0 ? Interval{inf, inf} : divide({lo[high], hi[high]}, singleton_coefficient[high]);
+        if (range.hi < lower.lo) {
+            range = lower;
+            value = rhs[low] / singleton_coefficient[low];
+            pivot.lower = low - p;
+            pivot.lower_coefficient = singleton_coefficient[low];
+        } else if (range.lo > upper.hi) {
+            range = upper;
+            value = rhs[high] / singleton_coefficient[high];
+            pivot.upper = high - p;
+            pivot.upper_coefficient = singleton_coefficient[high];
+        } else if (range.lo < lower.hi || range.hi > upper.lo) {
+            // Overlap cannot certify whether the bound or objective is active.
+            return false;
+        }
+        // Check every other singleton bound before any row or tape mutation.
+        return !would_create_ambiguous_row(variable, range, pivot);
+    }
+
+    void minimize_separable_quadratics() {
+        for (Index variable = 0; variable < n; ++variable) {
+            if (fixed[variable] || !independent_quadratic(variable)) continue;
+            if (options.local_fallback && deferred[variable]) {
+                ++r.stats[9];
+                continue;
+            }
+            double value;
+            Interval range;
+            Pivot pivot{variable, -1, -1, -1, 0., 0., 0.};
+            bool certified;
+            try {
+                certified = choose_scalar_minimum(variable, value, range, pivot);
+            } catch (const std::overflow_error &) {
+                // This optional pass has not modified anything yet. Retain an
+                // unrepresentable scalar optimum and keep independent work.
+                certified = false;
+            }
+            if (!certified) {
+                ++r.stats[9];
+                continue;
+            }
+            eliminate(variable, value, range, pivot);
+            if (fixed[variable]) ++r.stats[8];
+        }
     }
 
     Matrix reduce_matrix(const Matrix &source, const std::vector<Index> &row_map,
@@ -424,13 +496,12 @@ public:
         queue.reserve(p + m);
     }
 
-    void run() {
-        initialize_rows();
+    bool propagate() {
         for (size_t head = 0; head < queue.size(); ++head) {
             Index row = queue[head];
             if (removed[row]) continue;
             if (count[row] == 0) {
-                if (!empty(row)) return;
+                if (!empty(row)) return false;
             } else if (!processed[row]) {
                 processed[row] = 1;
                 ++r.stats[3];
@@ -440,8 +511,19 @@ public:
                 if (row < p && options.singleton_equalities) {
                     eliminate(variable, rhs[row] / a, divide({lo[row], hi[row]}, a),
                               {variable, row, -1, -1, a, 0., 0.});
-                } else if (row >= p && !singleton_bound(row, variable, a)) return;
+                } else if (row >= p && !singleton_bound(row, variable, a)) return false;
             }
+        }
+        queue.clear();
+        return true;
+    }
+
+    void run() {
+        initialize_rows();
+        if (!propagate()) return;
+        if (options.separable_quadratics) {
+            minimize_separable_quadratics();
+            if (!propagate()) return;
         }
         reconstruct_problem();
     }
@@ -516,7 +598,7 @@ const int64_t *gqp_get_map(const void *value, int which) {
     return !value || which < 0 || which > 2 ? nullptr : static_cast<const Result *>(value)->maps[which].data();
 }
 int64_t gqp_get_stat(const void *value, int which) {
-    return !value || which < 0 || which > 7 ? -1 : static_cast<const Result *>(value)->stats[which];
+    return !value || which < 0 || which > 9 ? -1 : static_cast<const Result *>(value)->stats[which];
 }
 
 int gqp_recover(const void *value, const double *x, const double *y, const double *z,
@@ -558,14 +640,15 @@ int gqp_recover(const void *value, const double *x, const double *y, const doubl
                 row = entry->equality;
                 dual = -gradient[entry->variable] / entry->equality_coefficient;
                 original_y[row] = dual;
-            } else {
-                bool use_upper = gradient[entry->variable] < 0.;
+            } else if (entry->lower >= 0 || entry->upper >= 0) {
+                bool use_upper = entry->lower < 0 || (entry->upper >= 0 && gradient[entry->variable] < 0.);
                 Index local_row = use_upper ? entry->upper : entry->lower;
                 double a = use_upper ? entry->upper_coefficient : entry->lower_coefficient;
                 dual = -gradient[entry->variable] / a;
+                if (dual < 0.) return 2;
                 row = p + local_row;
                 original_z[local_row] = dual;
-            }
+            } else continue; // An interior scalar optimum needs no multiplier.
             for (Index k = r.row_ptr[row]; k < r.row_ptr[row + 1]; ++k)
                 gradient[r.row_col[k]] += r.row_data[k] * dual;
         }
