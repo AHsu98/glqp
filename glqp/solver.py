@@ -5,7 +5,7 @@ from scipy.sparse import csc_array,block_diag
 from scipy.sparse import block_array,eye_array
 from sparse_dot_mkl import dot_product_mkl
 from .util import (
-    Logger,get_step_size,
+    Logger,SparseTransposeCache,get_step_size,
     maxnorm,
     print_problem_summary,
     build_solution_summary,factor_and_solve,parse_problem
@@ -126,6 +126,7 @@ class GLQP():
         self.Ip = csc_array(eye_array(p))
         self.reg_shift = block_diag([self.In,-self.Ik,-self.Ip])
         self._kkt_workspace = None
+        self._transpose_views = SparseTransposeCache()
 
     def initialize(self,x0=None,y0 = None,s0 = None,settings = None):
 
@@ -148,6 +149,7 @@ class GLQP():
         self._initial_linear_info = None
         # Problem matrices may have been replaced since the previous solve.
         self._kkt_workspace = None
+        self._transpose_views.clear()
 
         if x0 is None:
             x = np.zeros(self.n)
@@ -157,7 +159,7 @@ class GLQP():
         if self.E.shape[0]>0:
             G = block_array(
                 [
-                    [self.In,self.E.T],
+                    [self.In,self._transpose_views.get('E', self.E)],
                     [self.E ,None]
                 ],format = 'csc'
             )
@@ -206,7 +208,9 @@ class GLQP():
         return x,y,s,nu,settings
     
     def KKT_res(self,x,g,y,s,nu):
-        rx = g + self.C.T@y + self.E.T@nu - self.b
+        CT = self._transpose_views.get('C', self.C)
+        ET = self._transpose_views.get('E', self.E)
+        rx = g + CT@y + ET@nu - self.b
         rp = self.C@x + s - self.c
         rc = y * s
         req = self.E@x - self.e
@@ -279,7 +283,8 @@ class GLQP():
 
     def _evaluate_glm_hessian(self,z):
         D = self.f.d2f(z)[:,None]
-        return dot_product_mkl(self.A.T,csc_array(self.A.multiply(D)))
+        return dot_product_mkl(self._transpose_views.get('A', self.A),
+                               csc_array(self.A.multiply(D)))
     
     def solve(
         self,
@@ -323,11 +328,12 @@ class GLQP():
         
 
         z = self.A@x
+        AT = self._transpose_views.get('A', self.A)
         Qx = self.Q@x
         primal = self.f(z) + 0.5*np.dot(x,Qx) - np.dot(x,self.b)
         
         H = self.get_H(z)
-        gradf = self.A.T@self.f.d1f(z) + Qx
+        gradf = AT@self.f.d1f(z) + Qx
         rx,rp,rc,req = self.KKT_res(x,gradf,y,s,nu)
         kkt_res = maxnorm(np.hstack([rx,rp,rc,req]))
         cons_viol = np.maximum(maxnorm(rp),maxnorm(req))
@@ -459,9 +465,18 @@ class GLQP():
                 if armijo_satisfied:
                     successful = True
                     break
+
+                # A rejected nonlinear descent trial can use its KKT norm
+                # only once the explicitly enabled Newton fallback applies.
+                # Skip derivatives and constraint products otherwise.
+                residual_acceptance = self.QP_mode or merit_slope >= 0
+                newton_fallback = t < settings.let_newton_cook*tmax
+                if not (residual_acceptance or newton_fallback):
+                    t = 0.9*t
+                    continue
                 
                 #Check KKT residual
-                ls_gradf = self.A.T@self.f.d1f(trial_z) + Qx + t*Qdx
+                ls_gradf = AT@self.f.d1f(trial_z) + Qx + t*Qdx
                 ls_kkt_res = maxnorm(np.hstack(
                     self.KKT_res(trial_x,ls_gradf,trial_y,trial_s,nu+t*dnu)
                     ))
@@ -469,7 +484,7 @@ class GLQP():
                 # from an inconsistent positive slack warm start. For nonlinear
                 # GLMs, alternating merit decreases and residual-only steps can
                 # cycle: descent directions must pass the merit test there.
-                if (self.QP_mode or merit_slope >= 0) and np.isfinite(ls_kkt_res) and (
+                if residual_acceptance and np.isfinite(ls_kkt_res) and (
                     ls_kkt_res<(1-settings.armijo_param*t)*kkt_res
                     or ls_kkt_res<settings.tol
                 ):
@@ -477,7 +492,7 @@ class GLQP():
                     break
                 # Preserve the explicitly configured Newton fallback, but
                 # never use it to accept nonfinite or non-interior trials.
-                if np.isfinite(ls_kkt_res) and t<settings.let_newton_cook*tmax:
+                if np.isfinite(ls_kkt_res) and newton_fallback:
                     successful = True
                     break
                 t = 0.9*t
@@ -492,7 +507,7 @@ class GLQP():
 
             Qx = self.Q@x
             primal = self.f(z) + 0.5*np.dot(x,Qx) - np.dot(x,self.b)
-            gradf = self.A.T@self.f.d1f(z) + Qx
+            gradf = AT@self.f.d1f(z) + Qx
             rx,rp,rc,req = self.KKT_res(x,gradf,y,s,nu)
 
             H = self.get_H(z)
