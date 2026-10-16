@@ -1,6 +1,12 @@
 {
   "accessed_date": "2026-10-16",
   "scope": "Primary-source research; version pins are the inspected versions, not a claim about future latest releases",
+  "measured_comparator_packages": {
+    "piqp": "0.6.4",
+    "qoco": "0.1.3",
+    "evidence": "Installed distribution METADATA in the glqp conda environment, read 2026-10-16",
+    "limitation": "These differ from the inspected PIQP v0.6.3 and QOCO v0.3.2 sources. Reviewed implementation details cannot be assumed to describe the measured package versions."
+  },
   "code": [
     {
       "name": "PIQP",

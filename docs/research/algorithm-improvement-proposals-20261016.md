@@ -22,6 +22,13 @@ dense equation check on CPU 12, one thread; no performance measurements were run
 [external source pins](algorithm-improvement-sources-20261016.json) accompany
 this memo.
 
+The comparator packages measured by the current benchmark harness are
+**PIQP 0.6.4 and QOCO 0.1.3**. This source review instead inspected **PIQP
+v0.6.3 and QOCO v0.3.2**. Those versions are not numerically interchangeable:
+do not attribute the reviewed tuning rules or implementation details to the
+measured packages without checking their exact release sources. Comparator
+results belong to their recorded package versions and experiment manifests.
+
 | Priority | Proposal | Type | First decision to resolve |
 | --- | --- | --- | --- |
 | 0 | Decision telemetry; factor once, verify multiple RHS solves | Implementation prerequisite | Which mechanism limits the difficult trajectories, and what does an extra solve cost? |
@@ -539,6 +546,8 @@ The [source manifest](algorithm-improvement-sources-20261016.json) records
 immutable code URLs, archive hashes, and versioned paper URLs. These sources
 describe different solvers; no cross-solver timing or theoretical guarantee is
 claimed for GLQP. No external implementation was copied into numerical code.
+The PIQP/QOCO rows above are research source pins, not the versions of the
+measured comparator packages identified at the start of this memo.
 
 Reproduce the small local algebra check outside a timing campaign:
 
