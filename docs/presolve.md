@@ -8,8 +8,10 @@ reconstruction run in C++.
 
 The current passes eliminate fixed variables from singleton equalities or
 exactly matching opposite bounds, propagate those substitutions, remove
-certified empty rows, and retain strongest singleton inequalities. Each pass
-can be switched independently. No approximate equality or small coefficient
+certified empty rows, and retain strongest singleton inequalities. Singleton
+equality elimination, fixed-bound elimination, and redundant-bound removal
+have separate switches; empty-row removal is part of propagation.
+No approximate equality or small coefficient
 is used as an elimination rule. General aggregation, scaling, Hessian-based
 fixing, and GLM predictor substitution are outside this version's scope.
 
@@ -233,3 +235,16 @@ The focused Python suite has 54 passing checks, including 12 randomized
 row-order and dyadic-scaling cases with ambiguous chains and original KKT
 validation. The [expanded sanitizer run](experiments/presolve/iteration-4-sanitizer.json)
 passes 38,994 assertions with ASan, UBSan, and leak detection enabled.
+
+The broader complete-solve campaign also found a material regression:
+QFFFFF80 takes 68 iterations without presolve and 1,751 with it. Three
+alternating frozen CPU-8 repetitions reproduce the slowdown. The
+[pass-ablation diagnosis](experiments/presolve/qfffff80-regression.md) isolates
+the singleton-equality path; `PresolveOptions(singleton_equalities=False)`
+restores the unchanged model and 68 iterations. Keeping redundant bounds
+alone does not help. A separate structural ablation restores all 37 constant
+inequalities while keeping the reduced variable and equality dimensions; it still
+takes 1,785 iterations, so keeping those barrier terms is not a remedy.
+All recovered solutions pass original-data validation.
+This evidence reinforces keeping presolve optional and its passes explicit;
+there is no input-specific heuristic or default promotion.
