@@ -47,8 +47,8 @@ def test_guard_uses_preceding_target_across_accepted_iterations(monkeypatch, ini
             assert result.history.iloc[0]["mu"] < .1*targets[0]
 
 
-def test_previous_target_guard_is_the_default():
-    assert SolverSettings().barrier_update_guard == "previous"
+def test_accepted_default_retains_legacy_pending_guard_regressions():
+    assert SolverSettings().barrier_update_guard == "legacy"
 
 
 @pytest.mark.parametrize("empty_constraints", [False, True])
@@ -97,7 +97,8 @@ def test_guard_reduction_limit_controls_actual_next_target(monkeypatch, limit):
     zero_direction(p, monkeypatch)
     with pytest.warns(UserWarning, match="Maximum Iterations"):
         _, result = p.solve(x0=np.zeros(1), s0=np.ones(1), y0=np.ones(1), mu0=100.,
-            settings=SolverSettings(max_iter=1, barrier_reduction_limit=limit), verbose=False)
+            settings=SolverSettings(max_iter=1, barrier_update_guard="previous",
+                                    barrier_reduction_limit=limit), verbose=False)
     assert result.history.iloc[0]["mu"] == pytest.approx(max(.01, 100.*limit))
 
 
@@ -232,7 +233,8 @@ def test_guard_diagnostics_identify_binding_previous_target(monkeypatch):
     zero_direction(p, monkeypatch)
     with pytest.warns(UserWarning, match="Maximum Iterations"):
         _, result = p.solve(x0=np.zeros(1), s0=np.ones(1), y0=np.ones(1), mu0=100.,
-            verbose=False, settings=SolverSettings(max_iter=1, iteration_diagnostics=True))
+            verbose=False, settings=SolverSettings(max_iter=1, iteration_diagnostics=True,
+                                                  barrier_update_guard="previous"))
     barrier = result.diagnostics["iterations"][0]["barrier"]
     assert barrier["previous_target"] == 100.
     assert barrier["raw_proposal"] == pytest.approx(.02**3)

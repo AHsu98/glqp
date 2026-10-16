@@ -1,5 +1,11 @@
 # Barrier guard and iteration observations
 
+The corrected guard is opt-in. The full QP screen preserved 129/138 accepted
+problems but increased LISWET2 from 36 to 758 iterations and LISWET6 from 35 to
+2,735. YAO improved from 2,555 to 442. Keep `"legacy"` as the accepted default
+while experimenting with initialization and progress safeguards. Both policies
+remain explicit in the benchmark option file, independent of this default.
+
 `SolverSettings.barrier_update_guard="previous"` uses the barrier target from
 the start of the accepted iteration in the reduction floor. With the default
 `barrier_reduction_limit=0.1`, an update can reduce that target by at most tenfold:
@@ -24,7 +30,7 @@ can change iteration counts; it is not an implementation-only optimization.
 ## Observation API
 
 ```python
-settings = SolverSettings(iteration_diagnostics=True)
+settings = SolverSettings(barrier_update_guard="previous", iteration_diagnostics=True)
 x, result = problem.solve(settings=settings, iteration_callback=observe)
 ```
 

@@ -51,9 +51,9 @@ class SolverSettings():
     prox_reg:float = 2e-8
     linear_solver_backend:str = 'qdldl'
     linear_solver_options:dict|None = None
-    # The reduction floor normally references the preceding barrier target.
-    # 'legacy' preserves the former floor relative to the new raw proposal.
-    barrier_update_guard:str = 'previous'
+    # 'previous' gives the intended preceding-target reduction floor.
+    # Keep legacy as the default pending the measured LISWET regressions.
+    barrier_update_guard:str = 'legacy'
     barrier_reduction_limit:float = 0.1
     iteration_diagnostics:bool = False
 
