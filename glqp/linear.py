@@ -1,4 +1,4 @@
-"""QDLDL-backed solves with verified residuals against the requested system.
+"""Sparse backend solves with verified residuals against the requested system.
 
 ``G`` includes the outer algorithm's proximal regularization. ``tau_reg`` is
 only a factorization shift: refinement always targets G, not the shifted matrix.
@@ -10,42 +10,10 @@ import numpy as np
 import qdldl
 from scipy.linalg import lstsq, norm
 from scipy.sparse import csc_array
-
-
-class LinearSolveError(RuntimeError):
-    """A numerical failure prevented a finite linear direction."""
-
-
-class _FactorizationError(LinearSolveError):
-    """A recoverable backend failure; a larger numerical shift may help."""
-
-
-class _QDLDLFactorization:
-    def __init__(self, matrix):
-        self.shape = matrix.shape
-        self.indptr = matrix.indptr.copy()
-        self.indices = matrix.indices.copy()
-        try:
-            self.factor = qdldl.Solver(matrix)
-        except RuntimeError as exc:
-            raise _FactorizationError(str(exc)) from exc
-
-    def matches(self, matrix):
-        return (self.shape == matrix.shape
-                and np.array_equal(self.indptr, matrix.indptr)
-                and np.array_equal(self.indices, matrix.indices))
-
-    def update(self, matrix):
-        try:
-            self.factor.update(matrix)
-        except RuntimeError as exc:
-            raise _FactorizationError(str(exc)) from exc
-
-    def solve(self, rhs):
-        try:
-            return self.factor.solve(rhs)
-        except RuntimeError as exc:
-            raise _FactorizationError(str(exc)) from exc
+from .backends import (
+    LinearSolveError, FactorizationError as _FactorizationError,
+    QDLDLFactorization as _QDLDLFactorization, backend_type,
+)
 
 
 def _maxnorm(vector):
@@ -166,12 +134,14 @@ class LinearSolveInfo:
     attempts: int
     refinements: int
     block_errors: dict
+    backend: str = 'qdldl'
 
     def history_fields(self):
         fields = dict(lin_status=self.status, lin_stop=self.stop_reason,
                       lin_abs_res=self.absolute_error, lin_rel_res=self.relative_error,
                       lin_atol=self.target_atol, lin_rtol=self.target_rtol,
-                      lin_tau=self.tau_reg, lin_attempts=self.attempts)
+                      lin_tau=self.tau_reg, lin_attempts=self.attempts,
+                      lin_backend=self.backend)
         for name, errors in self.block_errors.items():
             fields[f'lin_{name}_abs'] = errors['absolute']
             fields[f'lin_{name}_rhs_scaled'] = errors['rhs_scaled']
@@ -197,7 +167,7 @@ class LinearSolveResult:
 def factor_and_solve(
     G, rhs, reg_shift, init_tau_reg, solver, target_atol=1e-10,
     max_solve_attempts=20, max_refinement_steps=10, *, target_rtol=1e-6,
-    residual_blocks=None,
+    residual_blocks=None, backend='qdldl',
 ):
     """Return the best verified finite direction and an explicit accuracy status.
 
@@ -231,6 +201,14 @@ def factor_and_solve(
             or max_solve_attempts < 1 or max_refinement_steps < 0):
         raise ValueError("Invalid linear-solve limits or tolerances")
     blocks = residual_blocks or {}
+    # Preserve the historical instrumentation hook while resolving every
+    # alternate backend explicitly. A wrong name never silently selects QDLDL.
+    factory = _QDLDLFactorization if backend == 'qdldl' else backend_type(backend)
+
+    def close(factor):
+        release = getattr(factor, 'close', None)
+        if release is not None:
+            release()
 
     def result(x, residual, factorization, tau, attempts, refinements, reason):
         absolute = _maxnorm(residual)
@@ -243,7 +221,7 @@ def factor_and_solve(
                   for name, part in blocks.items()}
         info = LinearSolveInfo('accurate' if accurate else 'inaccurate', reason,
                                absolute, relative, target_atol, target_rtol,
-                               tau, attempts, refinements, errors)
+                               tau, attempts, refinements, errors, backend)
         return LinearSolveResult(x, factorization, info)
 
     if not np.any(rhs):
@@ -257,8 +235,9 @@ def factor_and_solve(
             shifted.sort_indices()
             if not np.all(np.isfinite(shifted.data)):
                 raise LinearSolveError("Nonfinite shifted factorization matrix")
-            if not isinstance(solver, _QDLDLFactorization) or not solver.matches(shifted):
-                solver = _QDLDLFactorization(shifted)
+            if not isinstance(solver, factory) or not solver.matches(shifted):
+                close(solver)
+                solver = factory(shifted)
             else:
                 solver.update(shifted)
             x = solver.solve(rhs)
@@ -271,6 +250,7 @@ def factor_and_solve(
                 G, rhs, x, solver.solve, max_refinement_steps, target_atol, target_rtol)
             return result(x, residual, solver, tau, attempt, refinements, reason)
         except _FactorizationError:
+            close(solver)
             if attempt == max_solve_attempts or tau == 0:
                 raise
             # A failed update may leave the cached factors unusable.

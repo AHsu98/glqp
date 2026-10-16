@@ -41,6 +41,7 @@ class SolverSettings():
     armijo_param:float = 0.005
     let_newton_cook:float = 0.
     prox_reg:float = 2e-8
+    linear_solver_backend:str = 'qdldl'
 
 @dataclass
 class SolverResults():
@@ -176,6 +177,7 @@ class GLQP():
                     max_solve_attempts=12,
                     max_refinement_steps=self.settings.max_iterative_refinement,
                     residual_blocks={'primal': slice(0, self.n), 'equality': slice(self.n, None)},
+                    backend=self.settings.linear_solver_backend,
                 )
                 sol, num_refine, solver, lin_rel_error = linear_result
                 self._initial_linear_info = linear_result.info
@@ -252,6 +254,7 @@ class GLQP():
             residual_blocks={'stationarity': slice(0, self.n),
                              'scaled_inequality': slice(self.n, self.n+self.k),
                              'equality': slice(self.n+self.k, None)},
+            backend=self.settings.linear_solver_backend,
         )
         sol, num_refine, solver, linsolve_rel_error = linear_result
         self._linear_info = linear_result.info
