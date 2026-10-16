@@ -56,7 +56,7 @@ independent routes; this is not a globally monotone residual method. `off`
 disables the fallback. The 0.9 backtracking factor and `let_newton_cook` step
 threshold remain unchanged, keeping contraction and acceptance separate.
 
-All settings validate both at construction and at solve entry. Diagnostics
+These controls validate both at construction and at solve entry. Diagnostics
 retain policy metadata, initial-target selection, proposed/applied/rejected
 repairs and candidate bounds, and each fallback progress check. Enable
 `iteration_diagnostics` only in untimed observation runs. Its extra matrix
@@ -68,3 +68,35 @@ groups sequentially under the host guard. Every group uses the same eight QPs,
 parallel-8 with one native thread per worker, rotating variant order, native
 tolerance 1e-7, independent tolerance 1e-6, and a two-second untimed launch
 delay. A guard flag retains the attempt for review and never approves its times.
+
+## Completed experiments, 2026-10-16
+
+Source `f685076` was tested in five initial eight-QP screens, two
+initialization/floor interaction screens, and a two-QP backtracking check.
+The mean-initialization/legacy-guard candidate also passed all 39 GLMs and
+all 22 quick QPs/applications. Accepted defaults remain unchanged.
+
+- Mean initialization eliminates the LISWET2/6 regressions associated with
+  fixed 100 plus the previous-target guard (758/2735 → 18/20 iterations).
+  With the legacy guard it worsens LISWET1 6604 → 8812 and YAO 2555 → 3380.
+  Geometric iteration counts fall 6.7% on GLMs and 7.5% on the quick suite;
+  those campaigns' timings are excluded after host-activity flags.
+- Guarded repair prevents QPCBOEI2's iteration-119 KKT increase
+  0.0101868 → 0.0387648, but changes its final count only 3323 → 3322.
+  A later finite fallback increases KKT independently of repair.
+- Progress-gated and disabled fallback both lose LISWET1 and QPCBOEI2.
+  Extending progress fallback from 40 to 100 line-search trials rescues
+  neither. Failed-direction telemetry points to outer regularization and
+  original-coordinate Newton defects: scaled linear accuracy alone does
+  not establish sufficient original-equation progress.
+- Reducing/removing the floor and combining a smaller floor with two
+  initialization candidates yields mixed or worse results. QPCBOEI2 stays
+  near 3300 iterations; floor activation alone did not identify the cause.
+
+The benchmark repository's
+`benchmarks/progression/outer-policy-20261016/README.md` contains results,
+focused timing audits, exclusions, failed-step diagnostics, and raw-artifact
+hashes. Four diagnostic trajectories match plain solutions/counts bitwise.
+All 367 solver tests pass, including 67 new policy tests. Predictor–corrector,
+clipping, regularization, and native stopping criteria remain unchanged.
+The next priority is controlled direction-accuracy/regularization experiments.
