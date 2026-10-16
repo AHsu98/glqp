@@ -73,17 +73,14 @@ def _projection_scale(rhs, image):
 
 
 def _gmres_refine(G, rhs, x, inverse, max_steps, atol, rtol):
-    """One bounded right-GMRES correction solve, checked in extended precision.
+    """One bounded right-GMRES correction solve with fresh float64 residuals.
 
     The factor inverse and Arnoldi work stay in float64. Store B(v_j) so the
     correction uses the same rounded directions as the Arnoldi products.
-    np.longdouble may have only float64 precision on some platforms.
+    Residual evaluation uses the same arithmetic as the original IR solver.
     """
-    wide_G = G.astype(np.longdouble)
-    wide_rhs = rhs.astype(np.longdouble)
-
     def residual(candidate):
-        return wide_rhs - wide_G @ candidate.astype(np.longdouble)
+        return rhs - G @ candidate
 
     best_x = x
     best_residual = residual(x)
@@ -214,8 +211,8 @@ def factor_and_solve(
     Timeouts and programming/input errors propagate. A zero initial shift
     disables shift escalation. One right-GMRES correction cycle uses at most
     max_refinement_steps factor solves (default ten), retaining the best verified
-    direction. Residuals use longdouble accumulation against the requested G;
-    factor applications and Krylov arithmetic remain float64.
+    direction. Residuals are freshly evaluated against the requested G in
+    float64, as are factor applications and Krylov arithmetic.
     With a nonzero residual, the first correction also polishes an otherwise
     accurate direction when abs_error >= 0.1 * atol or rel_error > rtol.
     """

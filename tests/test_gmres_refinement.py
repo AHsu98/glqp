@@ -13,17 +13,18 @@ def test_right_preconditioning_matches_independent_scipy_correction():
     A = rng.normal(size=(12, 12)) + 5*np.eye(12)
     B = rng.normal(size=(12, 12))*.04 + np.eye(12)
     b, x0 = rng.normal(size=(2, 12))
-    residual = b.astype(np.longdouble)-A.astype(np.longdouble)@x0.astype(np.longdouble)
-    z, _ = gmres(A@B, residual.astype(float), restart=5, maxiter=1, atol=0., rtol=0.)
+    matrix = csc_array(A)
+    residual = b-matrix@x0
+    z, _ = gmres(A@B, residual, restart=5, maxiter=1, atol=0., rtol=0.)
     calls = []
     def inverse(v):
         calls.append(v.copy())
         return B@v
-    x, r, count, reason = _gmres_refine(csc_array(A), b, x0, inverse, 5, 0., 0.)
+    x, r, count, reason = _gmres_refine(matrix, b, x0, inverse, 5, 0., 0.)
     assert_allclose(x, x0+B@z, rtol=1e-12, atol=1e-12)
     assert count == len(calls) == 5
     assert reason == 'refinement_limit'
-    assert_allclose(r, b.astype(np.longdouble)-A.astype(np.longdouble)@x.astype(np.longdouble), rtol=0., atol=1e-17)
+    assert_allclose(r, b-matrix@x, rtol=0., atol=0.)
 
 
 def test_gmres_can_progress_after_individually_unproductive_steps():
@@ -53,14 +54,16 @@ def test_stored_basis_avoids_remapping_a_rounded_inverse_action():
     assert reason == 'tolerance'
 
 
-def test_residual_check_accounts_for_product_cancellation():
+def test_residual_check_preserves_baseline_float64_arithmetic():
+    # Extended residual accumulation would give -2 instead of -4 here. Keep
+    # this control so arithmetic changes cannot be bundled into GMRES silently.
     A = csc_array([[3.]])
     x0 = np.array([np.nextafter(1e16, np.inf)])
     b = np.array([3e16+4])
     x, r, count, _ = _gmres_refine(A, b, x0, lambda v: v.copy(), 0, 0., 0.)
     assert (b-A@x)[0] == -4.
-    if np.finfo(np.longdouble).nmant > np.finfo(float).nmant:
-        assert r[0] == -2.
+    assert r.dtype == np.float64
+    assert r[0] == -4.
     assert count == 0
 
 

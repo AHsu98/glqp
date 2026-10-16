@@ -21,8 +21,8 @@ def test_reported_error_is_the_residual_of_the_returned_ill_conditioned_solution
     G = csc_array(basis @ np.diag([1e-7, -1e-3, 1., -1e3, 1e7]) @ basis.T)
     rhs = rng.normal(size=5)
     result = solve(G, rhs, max_refinement_steps=10)
-    residual = rhs.astype(np.longdouble) - G.astype(np.longdouble) @ result.solution.astype(np.longdouble)
-    fresh = np.linalg.norm(residual) / np.linalg.norm(rhs.astype(np.longdouble))
+    residual = rhs - G @ result.solution
+    fresh = np.linalg.norm(residual) / np.linalg.norm(rhs)
     assert_allclose(result.info.relative_error, fresh, rtol=1e-13, atol=0.)
     assert result.info.absolute_error == np.max(np.abs(residual))
     expected = np.max(np.abs(residual)) <= 1e-14 or fresh <= 1e-6

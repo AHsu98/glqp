@@ -31,11 +31,11 @@ Two-pass modified Gram-Schmidt and a small SVD least-squares solve avoid
 explicit normal equations. There are no restarts or adaptive cycle lengths.
 
 Every candidate recomputes `rhs - G @ candidate` after the float64 solution
-update, with matrix products and subtraction accumulated in `np.longdouble`.
-The initial correction RHS uses the same computation, rounded to float64 for
-GMRES. Factors, Arnoldi products, Krylov vectors, and returned solutions remain
-float64. On platforms where longdouble equals float64 there is no extra
-residual precision. Relative error always uses the original right-hand side.
+update, using the same float64 matrix product and subtraction as the original
+IR solver. The initial correction RHS uses this same computation. Factors,
+Arnoldi products, Krylov vectors, residual norms, and returned solutions all use
+float64. Refinement does not create an extended-precision matrix copy.
+Relative error always uses the original right-hand side.
 
 The best verified direction is retained; an unhelpful intermediate GMRES
 iterate does not discard the accumulated search space. A polishing correction
