@@ -320,10 +320,11 @@ class GLQP():
         
 
         z = self.A@x
-        primal = self.f(z) + (1/2) * x.T@self.Q@x - np.dot(x,self.b)
+        Qx = self.Q@x
+        primal = self.f(z) + 0.5*np.dot(x,Qx) - np.dot(x,self.b)
         
         H = self.get_H(z)
-        gradf = self.A.T@self.f.d1f(z) + self.Q@x
+        gradf = self.A.T@self.f.d1f(z) + Qx
         rx,rp,rc,req = self.KKT_res(x,gradf,y,s,nu)
         kkt_res = maxnorm(np.hstack([rx,rp,rc,req]))
         cons_viol = np.maximum(maxnorm(rp),maxnorm(req))
@@ -397,13 +398,12 @@ class GLQP():
             tmax = get_step_size(s,ds,y,dy,frac = boundary_frac)
             #Perform a linesearch so we converge on the nonlinear part
 
-            #Evaluate merit at current point
-            Qx = self.Q@x
-            primal = self.f(z) + (1/2) * x.T@Qx - np.dot(x,self.b)
+            # Accepted-iterate values were evaluated together below (or at
+            # initialization). Only the barrier changes when mu is updated.
             barrier = -mu*np.sum(np.log(s))
             merit0 = primal + barrier
 
-            gx = self.A.T@self.f.d1f(z) + Qx - self.b
+            gx = gradf - self.b
             gs = -mu/s
 
             dx_gx = np.dot(dx,gx)
@@ -413,32 +413,37 @@ class GLQP():
             t = tmax
             dz = self.A@dx
             Qdx = self.Q@dx
+            xQx = np.dot(x,Qx)
+            xQdx = np.dot(x,Qdx)
+            dxQdx = np.dot(dx,Qdx)
             #Enter line search
 
             #OK with a small additive error in line search
-            def merit_line(t):
+            def merit_line(t, trial_x, trial_s, trial_z):
                 primal = (
-                    self.f(z+t*dz)
-                    + (1/2) * (np.dot(x,Qx) + 2*t*np.dot(x,Qdx) + t*t*np.dot(dx,Qdx))
-                        - np.dot(x+t*dx,self.b)
+                    self.f(trial_z)
+                    + (1/2) * (xQx + 2*t*xQdx + t*t*dxQdx)
+                        - np.dot(trial_x,self.b)
                 )
-                barrier = -mu*np.sum(np.log(s+t*ds))
+                barrier = -mu*np.sum(np.log(trial_s))
                 return primal + barrier
             
             successful = False
             for linesearch_step in range(settings.max_linesearch_steps):
                 if not np.isfinite(t) or t <= 0:
                     break
+                trial_x = x + t*dx
                 trial_s, trial_y = s + t*ds, y + t*dy
-                if (not np.all(np.isfinite(x + t*dx))
+                if (not np.all(np.isfinite(trial_x))
                         or not np.all(np.isfinite(trial_s))
                         or not np.all(np.isfinite(trial_y))
                         or np.any(trial_s <= 0) or np.any(trial_y <= 0)):
                     t = 0.9*t
                     continue
                 #Check armijo
+                trial_z = z + t*dz
                 with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
-                    new_merit = merit_line(t)
+                    new_merit = merit_line(t, trial_x, trial_s, trial_z)
                 if not np.isfinite(new_merit):
                     t = 0.9*t
                     continue
@@ -453,9 +458,9 @@ class GLQP():
                     break
                 
                 #Check KKT residual
-                ls_gradf = self.A.T@self.f.d1f(z+t*dz) + Qx + t*Qdx
+                ls_gradf = self.A.T@self.f.d1f(trial_z) + Qx + t*Qdx
                 ls_kkt_res = maxnorm(np.hstack(
-                    self.KKT_res(x+t*dx,ls_gradf,y+t*dy,s+t*ds,nu+t*dnu)
+                    self.KKT_res(trial_x,ls_gradf,trial_y,trial_s,nu+t*dnu)
                     ))
                 # Preserve residual acceptance for QPs, including restoration
                 # from an inconsistent positive slack warm start. For nonlinear
@@ -479,10 +484,7 @@ class GLQP():
                 break
 
             #Take step
-            x  =  x + t*dx
-            s  =  s + t*ds
-            y  =  y + t*dy
-            z  =  z + t*dz
+            x, s, y, z = trial_x, trial_s, trial_y, trial_z
             nu = nu + t*dnu
 
             Qx = self.Q@x
