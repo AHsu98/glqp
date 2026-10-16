@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <cstring>
 #include <limits>
 #include <memory>
 #include <stdexcept>
@@ -127,13 +128,49 @@ class Presolver {
     gqp_options options;
     Index n, p, m;
     std::vector<Index> count, single_col, queue, lower_row, upper_row;
+    std::vector<uint64_t> coefficient_bits;
     std::vector<double> rhs, lo, hi, singleton_coefficient;
     std::vector<unsigned char> removed, fixed, processed;
 
-    void build_rows() {
+    static uint64_t bits(double value) {
+        uint64_t result;
+        static_assert(sizeof(result) == sizeof(value));
+        std::memcpy(&result, &value, sizeof(value));
+        return result;
+    }
+
+    void initialize_rows() {
+        // XOR preserves the exact surviving column/coefficient when a row
+        // becomes singleton, without scanning the row or subtracting floats.
+        for (int matrix = 1; matrix <= 2; ++matrix) {
+            const auto &a = r.original[matrix];
+            for (Index col = 0; col < n; ++col)
+                for (Index k = a.ptr[col]; k < a.ptr[col + 1]; ++k) {
+                    Index row = a.idx[k] + (matrix == 2 ? p : 0);
+                    ++count[row];
+                    single_col[row] ^= col;
+                    coefficient_bits[row] ^= bits(a.data[k]);
+                }
+        }
+        for (Index row = 0; row < p + m; ++row)
+            if (count[row] <= 1) queue.push_back(row);
+    }
+
+    void build_recovery_rows() {
+        // Only eliminated pivot rows are used by reverse dual recovery. Most
+        // inputs eliminate nothing, and never allocate a second sparse view.
+        if (r.tape.empty()) return;
+        std::vector<unsigned char> pivot_row(p + m);
+        for (const auto &pivot : r.tape) {
+            if (pivot.equality >= 0) pivot_row[pivot.equality] = 1;
+            else pivot_row[p + pivot.lower] = pivot_row[p + pivot.upper] = 1;
+        }
         r.row_ptr.assign(p + m + 1, 0);
         for (int matrix = 1; matrix <= 2; ++matrix)
-            for (Index row : r.original[matrix].idx) ++r.row_ptr[row + (matrix == 2 ? p : 0) + 1];
+            for (Index row : r.original[matrix].idx) {
+                Index global = row + (matrix == 2 ? p : 0);
+                if (pivot_row[global]) ++r.row_ptr[global + 1];
+            }
         for (Index row = 0; row < p + m; ++row) r.row_ptr[row + 1] += r.row_ptr[row];
         r.row_col.resize(r.row_ptr.back());
         r.row_data.resize(r.row_ptr.back());
@@ -142,21 +179,19 @@ class Presolver {
             const auto &a = r.original[matrix];
             for (Index col = 0; col < n; ++col)
                 for (Index k = a.ptr[col]; k < a.ptr[col + 1]; ++k) {
-                    Index row = a.idx[k] + (matrix == 2 ? p : 0), dest = next[row]++;
+                    Index row = a.idx[k] + (matrix == 2 ? p : 0);
+                    if (!pivot_row[row]) continue;
+                    Index dest = next[row]++;
                     r.row_col[dest] = col;
                     r.row_data[dest] = a.data[k];
-                    ++count[row];
-                    single_col[row] ^= col;
                 }
         }
-        for (Index row = 0; row < p + m; ++row)
-            if (count[row] <= 1) queue.push_back(row);
     }
 
-    double coefficient(Index row, Index variable) const {
-        for (Index k = r.row_ptr[row]; k < r.row_ptr[row + 1]; ++k)
-            if (r.row_col[k] == variable) return r.row_data[k];
-        throw std::logic_error("Missing singleton coefficient");
+    double coefficient(Index row) const {
+        double value;
+        std::memcpy(&value, &coefficient_bits[row], sizeof(value));
+        return value;
     }
 
     bool fail(int status, const std::string &message) {
@@ -210,6 +245,7 @@ class Presolver {
                 if (!std::isfinite(rhs[row])) throw std::overflow_error("Nonfinite reduced right-hand side");
                 --count[row];
                 single_col[row] ^= variable;
+                coefficient_bits[row] ^= bits(v);
                 if (count[row] <= 1) queue.push_back(row);
             }
         }
@@ -286,6 +322,12 @@ class Presolver {
         for (Index j = 0; j < n; ++j) if (!fixed[j]) r.maps[0].push_back(j);
         for (Index row = 0; row < p; ++row) if (!removed[row]) r.maps[1].push_back(row);
         for (Index row = 0; row < m; ++row) if (!removed[p + row]) r.maps[2].push_back(row);
+        r.stats[0] = n - static_cast<Index>(r.maps[0].size());
+        r.stats[1] = p - static_cast<Index>(r.maps[1].size());
+        r.stats[2] = m - static_cast<Index>(r.maps[2].size());
+        r.status = r.stats[0] || r.stats[1] || r.stats[2] ? GQP_REDUCED : GQP_UNCHANGED;
+        r.message = r.status == GQP_REDUCED ? "Certified structural reductions" : "No structural reductions";
+        if (r.status == GQP_UNCHANGED) return;
         std::vector<double> gradient = r.original_rhs[0];
         const auto &Q = r.original[0];
         for (Index col = 0; col < n; ++col) if (fixed[col]) {
@@ -304,17 +346,13 @@ class Presolver {
             for (Index row : r.maps[matrix]) r.rhs[matrix].push_back(rhs[row + (matrix == 2 ? p : 0)]);
         for (int matrix = 0; matrix < 3; ++matrix)
             r.reduced[matrix] = reduce_matrix(r.original[matrix], r.maps[matrix], r.maps[0]);
-        r.stats[0] = n - static_cast<Index>(r.maps[0].size());
-        r.stats[1] = p - static_cast<Index>(r.maps[1].size());
-        r.stats[2] = m - static_cast<Index>(r.maps[2].size());
-        r.status = r.stats[0] || r.stats[1] || r.stats[2] ? GQP_REDUCED : GQP_UNCHANGED;
-        r.message = r.status == GQP_REDUCED ? "Certified structural reductions" : "No structural reductions";
+        build_recovery_rows();
     }
 
 public:
     Presolver(Result &result, gqp_options flags) : r(result), options(flags),
         n(r.original[0].cols), p(r.original[1].rows), m(r.original[2].rows),
-        count(p + m), single_col(p + m), lower_row(n, -1), upper_row(n, -1),
+        count(p + m), single_col(p + m), lower_row(n, -1), upper_row(n, -1), coefficient_bits(p + m),
         singleton_coefficient(p + m), removed(p + m), fixed(n), processed(p + m) {
         rhs = r.original_rhs[1];
         rhs.insert(rhs.end(), r.original_rhs[2].begin(), r.original_rhs[2].end());
@@ -324,7 +362,7 @@ public:
     }
 
     void run() {
-        build_rows();
+        initialize_rows();
         for (size_t head = 0; head < queue.size(); ++head) {
             Index row = queue[head];
             if (removed[row]) continue;
@@ -334,7 +372,7 @@ public:
                 processed[row] = 1;
                 ++r.stats[3];
                 Index variable = single_col[row];
-                double a = coefficient(row, variable);
+                double a = coefficient(row);
                 singleton_coefficient[row] = a;
                 if (row < p && options.singleton_equalities) {
                     removed[row] = 1;
@@ -373,15 +411,14 @@ void *gqp_presolve(gqp_matrix Q, const double *q, gqp_matrix A,
         result->original = {copy_matrix(Q), copy_matrix(A), copy_matrix(G)};
         result->original_rhs = {copy_vector(q, Q.cols), copy_vector(b, A.rows), copy_vector(h, G.rows)};
         result->stats[5] = Q.nnz + A.nnz + G.nnz;
-        // Validate symmetry without constructing a transpose. Binary searches
-        // are O(nnz log column-length), only Q, and performed once per input.
+        // Encounter each transposed column in sorted order and compare against
+        // its CSC cursor: O(nnz+n), without materializing the transpose.
         const auto &a = result->original[0];
+        auto next = a.ptr;
         for (Index col = 0; col < a.cols; ++col)
             for (Index k = a.ptr[col]; k < a.ptr[col + 1]; ++k) {
-                Index row = a.idx[k];
-                auto first = a.idx.begin() + a.ptr[row], last = a.idx.begin() + a.ptr[row + 1];
-                auto match = std::lower_bound(first, last, col);
-                if (match == last || *match != col || a.data[match - a.idx.begin()] != a.data[k])
+                Index row = a.idx[k], match = next[row]++;
+                if (match >= a.ptr[row + 1] || a.idx[match] != col || a.data[match] != a.data[k])
                     throw std::invalid_argument("Q must contain the full exactly symmetric Hessian");
             }
         Presolver(*result, options).run();
@@ -405,10 +442,13 @@ const char *gqp_message(const void *value) {
 double gqp_objective_offset(const void *value) { return static_cast<const Result *>(value)->offset; }
 gqp_matrix gqp_get_matrix(const void *value, int which) {
     if (!value || which < 0 || which > 2) return {0, 0, 0, nullptr, nullptr, nullptr};
-    return static_cast<const Result *>(value)->reduced[which].view();
+    const auto &r = *static_cast<const Result *>(value);
+    return (r.status == GQP_UNCHANGED ? r.original[which] : r.reduced[which]).view();
 }
 const double *gqp_get_vector(const void *value, int which) {
-    return !value || which < 0 || which > 2 ? nullptr : static_cast<const Result *>(value)->rhs[which].data();
+    if (!value || which < 0 || which > 2) return nullptr;
+    const auto &r = *static_cast<const Result *>(value);
+    return (r.status == GQP_UNCHANGED ? r.original_rhs[which] : r.rhs[which]).data();
 }
 const int64_t *gqp_get_map(const void *value, int which) {
     return !value || which < 0 || which > 2 ? nullptr : static_cast<const Result *>(value)->maps[which].data();
@@ -427,6 +467,12 @@ int gqp_recover(const void *value, const double *x, const double *y, const doubl
         if (!finite(x, r.maps[0].size()) || !finite(y, r.maps[1].size()) ||
             !finite(z, r.maps[2].size()) || (n && !original_x) ||
             (p && !original_y) || (m && !original_z)) return 1;
+        if (r.status == GQP_UNCHANGED) {
+            if (n) std::copy(x, x + n, original_x);
+            if (p) std::copy(y, y + p, original_y);
+            if (m) std::copy(z, z + m, original_z);
+            return 0;
+        }
         std::copy(r.fixed_values.begin(), r.fixed_values.end(), original_x);
         if (p) std::fill(original_y, original_y + p, 0.);
         if (m) std::fill(original_z, original_z + m, 0.);

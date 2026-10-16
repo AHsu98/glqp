@@ -110,3 +110,32 @@ of end-to-end solver improvement. Compare complete solves on the normal
 Presolving remains optional until coverage and complete solve timings justify
 promoting it. Changed systems may alter convergence as well as factorization
 cost; a smaller matrix alone is not a performance win.
+
+The first structural scan reduced 40 of 138 bundled QPs and fell back on
+three cases with arithmetic ambiguity or tiny contradictions. It removed
+4,368 variables, 4,198 equalities, and 7,274 inequalities. In QSHELL, total
+nonzeros fell from 74,873 to 8,726; in STCQP2, variables fell from 4,097 to
+2,045 and all 2,052 equality rows disappeared. These are structural results,
+pending complete solve comparisons.
+
+The second implementation iteration keeps every reduced matrix, right-hand
+side, map, objective offset, and recovered solution **bitwise identical** on
+all 138 problems. It changes data movement and bookkeeping:
+
+- An ordered CSC cursor checks Hessian symmetry in linear time.
+- Exact XOR bookkeeping identifies the last column and coefficient in a row.
+- Only eliminated pivot rows acquire a CSR view for reverse dual recovery.
+- Unchanged problems avoid constructing a second set of sparse matrices or
+  scanning the objective, and release native identity-recovery state early.
+
+[`iteration-2-interleaved.json`](experiments/presolve/iteration-2-interleaved.json)
+records five alternating old/new observations per problem, on CPU 8 with one
+numerical thread. Against first implementation commit `094e27e`, the geometric
+mean native-time ratio was 0.737 and total presolve-time ratio was 0.635
+(about 26% and 36% lower). This is a short single-core overhead diagnostic,
+not a measurement of solve speedup or the standard parallel-8 campaign.
+The full old/new native-source and binary hashes are recorded in the file.
+
+The focused tests include analytic zero-variable optima, randomized convex
+QP solutions, mixed equality/bound cascades with original KKT checks, scaled
+and redundant bounds, nonfinite data, underflow, and uncertain contradictions.

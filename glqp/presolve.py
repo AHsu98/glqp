@@ -185,6 +185,7 @@ class PresolvedQP:
         if handle:
             self._library.gqp_free(handle)
             self._handle = None
+        self._closed = True
 
     def __del__(self):
         self.close()
@@ -204,10 +205,10 @@ class PresolvedQP:
         x = _vector(x, self.n, "x")
         y = _vector(np.zeros(self.A.shape[0]) if y is None else y, self.A.shape[0], "y")
         z = _vector(np.zeros(self.G.shape[0]) if z is None else z, self.G.shape[0], "z")
-        if self.status == "inconclusive":
-            return x, y, z
-        if not self._handle:
+        if self._closed:
             raise RuntimeError("PresolvedQP is closed")
+        if self.status in ("unchanged", "inconclusive"):
+            return x, y, z
         original = tuple(np.empty(count, dtype=np.float64) for count in self.original_dimensions)
         status = self._library.gqp_recover(self._handle, _pointer(x), _pointer(y), _pointer(z),
                                            *map(_pointer, original))
@@ -222,7 +223,7 @@ def presolve_qp(Q, q, A=None, b=None, G=None, h=None, *,
 
     Convexity is the caller's responsibility. Nonconvexity is not diagnosed.
     No arrays are modified. All native work, packing, and reconstruction are
-    linear in sparse input/output size except the initial symmetry check.
+    linear in sparse input/output size, including symmetry validation.
     """
     library, provenance = _native()
     started = time.perf_counter()
@@ -250,6 +251,7 @@ def presolve_qp(Q, q, A=None, b=None, G=None, h=None, *,
     native_seconds = time.perf_counter() - native_started
     output = PresolvedQP()
     output._library, output._handle = library, handle
+    output._closed = False
     status = library.gqp_status_code(handle)
     output.message = library.gqp_message(handle).decode()
     if status == 2:
@@ -261,7 +263,7 @@ def presolve_qp(Q, q, A=None, b=None, G=None, h=None, *,
     output.status = {0: "unchanged", 1: "reduced", 3: "inconclusive"}[status]
     output.original_dimensions = (n, p, m)
     output.options, output.build = options, dict(provenance)
-    if status == 3:
+    if status in (0, 3):
         output.Q, output.A, output.G = matrices
         output.q, output.b, output.h = vectors
         output.variable_map, output.equality_map, output.inequality_map = (
@@ -278,6 +280,10 @@ def presolve_qp(Q, q, A=None, b=None, G=None, h=None, *,
     names = ("fixed_variables", "removed_equalities", "removed_inequalities", "singleton_rows",
              "propagation_visits", "input_nonzeros")
     output.stats = {name: int(library.gqp_get_stat(handle, i)) for i, name in enumerate(names)}
+    if status in (0, 3):
+        # Identity reconstruction needs no native copy of the problem data.
+        library.gqp_free(handle)
+        output._handle = None
     output.stats.update(pack_seconds=packed_seconds, native_seconds=native_seconds,
                         total_seconds=time.perf_counter() - started)
     return output

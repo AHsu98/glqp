@@ -155,3 +155,48 @@ def test_native_build_provenance_has_source_and_binary_digests():
     assert len(info["source_sha256"]) == len(info["library_sha256"]) == 64
     assert "-ffp-contract=off" in info["flags"]
     assert "-ffast-math" not in info["flags"]
+
+
+def test_mixed_fixed_bound_and_equality_chains_reconstruct_known_kkt_points():
+    rng = np.random.default_rng(814)
+    for _ in range(30):
+        n = 20
+        R = rng.standard_normal((n, n))
+        Q = sparse.csc_matrix(R.T @ R + np.eye(n))
+        x = rng.integers(-3, 4, n).astype(float)
+        A = np.zeros((8, n))
+        A[0, 0] = 1.
+        for j in range(1, 4):
+            A[j, j - 1:j + 1] = [2., 1.]
+        # Bounds fix 4 and 5; these equalities then expose variables 6 and 7.
+        A[4, [4, 6]], A[5, [5, 7]] = [1., 2.], [-2., 1.]
+        A[6, [8, 9]], A[7, [10, 11, 12]] = [2., 1.], [1., -1., 2.]
+        G = np.zeros((8, n))
+        G[0, 4], G[1, 4], G[2, 5], G[3, 5] = 1., -1., 2., -2.
+        G[4, 4], G[5, 5] = 1., 1.  # Redundant loose singleton bounds.
+        G[6, 8], G[7, 8] = 1., -1.
+        h = G @ x + np.array([0., 0., 0., 0., 2., 3., 2., 3.])
+        y = rng.standard_normal(8)
+        q = -(Q @ x + A.T @ y)
+        A, G, b = sparse.csc_matrix(A), sparse.csc_matrix(G), A @ x
+        with presolve_qp(Q, q, A, b, G, h) as result:
+            assert result.stats["fixed_variables"] == 8
+            solution = result.recover(x[result.variable_map], y[result.equality_map],
+                                      np.zeros(result.G.shape[0]))
+            check_kkt(Q, q, A, b, G, h, solution, atol=2e-12)
+
+
+def test_underflow_substitution_is_inconclusive_instead_of_infeasible():
+    A = sparse.csc_matrix([[3e-310], [6e-310]])
+    with presolve_qp(sparse.eye(1), [0.], A, [1e-310, 2e-310]) as result:
+        assert result.status == "inconclusive"
+        assert result.n == 1
+
+
+def test_unchanged_data_remain_valid_after_native_state_is_released():
+    Q, q = sparse.eye(2), np.array([2., -3.])
+    with presolve_qp(Q, q) as result:
+        assert result.status == "unchanged"
+        q[:] = 100.
+        assert_allclose(result.q, [2., -3.])
+        assert_allclose(result.recover([-2., 3.])[0], [-2., 3.])
