@@ -200,3 +200,19 @@ def test_unchanged_data_remain_valid_after_native_state_is_released():
         q[:] = 100.
         assert_allclose(result.q, [2., -3.])
         assert_allclose(result.recover([-2., 3.])[0], [-2., 3.])
+
+
+def test_row_only_reduction_recovers_nonzero_duals_with_zero_removed_multipliers():
+    Q = sparse.csc_matrix([[4., 1., .5], [1., 3., 0.], [.5, 0., 2.]])
+    A, b = sparse.csc_matrix([[0., 1., 1.], [0., 0., 0.]]), np.array([1., 0.])
+    G = sparse.csc_matrix([[1., 0., 0.], [1., 0., 0.], [-1., 0., 0.], [0., 0., 0.]])
+    h = np.array([1., 2., 0., 1.])
+    x, y, z = np.array([1., .5, .5]), np.array([2., 0.]), np.array([3., 0., 0., 0.])
+    q = -(Q @ x + A.T @ y + G.T @ z)
+    with presolve_qp(Q, q, A, b, G, h) as result:
+        assert result.status == "reduced"
+        assert result.stats["fixed_variables"] == 0
+        solution = result.recover(x, y[result.equality_map], z[result.inequality_map])
+        for expected, actual in zip((x, y, z), solution):
+            assert_array_equal(actual, expected)
+        check_kkt(Q, q, A, b, G, h, solution)

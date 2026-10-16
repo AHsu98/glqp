@@ -479,6 +479,9 @@ int gqp_recover(const void *value, const double *x, const double *y, const doubl
         for (size_t j = 0; j < r.maps[0].size(); ++j) original_x[r.maps[0][j]] = x[j];
         for (size_t j = 0; j < r.maps[1].size(); ++j) original_y[r.maps[1][j]] = y[j];
         for (size_t j = 0; j < r.maps[2].size(); ++j) original_z[r.maps[2][j]] = z[j];
+        // Removing rows alone never needs a stationarity correction. In that
+        // common case the scatter above is the complete inverse operation.
+        if (r.tape.empty()) return 0;
         std::vector<double> gradient = r.original_rhs[0];
         const auto &Q = r.original[0];
         for (Index col = 0; col < n; ++col)

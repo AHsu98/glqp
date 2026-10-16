@@ -139,3 +139,14 @@ The full old/new native-source and binary hashes are recorded in the file.
 The focused tests include analytic zero-variable optima, randomized convex
 QP solutions, mixed equality/bound cascades with original KKT checks, scaled
 and redundant bounds, nonfinite data, underflow, and uncertain contradictions.
+
+The third iteration skips all stationarity matrix-vector products during
+recovery when no variable was fixed: scattering the retained primal/dual
+coordinates and zeroing removed multipliers is already sufficient. The
+[alternating recovery diagnostic](experiments/presolve/iteration-3-recovery.json)
+compares against `27b20a9` over 101 observations per case. Recovery was about
+6% cheaper on QPCBOEI2 and 11% cheaper on QISRAEL; QSHELL, which requires
+fixed-variable recovery, was unchanged. A synthetic 100,000-variable
+tridiagonal QP with one redundant bound showed a 67% reduction in recovery
+time. All recovered arrays were bitwise identical. These are microsecond-scale
+component timings and do not establish complete-solve gains.

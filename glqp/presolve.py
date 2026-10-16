@@ -133,6 +133,8 @@ def prepare_native() -> dict:
 
 
 def _vector(value, size, name):
+    if np.iscomplexobj(value):
+        raise ValueError(f"{name} must be real-valued")
     result = np.array(value, dtype=np.float64, order="C", copy=True)
     if result.shape != (size,) or not np.isfinite(result).all():
         raise ValueError(f"{name} must be finite with shape ({size},)")
@@ -140,6 +142,8 @@ def _vector(value, size, name):
 
 
 def _matrix(value, shape, name):
+    if np.iscomplexobj(value):
+        raise ValueError(f"{name} must be real-valued")
     result = sparse.csc_matrix(shape, dtype=np.float64) if value is None else sparse.csc_matrix(value, dtype=np.float64, copy=True)
     if result.shape != shape:
         raise ValueError(f"{name} must have shape {shape}")
