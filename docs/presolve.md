@@ -150,3 +150,27 @@ fixed-variable recovery, was unchanged. A synthetic 100,000-variable
 tridiagonal QP with one redundant bound showed a 67% reduction in recovery
 time. All recovered arrays were bitwise identical. These are microsecond-scale
 component timings and do not establish complete-solve gains.
+
+The standalone C ABI also has an AddressSanitizer/UndefinedBehaviorSanitizer
+check, including leak detection:
+
+```sh
+taskset -c 8 python tools/check_presolve_native.py \
+  --output docs/experiments/presolve/sanitizer-validation.json
+```
+
+The [recorded run](experiments/presolve/sanitizer-validation.json) passed
+38,911 assertions, including 100 seeded mixed equality/bound cascades,
+original-coordinate KKT and objective checks, zero-variable optima, empty
+dimensions and rows, null buffers for zero-length vectors, reconstruction
+after input buffers are destroyed, malformed CSC indices and values, and
+overflow/inconclusive paths. GCC 11.5 compiled the instrumented C++ directly;
+no Python wrapper or numerical library participates in the tested path.
+ASan, UBSan, and LeakSanitizer reported no findings. The file records compiler
+flags, source and binary hashes, CPU affinity, and complete output.
+
+The first sandboxed attempt reached all successful assertions, but its
+LeakSanitizer exit check failed because the sandbox uses `ptrace`. That
+[attempt is retained](experiments/presolve/sanitizer-sandbox-attempt.json).
+The successful run used the same checks outside that wrapper, keeping leak
+detection enabled.

@@ -1,0 +1,46 @@
+{
+  "kind": "standalone C ABI sanitizer validation",
+  "commit": "5b0002ec520c40561348e520d7e2d5944dd84ca0",
+  "sources": {
+    "glqp/_native/presolve.cpp": "d84f3fa277c0e9d5f0e0460605858e38dcb5cec555c9724894e592da285edbb5",
+    "glqp/_native/presolve.h": "5f4fa1bcf908a808081d37ff429e3c1dbad3a980279006e0f42434406e36db65",
+    "tests/native_presolve_sanitizer.cpp": "3b5cb06f413a514e4b9c240398c94c6822bc2fc6c6f25626ec19cebd9456f38f"
+  },
+  "compiler": [
+    "c++"
+  ],
+  "compiler_version": "c++ (GCC) 11.5.0 20240719 (Red Hat 11.5.0-14)\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+  "flags": [
+    "-std=c++17",
+    "-O1",
+    "-g",
+    "-ffp-contract=off",
+    "-Wall",
+    "-Wextra",
+    "-Wpedantic",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-fno-sanitize-recover=all"
+  ],
+  "affinity": [
+    8
+  ],
+  "environment": {
+    "ASAN_OPTIONS": "detect_leaks=1:halt_on_error=1",
+    "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1"
+  },
+  "compile": {
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "seconds": 5.591245093964972
+  },
+  "binary_sha256": "9636cf35db91bb206512686107e42a159caee0f550139165f2a77ca9bf41d470",
+  "run": {
+    "returncode": 1,
+    "stdout": "Native presolver validation passed: 38911 assertions, 100 mixed cascades, malformed-input and lifetime cases\n",
+    "stderr": "==55==LeakSanitizer has encountered a fatal error.\n==55==HINT: For debugging, try setting environment variable LSAN_OPTIONS=verbosity=1:log_threads=1\n==55==HINT: LeakSanitizer does not work under ptrace (strace, gdb, etc)\n",
+    "seconds": 0.2351292190141976
+  },
+  "passed": false
+}
