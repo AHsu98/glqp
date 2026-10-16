@@ -58,7 +58,7 @@ def test_rounding_worsens_a_correction_and_the_best_iterate_is_preserved(monkeyp
     assert len(calls) == 2
     assert result.info.refinements == 1
     assert result.info.status == ('accurate' if rtol == 2. else 'inaccurate')
-    assert result.info.stop_reason == 'stagnated'
+    assert result.info.stop_reason == ('stagnated' if rtol == 2. else 'arnoldi_breakdown')
     assert_allclose(result.info.relative_error, np.linalg.norm(residual)/np.linalg.norm(rhs))
 
 
@@ -82,7 +82,7 @@ def test_first_polish_restores_accuracy_without_exceeding_the_budget(
     assert result.info.absolute_error == max(abs(np.asarray(rhs)-result.solution))
 
 
-@pytest.mark.parametrize('budget,expected_calls', [(0, 1), (5, 2)])
+@pytest.mark.parametrize('budget,expected_calls', [(0, 1), (5, 3)])
 def test_inaccurate_result_is_explicit_and_unproductive_refinement_is_bounded(monkeypatch, budget, expected_calls):
     calls = scripted_backend(monkeypatch, [[1., 0.]])
     result = solve(np.eye(2), [1., 1.], max_refinement_steps=budget,

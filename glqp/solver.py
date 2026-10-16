@@ -33,7 +33,8 @@ class SolverSettings():
     min_mu:float = 1e-12
     tau_reg:float =2e-8
     max_linesearch_steps:int = 50
-    max_iterative_refinement:int = 5
+    # Maximum inner steps in one right-preconditioned GMRES correction cycle.
+    max_iterative_refinement:int = 10
     max_time:float = 600.
     max_stagnation:int = 20
     armijo_additive_eps:float = 1e-8

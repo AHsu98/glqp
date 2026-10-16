@@ -8,6 +8,7 @@ independent of QDLDL so another backend can implement the same three operations.
 from dataclasses import dataclass
 import numpy as np
 import qdldl
+from scipy.linalg import lstsq, norm
 from scipy.sparse import csc_array
 
 
@@ -71,6 +72,88 @@ def _projection_scale(rhs, image):
     return float(value)
 
 
+def _gmres_refine(G, rhs, x, inverse, max_steps, atol, rtol):
+    """One bounded right-GMRES correction solve with fresh float64 residuals.
+
+    The factor inverse and Arnoldi work stay in float64. Store B(v_j) so the
+    correction uses the same rounded directions as the Arnoldi products.
+    Residual evaluation uses the same arithmetic as the original IR solver.
+    """
+    def residual(candidate):
+        return rhs - G @ candidate
+
+    best_x = x
+    best_residual = residual(x)
+    if not np.all(np.isfinite(best_residual)):
+        raise _FactorizationError("Nonfinite initial linear residual")
+    best_relative = _relative_linear_error(best_residual, rhs)
+    absolute = _maxnorm(best_residual)
+    best_accurate = absolute <= atol or best_relative <= rtol
+    polish = absolute > 0 and (absolute >= .1 * atol or best_relative > rtol)
+    if best_accurate and not polish:
+        return best_x, best_residual, 0, 'tolerance'
+
+    limit = min(max_steps, len(rhs))
+    if limit == 0:
+        return best_x, best_residual, 0, 'refinement_limit'
+    correction_rhs = np.asarray(best_residual, dtype=float)
+    beta = norm(correction_rhs)
+    if beta == 0:
+        return best_x, best_residual, 0, 'zero_computed_residual'
+    V = np.zeros((len(rhs), limit + 1), order='F')
+    Z = np.zeros((len(rhs), limit), order='F')
+    H = np.zeros((limit + 1, limit))
+    V[:, 0] = correction_rhs / beta
+    small_rhs = np.zeros(limit + 1)
+    small_rhs[0] = beta
+    reason, refinements = 'refinement_limit', 0
+    for j in range(limit):
+        Z[:, j] = inverse(V[:, j])
+        refinements += 1
+        if not np.all(np.isfinite(Z[:, j])):
+            reason = 'nonfinite_correction'
+            break
+        w = G @ Z[:, j]
+        if not np.all(np.isfinite(w)):
+            reason = 'nonfinite_correction'
+            break
+        before = norm(w)
+        # Two-pass modified Gram-Schmidt; do not form normal equations.
+        for _ in range(2):
+            for i in range(j + 1):
+                h = np.dot(V[:, i], w)
+                H[i, j] += h
+                w -= h * V[:, i]
+        after = norm(w)
+        H[j + 1, j] = after
+        try:
+            coefficients = lstsq(H[:j+2, :j+1], small_rhs[:j+2],
+                                 lapack_driver='gelsd')[0]
+        except np.linalg.LinAlgError:
+            reason = 'small_solve_failure'
+            break
+        trial = x + Z[:, :j+1] @ coefficients
+        trial_residual = residual(trial)
+        if not np.all(np.isfinite(trial)) or not np.all(np.isfinite(trial_residual)):
+            reason = 'nonfinite_correction'
+            break
+        relative = _relative_linear_error(trial_residual, rhs)
+        accurate = _maxnorm(trial_residual) <= atol or relative <= rtol
+        improved = relative < best_relative
+        if improved or (accurate and not best_accurate):
+            best_x, best_residual, best_relative = trial, trial_residual, relative
+            best_accurate = accurate
+        if best_accurate:
+            reason = 'tolerance' if improved else 'stagnated'
+            break
+        # Subspace exhaustion is distinct from a verified accurate direction.
+        if after == 0 or after <= np.finfo(float).eps * before:
+            reason = 'arnoldi_breakdown'
+            break
+        V[:, j+1] = w / after
+    return best_x, best_residual, refinements, reason
+
+
 @dataclass(frozen=True)
 class LinearSolveInfo:
     status: str
@@ -113,7 +196,7 @@ class LinearSolveResult:
 
 def factor_and_solve(
     G, rhs, reg_shift, init_tau_reg, solver, target_atol=1e-10,
-    max_solve_attempts=20, max_refinement_steps=5, *, target_rtol=1e-6,
+    max_solve_attempts=20, max_refinement_steps=10, *, target_rtol=1e-6,
     residual_blocks=None,
 ):
     """Return the best verified finite direction and an explicit accuracy status.
@@ -126,8 +209,10 @@ def factor_and_solve(
 
     Only backend numerical failures retry with a larger factorization shift.
     Timeouts and programming/input errors propagate. A zero initial shift
-    disables shift escalation. At most max_refinement_steps corrections are
-    tried per factorization; an unhelpful correction never replaces the best one.
+    disables shift escalation. One right-GMRES correction cycle uses at most
+    max_refinement_steps factor solves (default ten), retaining the best verified
+    direction. Residuals are freshly evaluated against the requested G in
+    float64, as are factor applications and Krylov arithmetic.
     With a nonzero residual, the first correction also polishes an otherwise
     accurate direction when abs_error >= 0.1 * atol or rel_error > rtol.
     """
@@ -180,48 +265,10 @@ def factor_and_solve(
             if not np.all(np.isfinite(x)):
                 raise _FactorizationError("Backend returned a nonfinite linear solution")
             x = x * _projection_scale(rhs, G @ x)
-            residual = rhs - G @ x
-            if not np.all(np.isfinite(x)) or not np.all(np.isfinite(residual)):
+            if not np.all(np.isfinite(x)):
                 raise _FactorizationError("Nonfinite projected linear solution or residual")
-            reason, refinements = 'refinement_limit', 0
-            for _ in range(max_refinement_steps):
-                relative = _relative_linear_error(residual, rhs)
-                absolute = _maxnorm(residual)
-                already_accurate = absolute <= target_atol or relative <= target_rtol
-                # Restore the original first-polish trigger within the same
-                # bounded loop; subsequent corrections use the final criterion.
-                polish = refinements == 0 and absolute > 0 and (
-                    absolute >= 0.1 * target_atol or relative > target_rtol)
-                if already_accurate and not polish:
-                    reason = 'tolerance'
-                    break
-                correction = solver.solve(residual)
-                refinements += 1
-                if not np.all(np.isfinite(correction)):
-                    reason = 'nonfinite_correction'
-                    break
-                image = G @ correction
-                try:
-                    alpha = _projection_scale(residual, image)
-                except LinearSolveError:
-                    reason = 'unusable_correction'
-                    break
-                trial = x + alpha * correction
-                # Always measure the residual of the stored trial, including
-                # rounding in the addition. Recursive residuals can drift.
-                trial_residual = rhs - G @ trial
-                if not np.all(np.isfinite(trial)) or not np.all(np.isfinite(trial_residual)):
-                    reason = 'nonfinite_correction'
-                    break
-                trial_relative = _relative_linear_error(trial_residual, rhs)
-                accurate = _maxnorm(trial_residual) <= target_atol or trial_relative <= target_rtol
-                if trial_relative >= relative and (already_accurate or not accurate):
-                    reason = 'stagnated'
-                    break
-                x, residual = trial, trial_residual
-                if accurate:
-                    reason = 'tolerance'
-                    break
+            x, residual, refinements, reason = _gmres_refine(
+                G, rhs, x, solver.solve, max_refinement_steps, target_atol, target_rtol)
             return result(x, residual, solver, tau, attempt, refinements, reason)
         except _FactorizationError:
             if attempt == max_solve_attempts or tau == 0:
