@@ -68,3 +68,26 @@ This is a workload-specific result, not a claimed speedup for arbitrary GLMs.
 The [round-three diagnostic](experiments/iteration-work-round3.json) retains
 the observations and source hashes. Use `--cases` and `--profile-case` to keep
 future profiling panels small.
+
+The fourth round retains exact constraint products and the likelihood gradient
+from a line-search trial only when that same point is accepted through the
+residual rule or the configured Newton fallback. The accepted step still
+recomputes `Q @ x`, its objective, and its residual expressions in their original
+arithmetic order. It never substitutes the trial approximation `Qx + t*Qdx` for
+the fresh quadratic product. Every subsequent trial clears the retained values,
+so an Armijo acceptance after a rejection evaluates its own products. Pure QPs
+also avoid sparse products and derivatives of their zero dummy likelihood.
+
+On the CPU-11 diagnostic, QPCBOEI2's sparse matvec dispatch count fell from
+159,605 to 116,439, and three alternating observations reduced its median solve
+time by 6.5%. The other eight cases changed by about -3% to +0.5%. All nine
+non-time histories and `x`, `y`, `s`, and `nu` arrays were identical to `4aa1781`.
+A larger logistic example (32,768 observations and 1,025 variables, with bounds)
+also matched exactly; this change did not affect its solve time. These remain
+warm work diagnostics while other cores run independent experiments.
+
+[`experiments/iteration-work-round4.json`](experiments/iteration-work-round4.json)
+retains the observations, source hashes, operation counts, and checks.
+`tools/profile_glm_work.py` accepts canonical GLM identifiers from a specified
+benchmark checkout, records full solutions and validations, and profiles a
+selected example. Its problem construction is outside the measured solve.

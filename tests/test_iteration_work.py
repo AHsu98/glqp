@@ -126,3 +126,63 @@ def test_sparse_transpose_views_follow_values_and_refresh_replaced_storage():
     np.testing.assert_array_equal(current.toarray(), replacement.toarray().T)
     cache.clear()
     assert cache.get("A", replacement) is not current
+
+
+def test_qp_does_not_multiply_dummy_design_or_evaluate_dummy_derivatives(monkeypatch):
+    problem = GLQP(Q=csc_array(np.diag([2., 4.])), b=np.array([2., 4.]))
+    problem.A = CountingMatrix(problem.A)
+
+    def unused_derivative(z):
+        pytest.fail("A QP has no likelihood derivative")
+
+    monkeypatch.setattr(problem.f, "d1f", unused_derivative)
+    x, result = problem.solve(verbose=False)
+    assert result.termination_tag == "optimal"
+    assert problem.A.products == 0
+    np.testing.assert_allclose(x, [1., 1.], atol=1e-7, rtol=0)
+
+
+@pytest.mark.parametrize("with_glm", [False, True])
+def test_residual_accepted_trial_reuses_only_exact_point_products(monkeypatch, with_glm):
+    objective = CountingGaussian(np.zeros(1), np.ones(1))
+    kwargs = dict(f=objective, A=csc_array([[1.]])) if with_glm else {}
+    problem = GLQP(Q=csc_array([[1.]]), C=csc_array([[1.]]), c=np.ones(1), **kwargs)
+    for name in ("Q", "C", "E"):
+        setattr(problem, name, CountingMatrix(getattr(problem, name)))
+    monkeypatch.setattr(problem, "solve_KKT", lambda *args, **kwargs:
+        (np.array([-.5]), np.array([-.5]), np.zeros(1), np.zeros(0), None, 0, 0.))
+    # The barrier increases, but the non-descent restoration reduces KKT.
+    with pytest.warns(UserWarning, match="Maximum Iterations"):
+        x, result = problem.solve(x0=np.array([2.]), s0=np.ones(1), verbose=False,
+            settings=SolverSettings(max_iter=1, let_newton_cook=0., armijo_additive_eps=0.))
+    np.testing.assert_array_equal(x, [1.5])
+    assert problem.C.products == problem.E.products == 2  # Initial and trial.
+    assert problem.Q.products == 4  # Initial, direction, fresh accepted, final.
+    if with_glm:
+        assert objective.gradients == 2  # Initial and exact accepted trial.
+        assert objective.values == 4  # Accepted objective is still fresh.
+    expected = (2 if with_glm else 1)*x + result.y
+    assert result.dual_res == abs(expected[0])
+    assert result.cons_viol == 1.
+
+
+def test_rejected_trial_products_do_not_survive_later_armijo_acceptance(monkeypatch):
+    problem = GLQP(Q=csc_array([[1.]]), C=csc_array([[1.]]), c=np.array([100.]))
+    points = []
+    products = problem._constraint_products
+
+    def observe(x, y, nu):
+        points.append(x.copy())
+        return products(x, y, nu)
+
+    monkeypatch.setattr(problem, "_constraint_products", observe)
+    monkeypatch.setattr(problem, "solve_KKT", lambda *args, **kwargs:
+        (np.array([-4.]), np.zeros(1), np.zeros(1), np.zeros(0), None, 0, 0.))
+    with pytest.warns(UserWarning, match="Maximum Iterations"):
+        x, result = problem.solve(x0=np.ones(1), s0=np.array([99.]), y0=np.array([.001]),
+            verbose=False, settings=SolverSettings(max_iter=1, max_linesearch_steps=20,
+                let_newton_cook=0., armijo_additive_eps=0.))
+    assert len(points) > 3
+    assert not np.array_equal(points[-2], x)
+    np.testing.assert_array_equal(points[-1], x)
+    assert result.cons_viol == abs((problem.C@x + result.s-problem.c)[0])

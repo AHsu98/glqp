@@ -210,12 +210,21 @@ class GLQP():
         return x,y,s,nu,settings
     
     def KKT_res(self,x,g,y,s,nu):
+        return self._kkt_residuals(g, y, s, self._constraint_products(x, y, nu))
+
+    def _constraint_products(self, x, y, nu):
+        """Fresh products at one point; callers may retain them for that point."""
         CT = self._transpose_views.get('C', self.C)
         ET = self._transpose_views.get('E', self.E)
-        rx = g + CT@y + ET@nu - self.b
-        rp = self.C@x + s - self.c
+        return CT@y, ET@nu, self.C@x, self.E@x
+
+    def _kkt_residuals(self, g, y, s, products):
+        """Combine products without changing residual arithmetic or grouping."""
+        CTy, ETnu, Cx, Ex = products
+        rx = g + CTy + ETnu - self.b
+        rp = Cx + s - self.c
         rc = y * s
-        req = self.E@x - self.e
+        req = Ex - self.e
         return rx,rp,rc,req
 
     def _relative_complementarity(self, x, y, primal):
@@ -330,7 +339,7 @@ class GLQP():
             mu = mu0
         
 
-        z = self.A@x
+        z = np.zeros(self.m) if self.dummy_A else self.A@x
         AT = self._transpose_views.get('A', self.A)
         Qx = self.Q@x
         primal = self.f(z) + 0.5*np.dot(x,Qx) - np.dot(x,self.b)
@@ -340,7 +349,7 @@ class GLQP():
         # Keep reuse local to this solve so changed weights/design are read
         # again on the next solve, and public get_H calls remain fresh.
         constant_hessian = self.dummy_A or getattr(self.f, 'hessian_is_constant', False)
-        gradf = AT@self.f.d1f(z) + Qx
+        gradf = Qx if self.dummy_A else AT@self.f.d1f(z) + Qx
         rx,rp,rc,req = self.KKT_res(x,gradf,y,s,nu)
         kkt_res = maxnorm(np.hstack([rx,rp,rc,req]))
         cons_viol = np.maximum(maxnorm(rp),maxnorm(req))
@@ -427,7 +436,7 @@ class GLQP():
             merit_slope = dx_gx + ds_gs
 
             t = tmax
-            dz = self.A@dx
+            dz = z if self.dummy_A else self.A@dx
             Qdx = self.Q@dx
             xQx = np.dot(x,Qx)
             xQdx = np.dot(x,Qdx)
@@ -450,6 +459,8 @@ class GLQP():
                     break
                 trial_x = x + t*dx
                 trial_s, trial_y = s + t*ds, y + t*dy
+                # Products from a rejected trial belong only to that point.
+                trial_products = trial_glm_gradient = None
                 if (not np.all(np.isfinite(trial_x))
                         or not np.all(np.isfinite(trial_s))
                         or not np.all(np.isfinite(trial_y))
@@ -457,7 +468,7 @@ class GLQP():
                     t = 0.9*t
                     continue
                 #Check armijo
-                trial_z = z + t*dz
+                trial_z = z if self.dummy_A else z + t*dz
                 with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
                     new_merit = merit_line(t, trial_x, trial_s, trial_z)
                 if not np.isfinite(new_merit):
@@ -483,10 +494,11 @@ class GLQP():
                     continue
                 
                 #Check KKT residual
-                ls_gradf = AT@self.f.d1f(trial_z) + Qx + t*Qdx
-                ls_kkt_res = maxnorm(np.hstack(
-                    self.KKT_res(trial_x,ls_gradf,trial_y,trial_s,nu+t*dnu)
-                    ))
+                trial_glm_gradient = 0. if self.dummy_A else AT@self.f.d1f(trial_z)
+                ls_gradf = trial_glm_gradient + Qx + t*Qdx
+                trial_products = self._constraint_products(trial_x, trial_y, nu+t*dnu)
+                ls_kkt_res = maxnorm(np.hstack(self._kkt_residuals(
+                    ls_gradf, trial_y, trial_s, trial_products)))
                 # Preserve residual acceptance for QPs, including restoration
                 # from an inconsistent positive slack warm start. For nonlinear
                 # GLMs, alternating merit decreases and residual-only steps can
@@ -514,8 +526,18 @@ class GLQP():
 
             Qx = self.Q@x
             primal = self.f(z) + 0.5*np.dot(x,Qx) - np.dot(x,self.b)
-            gradf = AT@self.f.d1f(z) + Qx
-            rx,rp,rc,req = self.KKT_res(x,gradf,y,s,nu)
+            if self.dummy_A:
+                gradf = Qx
+            else:
+                glm_gradient = AT@self.f.d1f(z) if trial_glm_gradient is None else trial_glm_gradient
+                gradf = glm_gradient + Qx
+            # A residual-accepted trial already evaluated the exact constraint
+            # products and likelihood gradient at these same vectors. Reuse
+            # only those products, not its approximate Qx+t*Qdx or residual.
+            if trial_products is None:
+                rx,rp,rc,req = self.KKT_res(x,gradf,y,s,nu)
+            else:
+                rx,rp,rc,req = self._kkt_residuals(gradf, y, s, trial_products)
 
             if not constant_hessian:
                 H = self.get_H(z)
@@ -584,7 +606,7 @@ class GLQP():
 
         # Report the returned iterate, including when the final step reaches
         # the iteration/time limit or a later line search fails.
-        primal = self.f(self.A@x) + 0.5*np.dot(x,self.Q@x) - np.dot(x,self.b)
+        primal = self.f(z if self.dummy_A else self.A@x) + 0.5*np.dot(x,self.Q@x) - np.dot(x,self.b)
         
         results = SolverResults(
             settings,

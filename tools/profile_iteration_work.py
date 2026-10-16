@@ -127,6 +127,9 @@ for index, (name, (kwargs, qp, glm)) in enumerate(cases.items()):
                 statuses=[br.termination_tag, cr.termination_tag],
                 iterations=[len(br.history),len(cr.history)], identical_history=same_history,
                 max_x_difference=float(np.max(np.abs(bx-cx))), max_history_difference=differences)
+    item['identical_solution_arrays'] = {
+        name:bool(np.array_equal(getattr(br, name), getattr(cr, name)))
+        for name in ('x', 'y', 's', 'nu')}
     if qp:
         item['validation']={label:validate_solution(qp, r.x, r.nu[:qp.p], r.y[:qp.m])
                             for label, (_,r) in results.items()}
@@ -135,6 +138,8 @@ for index, (name, (kwargs, qp, glm)) in enumerate(cases.items()):
                             for label,(_,r) in results.items()}
     for label,(_,r) in results.items():
         r.history.to_csv(out/f'{name}-{label}.csv',index=False)
+        np.savez_compressed(out/f'{name}-{label}.npz',
+            **{field:getattr(r, field) for field in ('x', 'y', 's', 'nu')})
     summaries.append(item)
     print(json.dumps({k:item[k] for k in ['problem','median_ratio','statuses','iterations','identical_history','max_x_difference']}),flush=True)
 
