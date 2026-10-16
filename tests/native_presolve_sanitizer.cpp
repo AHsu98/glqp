@@ -18,7 +18,7 @@ using Index = int64_t;
 using Vector = std::vector<double>;
 using Dense = std::vector<Vector>;
 using Result = std::unique_ptr<void, decltype(&gqp_free)>;
-constexpr gqp_options options{1, 1, 1, 1e-12};
+constexpr gqp_options options{1, 1, 1, 1e-12, 0};
 int checks = 0;
 
 void require(bool condition, const char *description) {
@@ -79,14 +79,15 @@ void equal_vectors(const Vector &a, const Vector &b, double tol, const char *mes
 
 void check_known_solution(const Matrix &Q, const Matrix &A, const Matrix &G,
                           const Vector &x, const Vector &y, const Vector &z,
-                          const Vector &slack, Index expected_fixed) {
+                          const Vector &slack, Index expected_fixed,
+                          gqp_options flags = options) {
     Vector b = multiply(A.view(), x), h = multiply(G.view(), x);
     for (size_t i = 0; i < h.size(); ++i) h[i] += slack[i];
     Vector q = multiply(Q.view(), x);
     add_transpose(A.view(), y, q);
     add_transpose(G.view(), z, q);
     for (auto &v : q) v = -v;
-    Result result(gqp_presolve(Q.view(), q.data(), A.view(), b.data(), G.view(), h.data(), options), gqp_free);
+    Result result(gqp_presolve(Q.view(), q.data(), A.view(), b.data(), G.view(), h.data(), flags), gqp_free);
     int status = gqp_status_code(result.get());
     require(status == GQP_REDUCED || status == GQP_UNCHANGED, gqp_message(result.get()));
     require(gqp_get_stat(result.get(), 0) == expected_fixed, "Unexpected elimination count");
@@ -158,7 +159,9 @@ void mixed_cascades() {
         for (Index i = 0; i < 6; ++i) y[i] = small(generator);
         z[0] = 3.; z[3] = 2.; z[5] = 1.;
         Vector slack{0., 0., 0., 0., 4., 0., 0., 2.};
-        check_known_solution(Matrix(Q, n), Matrix(A, n), Matrix(G, n), x, y, z, slack, 7);
+        auto flags = options;
+        flags.local_fallback = repetition % 2;
+        check_known_solution(Matrix(Q, n), Matrix(A, n), Matrix(G, n), x, y, z, slack, 7, flags);
     }
 }
 
@@ -232,8 +235,8 @@ void malformed_inputs() {
     bad = valid; bad.data[0] = 0.; expect_invalid(bad.view(), q.data());
     bad = valid; bad.data[0] = std::numeric_limits<double>::quiet_NaN(); expect_invalid(bad.view(), q.data());
     bad = valid; bad.data[1] += .25; expect_invalid(bad.view(), q.data());
-    expect_invalid(valid.view(), q.data(), {1, 1, 1, -1.});
-    expect_invalid(valid.view(), q.data(), {1, 1, 1, std::numeric_limits<double>::infinity()});
+    expect_invalid(valid.view(), q.data(), {1, 1, 1, -1., 0});
+    expect_invalid(valid.view(), q.data(), {1, 1, 1, std::numeric_limits<double>::infinity(), 0});
 }
 
 void infeasible_and_uncertain() {
@@ -253,6 +256,28 @@ void infeasible_and_uncertain() {
     Result overflow(gqp_presolve(Q.view(), &q, tiny.view(), &huge, empty.view(), nullptr, options), gqp_free);
     require(gqp_status_code(overflow.get()) == GQP_INCONCLUSIVE, "Overflow should fall back");
 }
+
+void local_deferrals() {
+    auto local = options;
+    local.local_fallback = 1;
+    Matrix Q({{4., .5, 1.}, {.5, 3., 0.}, {1., 0., 2.}}, 3);
+    Matrix A({{1., 0., 0.}, {1., 3., 0.}, {0., 6., 0.}, {0., 0., 1.}}, 3), G({}, 3);
+    check_known_solution(Q, A, G, {2., 1./3., 4.}, {1., 2., -1., 3.}, {}, {}, 2, local);
+    Matrix diagonal({{1., 0.}, {0., 1.}}, 2), equality({{0., 1.}}, 2);
+    Matrix bounds({{3., 0.}, {-3., 0.}, {6., 0.}}, 2);
+    check_known_solution(diagonal, equality, bounds, {1./3., 4.}, {2.}, {0., 0., 0.},
+                         {0., 0., 0.}, 1, local);
+    Matrix conflicting({{1., 0.}, {-1., 0.}}, 2);
+    Vector q{0., 0.}, b{3.}, h{1., -1. - 1e-14};
+    Result result(gqp_presolve(diagonal.view(), q.data(), equality.view(), b.data(),
+                               conflicting.view(), h.data(), local), gqp_free);
+    require(gqp_status_code(result.get()) == GQP_REDUCED, "Local bound deferral failed");
+    require(gqp_get_stat(result.get(), 0) == 1 && gqp_get_stat(result.get(), 6) == 1 &&
+            gqp_get_stat(result.get(), 7) == 2, "Local bound deferral counts wrong");
+    auto kept = gqp_get_matrix(result.get(), 2);
+    require(kept.rows == 2 && kept.nnz == 2, "Local deferral dropped conflicting bounds");
+    require(gqp_get_vector(result.get(), 2)[1] == h[1], "Local deferral changed conflicting RHS");
+}
 } // namespace
 
 int main() {
@@ -262,6 +287,7 @@ int main() {
         ownership();
         malformed_inputs();
         infeasible_and_uncertain();
+        local_deferrals();
         std::cout << "Native presolver validation passed: " << checks
                   << " assertions, 100 mixed cascades, malformed-input and lifetime cases\n";
         return 0;

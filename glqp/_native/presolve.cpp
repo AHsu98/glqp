@@ -114,7 +114,7 @@ struct Result {
     std::array<Matrix, 3> original, reduced;
     std::array<std::vector<double>, 3> original_rhs, rhs;
     std::array<std::vector<Index>, 3> maps;
-    std::array<Index, 6> stats{};
+    std::array<Index, 8> stats{};
     std::vector<Pivot> tape;
     std::vector<double> fixed_values;
     // Shared CSR of original A/G, retained for reverse dual reconstruction.
@@ -130,7 +130,7 @@ class Presolver {
     std::vector<Index> count, single_col, queue, lower_row, upper_row;
     std::vector<uint64_t> coefficient_bits;
     std::vector<double> rhs, lo, hi, singleton_coefficient;
-    std::vector<unsigned char> removed, fixed, processed;
+    std::vector<unsigned char> removed, fixed, processed, deferred, ambiguous;
 
     static uint64_t bits(double value) {
         uint64_t result;
@@ -224,8 +224,55 @@ class Presolver {
         return true;
     }
 
+    Interval substituted_interval(Index row, double coefficient, Interval range) const {
+        auto left = product(coefficient, coefficient > 0. ? range.lo : range.hi);
+        auto right = product(coefficient, coefficient > 0. ? range.hi : range.lo);
+        return {subtract(lo[row], right.hi).lo, subtract(hi[row], left.lo).hi};
+    }
+
+    void defer(Index variable) {
+        if (!deferred[variable]) ++r.stats[6];
+        deferred[variable] = 1;
+    }
+
+    bool would_create_ambiguous_row(Index variable, Interval range, const Pivot &pivot) {
+        for (int matrix = 1; matrix <= 2; ++matrix) {
+            const auto &a = r.original[matrix];
+            for (Index k = a.ptr[variable]; k < a.ptr[variable + 1]; ++k) {
+                Index row = a.idx[k] + (matrix == 2 ? p : 0);
+                if (removed[row] || count[row] != 1 || row == pivot.equality ||
+                    (pivot.lower >= 0 && row == p + pivot.lower) ||
+                    (pivot.upper >= 0 && row == p + pivot.upper)) continue;
+                auto next = substituted_interval(row, a.data[k], range);
+                double original_rhs = row < p ? r.original_rhs[1][row] : r.original_rhs[2][row - p];
+                double guard = options.infeasibility_guard * std::max(1., std::abs(original_rhs));
+                if (row < p) {
+                    if (next.lo == 0. && next.hi == 0.) continue;
+                    // A contradiction clearly outside the guard remains a
+                    // global infeasibility certificate, not an ambiguity.
+                    if ((next.lo > 0. || next.hi < 0.) &&
+                        std::min(std::abs(next.lo), std::abs(next.hi)) > guard) continue;
+                    ambiguous[row] = 1;
+                    return true;
+                }
+                if (next.lo < 0. && !(next.hi < 0. && -next.hi > guard)) {
+                    ambiguous[row] = 1;
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     void eliminate(Index variable, double value, Interval range, Pivot pivot) {
         if (!std::isfinite(value)) throw std::overflow_error("Nonfinite fixed variable");
+        if (options.local_fallback &&
+            (deferred[variable] || would_create_ambiguous_row(variable, range, pivot))) {
+            defer(variable);
+            return;
+        }
+        if (pivot.equality >= 0) removed[pivot.equality] = 1;
+        else removed[p + pivot.lower] = removed[p + pivot.upper] = 1;
         fixed[variable] = 1;
         r.fixed_values[variable] = value;
         r.tape.push_back(pivot);
@@ -236,10 +283,9 @@ class Presolver {
                 Index row = a.idx[k] + (matrix == 2 ? p : 0);
                 if (removed[row]) continue;
                 double v = a.data[k];
-                auto left = product(v, v > 0. ? range.lo : range.hi);
-                auto right = product(v, v > 0. ? range.hi : range.lo);
-                lo[row] = subtract(lo[row], right.hi).lo;
-                hi[row] = subtract(hi[row], left.lo).hi;
+                auto next = substituted_interval(row, v, range);
+                lo[row] = next.lo;
+                hi[row] = next.hi;
                 // Same evaluation order on every run, without fast-math/FMA contraction.
                 rhs[row] -= v * value;
                 if (!std::isfinite(rhs[row])) throw std::overflow_error("Nonfinite reduced right-hand side");
@@ -278,8 +324,14 @@ class Presolver {
         auto high_range = divide({lo[high], hi[high]}, b);
         if (low_range.lo > high_range.hi) {
             double guard = options.infeasibility_guard * std::max({1., std::abs(low_range.lo), std::abs(high_range.hi)});
-            if (low_range.lo - high_range.hi <= guard)
+            if (low_range.lo - high_range.hi <= guard) {
+                if (options.local_fallback) {
+                    defer(variable);
+                    ambiguous[low] = ambiguous[high] = 1;
+                    return true;
+                }
                 return fail(GQP_INCONCLUSIVE, "Singleton-bound contradiction within guard: retain original problem");
+            }
             return fail(GQP_INFEASIBLE, "Inconsistent singleton bounds");
         }
         bool exactly_equal = low_range.lo == low_range.hi && high_range.lo == high_range.hi &&
@@ -287,7 +339,6 @@ class Presolver {
         bool opposite_rows = a == -b && rhs[low] == -rhs[high] &&
             lo[low] == hi[low] && lo[high] == hi[high];
         if (options.fixed_bounds && (exactly_equal || opposite_rows)) {
-            removed[low] = removed[high] = 1;
             eliminate(variable, rhs[high] / b, high_range,
                       {variable, -1, low - p, high - p, 0., a, b});
         }
@@ -325,8 +376,19 @@ class Presolver {
         r.stats[0] = n - static_cast<Index>(r.maps[0].size());
         r.stats[1] = p - static_cast<Index>(r.maps[1].size());
         r.stats[2] = m - static_cast<Index>(r.maps[2].size());
+        if (options.local_fallback)
+            for (Index row = 0; row < p + m; ++row)
+                if (ambiguous[row] && !removed[row]) ++r.stats[7];
         r.status = r.stats[0] || r.stats[1] || r.stats[2] ? GQP_REDUCED : GQP_UNCHANGED;
         r.message = r.status == GQP_REDUCED ? "Certified structural reductions" : "No structural reductions";
+        if (r.stats[6]) {
+            if (r.status == GQP_UNCHANGED) {
+                r.status = GQP_INCONCLUSIVE;
+                r.message = "All useful eliminations ambiguous: retain original problem";
+                return;
+            }
+            r.message = "Certified structural reductions; ambiguous variables retained";
+        }
         if (r.status == GQP_UNCHANGED) return;
         std::vector<double> gradient = r.original_rhs[0];
         const auto &Q = r.original[0];
@@ -353,7 +415,8 @@ public:
     Presolver(Result &result, gqp_options flags) : r(result), options(flags),
         n(r.original[0].cols), p(r.original[1].rows), m(r.original[2].rows),
         count(p + m), single_col(p + m), lower_row(n, -1), upper_row(n, -1), coefficient_bits(p + m),
-        singleton_coefficient(p + m), removed(p + m), fixed(n), processed(p + m) {
+        singleton_coefficient(p + m), removed(p + m), fixed(n), processed(p + m),
+        deferred(flags.local_fallback ? n : 0), ambiguous(flags.local_fallback ? p + m : 0) {
         rhs = r.original_rhs[1];
         rhs.insert(rhs.end(), r.original_rhs[2].begin(), r.original_rhs[2].end());
         lo = hi = rhs;
@@ -375,7 +438,6 @@ public:
                 double a = coefficient(row);
                 singleton_coefficient[row] = a;
                 if (row < p && options.singleton_equalities) {
-                    removed[row] = 1;
                     eliminate(variable, rhs[row] / a, divide({lo[row], hi[row]}, a),
                               {variable, row, -1, -1, a, 0., 0.});
                 } else if (row >= p && !singleton_bound(row, variable, a)) return;
@@ -454,7 +516,7 @@ const int64_t *gqp_get_map(const void *value, int which) {
     return !value || which < 0 || which > 2 ? nullptr : static_cast<const Result *>(value)->maps[which].data();
 }
 int64_t gqp_get_stat(const void *value, int which) {
-    return !value || which < 0 || which > 5 ? -1 : static_cast<const Result *>(value)->stats[which];
+    return !value || which < 0 || which > 7 ? -1 : static_cast<const Result *>(value)->stats[which];
 }
 
 int gqp_recover(const void *value, const double *x, const double *y, const double *z,

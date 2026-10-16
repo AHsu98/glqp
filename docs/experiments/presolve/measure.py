@@ -4,6 +4,7 @@ Run from the solver checkout with the sibling benchmark package installed:
   taskset -c 8 python docs/experiments/presolve/measure.py --output result.json
 """
 import argparse
+from dataclasses import asdict
 import hashlib
 import json
 import os
@@ -15,7 +16,7 @@ import numpy as np
 
 SOLVER_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(SOLVER_ROOT))
-from glqp.presolve import prepare_native, presolve_qp
+from glqp.presolve import PresolveOptions, prepare_native, presolve_qp
 from glqp_bench.qp import load_problem
 
 
@@ -24,17 +25,20 @@ def main():
     parser.add_argument("--inputs", type=Path, default=SOLVER_ROOT.parent / "glqp-bench/mm_problems/MAT_Files")
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--repeats", type=int, default=5)
+    parser.add_argument("--local-fallback", action="store_true")
     args = parser.parse_args()
     if args.repeats < 1:
         parser.error("repeats must be positive")
+    options = PresolveOptions(local_fallback=args.local_fallback)
     evidence = {"kind": "presolve-only diagnostic, not solver performance", "native": prepare_native(),
-                "affinity": sorted(os.sched_getaffinity(0)), "repeats": args.repeats, "problems": []}
+                "options": asdict(options), "affinity": sorted(os.sched_getaffinity(0)),
+                "repeats": args.repeats, "problems": []}
     rng = np.random.default_rng(20261016)
     for path in sorted(args.inputs.glob("*.mat")):
         qp = load_problem(path)
         samples = []
         for _ in range(args.repeats):
-            with presolve_qp(qp.P, qp.q, qp.A, qp.b, qp.G, qp.h) as reduced:
+            with presolve_qp(qp.P, qp.q, qp.A, qp.b, qp.G, qp.h, options=options) as reduced:
                 samples.append(dict(reduced.stats))
                 x = rng.standard_normal(reduced.n)
                 original_x, _, _ = reduced.recover(x)

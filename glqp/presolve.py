@@ -35,20 +35,26 @@ class _Matrix(ct.Structure):
 
 class _Options(ct.Structure):
     _fields_ = [("singleton_equalities", ct.c_int), ("fixed_bounds", ct.c_int),
-                ("redundant_bounds", ct.c_int), ("infeasibility_guard", ct.c_double)]
+                ("redundant_bounds", ct.c_int), ("infeasibility_guard", ct.c_double),
+                ("local_fallback", ct.c_int)]
 
 
 @dataclass(frozen=True)
 class PresolveOptions:
-    """Independent structural passes; no numeric elimination tolerance."""
+    """Independent structural passes; no numeric elimination tolerance.
+
+    ``local_fallback`` retains ambiguous variables and their constraints while
+    permitting independent reductions. It is experimental and off by default.
+    """
     singleton_equalities: bool = True
     fixed_bounds: bool = True
     redundant_bounds: bool = True
     infeasibility_guard: float = 1e-12
+    local_fallback: bool = False
 
     def __post_init__(self):
         if any(type(getattr(self, name)) is not bool for name in
-               ("singleton_equalities", "fixed_bounds", "redundant_bounds")):
+               ("singleton_equalities", "fixed_bounds", "redundant_bounds", "local_fallback")):
             raise TypeError("Presolve pass options must be bool")
         if not np.isfinite(self.infeasibility_guard) or self.infeasibility_guard < 0:
             raise ValueError("infeasibility_guard must be finite and nonnegative")
@@ -282,7 +288,7 @@ def presolve_qp(Q, q, A=None, b=None, G=None, h=None, *,
             _copy(library.gqp_get_map(handle, i), count, np.int64) for i, count in enumerate(sizes))
         output.objective_offset = float(objective_constant) + library.gqp_objective_offset(handle)
     names = ("fixed_variables", "removed_equalities", "removed_inequalities", "singleton_rows",
-             "propagation_visits", "input_nonzeros")
+             "propagation_visits", "input_nonzeros", "deferred_variables", "retained_ambiguous_rows")
     output.stats = {name: int(library.gqp_get_stat(handle, i)) for i, name in enumerate(names)}
     if status in (0, 3):
         # Identity reconstruction needs no native copy of the problem data.

@@ -81,7 +81,7 @@ int main(int argc, char **argv) {
         auto q = read_vector(input, n), b = read_vector(input, p), h = read_vector(input, m);
         auto Q = read_matrix(input, n, n), A = read_matrix(input, p, n), G = read_matrix(input, m, n);
         std::unique_ptr<void, decltype(&gqp_free)> result(
-            gqp_presolve(Q.view(), q.data(), A.view(), b.data(), G.view(), h.data(), {1, 1, 1, 1e-12}), gqp_free);
+            gqp_presolve(Q.view(), q.data(), A.view(), b.data(), G.view(), h.data(), {1, 1, 1, 1e-12, 0}), gqp_free);
         int status = gqp_status_code(result.get());
         std::cerr << gqp_message(result.get()) << '\n';
         if (status > GQP_REDUCED) return status;

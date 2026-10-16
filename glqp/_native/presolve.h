@@ -25,8 +25,12 @@ typedef struct {
     int fixed_bounds;
     int redundant_bounds;
     /* Relative deadband for declaring infeasibility; uncertain contradictions
-     * return GQP_INCONCLUSIVE and never become valid reductions. */
+     * are retained rather than declared infeasible or treated as redundant. */
     double infeasibility_guard;
+    /* Opt-in: keep a variable instead of abandoning independent reductions
+     * when fixing it would create an ambiguous constant constraint, or when
+     * its singleton bounds contradict each other within the guard. */
+    int local_fallback;
 } gqp_options;
 
 enum gqp_status {
@@ -49,7 +53,9 @@ gqp_matrix gqp_get_matrix(const void *result, int which);
 const double *gqp_get_vector(const void *result, int which);
 /* map: 0=remaining variables, 1=remaining equality rows, 2=inequality rows.
  * stats: 0=fixed variables, 1=removed equalities, 2=removed inequalities,
- * 3=processed singleton rows, 4=propagation visits, 5=original nonzeros. */
+ * 3=processed singleton rows, 4=propagation visits, 5=original nonzeros,
+ * 6=variables retained because an elimination decision was ambiguous,
+ * 7=retained rows that blocked elimination or exposed a guarded bound conflict. */
 const int64_t *gqp_get_map(const void *result, int which);
 int64_t gqp_get_stat(const void *result, int which);
 /* Reconstruct primal and both dual vectors. Input lengths are reduced

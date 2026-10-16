@@ -57,6 +57,25 @@ This matters for rounded benchmark data: QPCBOEI1 contains bounds differing
 by about one unit in the last place, and STCQP1 exposes a tiny contradictory
 equality after substitution.
 
+The experimental `PresolveOptions(local_fallback=True)` limits these fallbacks
+to the affected variables where possible. Before accepting a fixation, the
+presolver checks every neighboring row that would become constant. If one
+would be ambiguous, it retains the variable and all pivot rows. It likewise
+retains singleton bounds whose contradiction lies within the guard. Other
+variables can still be eliminated, with the usual reverse dual recovery.
+This preflight happens before any pivot is removed or right-hand side is
+updated, including when an opposing bound pair supplies the fixation.
+
+The result reports `deferred_variables` and `retained_ambiguous_rows`
+separately from actual reduction counts. The latter counts retained rows
+observed blocking an elimination or exposing a guarded bound conflict; it
+is not an exhaustive classification of all dependent rows. Deferred
+variables remain deferred for the entire call. If independent reductions
+succeed, the status is `reduced`; if none succeed, it is `inconclusive`.
+An initially empty row with a guarded contradiction, or arithmetic overflow,
+still causes the original whole-problem fallback. The option is false by default, and
+does not relax any constraint or increase the infeasibility guard.
+
 ## Build and reproducibility
 
 `prepare_native()` compiles lazily using `$CXX` or `c++`. The compiler must
@@ -78,6 +97,12 @@ The independent C API is in [`presolve.h`](../glqp/_native/presolve.h).
 It copies input data, owns all reconstruction state, and has no global mutable
 solver state. Free its opaque result with `gqp_free`. Output pointers are
 valid until that call. `gqp_recover` handles primal and dual recovery.
+
+Adding `local_fallback` changes the native `gqp_options` layout. Rebuild C and
+C++ clients together with this experimental library; previously compiled
+clients are not ABI-compatible with the new layout. The Python build cache
+includes both the header and source in its key, so this change selects a new
+matching native build automatically.
 
 To build without Python:
 
@@ -174,3 +199,37 @@ LeakSanitizer exit check failed because the sandbox uses `ptrace`. That
 [attempt is retained](experiments/presolve/sanitizer-sandbox-attempt.json).
 The successful run used the same checks outside that wrapper, keeping leak
 detection enabled.
+
+The fourth iteration starts with a [survey of all 138 bundled QPs](experiments/presolve/iteration-4-opportunities.json).
+Exact general row duplicates or rows implied by an identical equality
+would remove only 32 additional rows across nine problems. That limited
+opportunity did not justify adding a global row-hashing pass. The larger
+opportunity was keeping certified work when a small part of a QP is
+ambiguous.
+
+With local fallback enabled, the [structural diagnostic](experiments/presolve/iteration-4-local-final.json)
+reduces 43 problems and has no whole-problem fallbacks on this suite. It
+removes 4,868 variables, 4,518 equalities, and 8,260 inequalities. Relative
+to the existing default, only the three previous fallback cases change:
+
+| Problem | Additional fixed variables | Removed equalities | Removed inequalities | Deferred variables | Retained ambiguous rows |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| QPCBOEI1 | 1 | 1 | 15 | 1 | 2 |
+| QPILOTNO | 232 | 52 | 437 | 1 | 1 |
+| STCQP1 | 267 | 267 | 534 | 85 | 85 |
+
+All 138 transformations pass original-objective and retained-row identity
+checks at three random points per problem. These structural counts establish
+additional usable reductions, not faster or more reliable complete solves.
+The [initial prototype diagnostic](experiments/presolve/iteration-4-local.json)
+is retained separately from the final source-hashed diagnostic.
+
+The [disabled-option comparison](experiments/presolve/iteration-4-default-compatibility.json)
+against `5b0002e` checks bitwise identity of every reduced matrix, vector,
+map, objective offset, and recovered array on all 138 QPs. Three alternating
+observations per problem give native-time and wrapper-total ratios near 1;
+default preprocessing overhead is unchanged at this measurement precision.
+The focused Python suite has 54 passing checks, including 12 randomized
+row-order and dyadic-scaling cases with ambiguous chains and original KKT
+validation. The [expanded sanitizer run](experiments/presolve/iteration-4-sanitizer.json)
+passes 38,994 assertions with ASan, UBSan, and leak detection enabled.

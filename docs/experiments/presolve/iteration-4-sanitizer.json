@@ -1,0 +1,46 @@
+{
+  "kind": "standalone C ABI sanitizer validation",
+  "commit": "4aa1781ba8bfe1318951704ee761e29eb9ee13d4",
+  "sources": {
+    "glqp/_native/presolve.cpp": "3f8d64b91002f65b3788603db94accefc27482487a0b2bb9cc921f71edcb1ab6",
+    "glqp/_native/presolve.h": "fa837fbd70b0b8fe90e45613225a197dd4ca9507bcce797e131d280caa8de21e",
+    "tests/native_presolve_sanitizer.cpp": "b5c6e88766dd45206ef352f52ca1a1d67f9eeb9be986f3028f35b0877256b78b"
+  },
+  "compiler": [
+    "c++"
+  ],
+  "compiler_version": "c++ (GCC) 11.5.0 20240719 (Red Hat 11.5.0-14)\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+  "flags": [
+    "-std=c++17",
+    "-O1",
+    "-g",
+    "-ffp-contract=off",
+    "-Wall",
+    "-Wextra",
+    "-Wpedantic",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-fno-sanitize-recover=all"
+  ],
+  "affinity": [
+    8
+  ],
+  "environment": {
+    "ASAN_OPTIONS": "detect_leaks=1:halt_on_error=1",
+    "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1"
+  },
+  "compile": {
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "seconds": 5.476692738011479
+  },
+  "binary_sha256": "37167970829066e2bcb60df2b64f200a0a3057a64fd5dc58b1822a070ea6f23f",
+  "run": {
+    "returncode": 0,
+    "stdout": "Native presolver validation passed: 38994 assertions, 100 mixed cascades, malformed-input and lifetime cases\n",
+    "stderr": "",
+    "seconds": 0.2799078869866207
+  },
+  "passed": true
+}
