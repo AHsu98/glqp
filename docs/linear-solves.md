@@ -5,14 +5,14 @@ and residual verification. The requested matrix already includes the outer
 solver's proximal perturbation. Refinement targets this requested matrix; it
 removes numerical factorization error without removing intended proximal damping.
 
-The QDLDL adapter exposes three operations: `matches(matrix)`, `update(matrix)`,
-and `solve(rhs)`. Its constructor performs the initial factorization. Sparse
-pattern changes rebuild the factors. Another backend can implement these same
-operations without duplicating refinement and reporting. Backend selection and
-additional solver implementations are deferred.
+The factorization adapters expose `matches(matrix)`, `update(matrix)`, and
+`solve(rhs)`, plus resource cleanup and optional diagnostics. Constructors perform
+the initial factorization. Pattern, backend, or option changes rebuild the factors.
+QDLDL remains the default; [backend selection and experiments](linear-backends.md)
+also cover SuperLU, FERAL, and oneMKL PARDISO. Refinement and reporting are shared.
 
 The numerical shift `tau_reg` is separate from `SolverSettings.prox_reg`.
-Only QDLDL numerical failures or nonfinite initial backend solutions trigger a
+Only backend numerical failures or nonfinite initial backend solutions trigger a
 retry with a tenfold numerical shift. A failed update invalidates the cached
 factorization. Zero initial shift disables escalation. Timeouts, input errors,
 and unexpected Python errors propagate rather than being retried as numerical
@@ -90,5 +90,5 @@ Tests exercise fresh residual reporting on an ill-conditioned matrix, rounding
 that worsens a correction, bounded unproductive refinement, inaccurate status,
 sparse-factor reuse, tiny and zero right-hand sides, and exception propagation.
 Performance is measured separately against a committed proximal-on reference.
-No presolve, alternate backend, proximal adaptation, or nonlinear model changes
-are included.
+Backend selection is independent of presolve, proximal adaptation, and nonlinear
+model changes.

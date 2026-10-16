@@ -6,7 +6,7 @@ from numpy.testing import assert_allclose
 import pytest
 from scipy.sparse import csc_array, diags_array, eye_array
 
-from glqp.backends import BACKENDS, FactorizationError, backend_type
+from glqp.backends import BACKENDS, FactorizationError, backend_type, backend_options
 
 
 @pytest.fixture(params=tuple(BACKENDS))
@@ -66,6 +66,57 @@ def test_pattern_changes_are_detected(factory):
         factor.close()
 
 
+def test_backend_rejects_malformed_native_inputs(factory):
+    with pytest.raises(ValueError, match='square float64 CSC'):
+        factory(csc_array([[1., 2.]]))
+    bad = csc_array([[1., 0.], [0., np.nan]])
+    with pytest.raises(ValueError, match='finite'):
+        factory(bad)
+    factor = factory(saddle_matrix())
+    try:
+        with pytest.raises(ValueError, match='RHS'):
+            factor.solve(np.ones(12))
+        with pytest.raises(ValueError, match='RHS'):
+            factor.solve(np.ones((11, 1)))
+    finally:
+        factor.close()
+
+
+def test_requested_system_residual_and_numeric_reuse(factory):
+    from glqp.linear import factor_and_solve
+    matrix = saddle_matrix()
+    rhs = np.arange(matrix.shape[0], dtype=float) - 3.
+    shift = csc_array(diags_array([1.] * 7 + [-1.] * 4))
+    first = factor_and_solve(matrix, rhs, shift, 1e-5, None,
+                            target_atol=1e-13, backend=factory.name)
+    try:
+        residual = rhs - matrix @ first.solution
+        assert_allclose(first.info.absolute_error, np.max(np.abs(residual)), rtol=0., atol=0.)
+        assert first.info.status == 'accurate'
+        assert first.info.backend == factory.name
+        second = factor_and_solve(matrix, 1.2 * rhs, shift, 1e-5, first.factorization,
+                                 target_atol=1e-13, backend=factory.name)
+        assert second.factorization is first.factorization
+        assert_allclose(matrix @ second.solution, 1.2 * rhs, rtol=1e-6, atol=1e-9)
+    finally:
+        first.factorization.close()
+
+
+def test_switching_backend_releases_native_context():
+    from glqp.linear import factor_and_solve
+    matrix = saddle_matrix()
+    rhs = np.ones(matrix.shape[0])
+    shift = csc_array(eye_array(matrix.shape[0]))
+    first = factor_and_solve(matrix, rhs, shift, 0., None, backend='pardiso')
+    second = factor_and_solve(matrix, rhs, shift, 0., first.factorization, backend='superlu')
+    try:
+        assert second.factorization.name == 'superlu'
+        with pytest.raises(RuntimeError, match='closed'):
+            first.factorization.solve(rhs)
+    finally:
+        second.factorization.close()
+
+
 def test_pardiso_disables_forced_inner_refinement():
     # An extreme diagonal range triggers perturbation on current MKL builds.
     # Even when a build chooses no perturbation, assert the explicit controls.
@@ -80,6 +131,23 @@ def test_pardiso_disables_forced_inner_refinement():
         factor.close()
     with pytest.raises(RuntimeError, match='closed'):
         factor.solve(np.ones(3))
+
+
+def test_pardiso_constructor_failure_releases_analyzed_native_storage(monkeypatch):
+    from glqp.backends import PardisoFactorization
+    original = PardisoFactorization._call
+    phases = []
+
+    def injected(self, phase, rhs=None):
+        phases.append(phase)
+        if phase == 22:
+            raise FactorizationError('injected failed numeric phase')
+        return original(self, phase, rhs)
+
+    monkeypatch.setattr(PardisoFactorization, '_call', injected)
+    with pytest.raises(FactorizationError, match='injected'):
+        PardisoFactorization(saddle_matrix())
+    assert phases == [11, 22, -1]
 
 
 @pytest.mark.parametrize('name', ['not-a-backend', None, []])
@@ -102,3 +170,49 @@ def test_feral_parallel_budget_must_be_explicit(monkeypatch):
     monkeypatch.setenv('RAYON_NUM_THREADS', '8')
     with pytest.raises(ValueError, match='RAYON_NUM_THREADS'):
         BACKENDS['feral'](saddle_matrix())
+
+
+@pytest.mark.parametrize('name,options', [
+    ('qdldl', {'refinement': 2}), ('superlu', {'ordering': 'unknown'}),
+    ('feral', {'scaling': 'unknown'}), ('feral', {'ordering': 'unknown'}),
+    ('pardiso', {'matching': False}), ('pardiso', {'pivot_exponent': True}),
+    ('pardiso', {'pivot_exponent': 21}), ('pardiso', {'scaling': 1}),
+    ('pardiso', ['ordering']),
+])
+def test_invalid_backend_options_are_rejected_before_factorization(name, options):
+    from glqp.linear import factor_and_solve
+    with pytest.raises(ValueError):
+        backend_options(name, options)
+    with pytest.raises(ValueError):
+        factor_and_solve(csc_array([[1.]]), np.zeros(1), csc_array([[1.]]), 0., None,
+                         backend=name, backend_options=options)
+
+
+def test_factor_reuse_includes_canonical_options():
+    from glqp.linear import factor_and_solve
+    matrix = saddle_matrix()
+    shift = csc_array(eye_array(matrix.shape[0]))
+    rhs = np.ones(matrix.shape[0])
+    first = factor_and_solve(matrix, rhs, shift, 0., None, backend='pardiso')
+    same = factor_and_solve(matrix, rhs, shift, 0., first.factorization,
+                           backend='pardiso', backend_options={'ordering': 'metis'})
+    assert same.factorization is first.factorization
+    changed = factor_and_solve(matrix, rhs, shift, 0., same.factorization,
+                              backend='pardiso', backend_options={'ordering': 'amd'})
+    try:
+        assert changed.factorization is not same.factorization
+        assert changed.factorization.options['ordering'] == 'amd'
+        with pytest.raises(RuntimeError, match='closed'):
+            same.factorization.solve(rhs)
+    finally:
+        changed.factorization.close()
+
+
+def test_feral_auto_ordering_still_uses_verified_float64_solve():
+    pytest.importorskip('feral')
+    from glqp import GLQP, SolverSettings
+    model = GLQP(Q=csc_array([[2., .5], [.5, 1.]]), b=np.array([1., 2.]))
+    x, result = model.solve(verbose=False, settings=SolverSettings(
+        linear_solver_backend='feral', linear_solver_options={'ordering': 'auto'}))
+    assert result.termination_tag == 'optimal'
+    assert_allclose(np.array([[2., .5], [.5, 1.]]) @ x, [1., 2.], atol=1e-6)

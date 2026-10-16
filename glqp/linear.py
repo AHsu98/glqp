@@ -13,6 +13,7 @@ from scipy.sparse import csc_array
 from .backends import (
     LinearSolveError, FactorizationError as _FactorizationError,
     QDLDLFactorization as _QDLDLFactorization, backend_type,
+    backend_options as _backend_options,
 )
 
 
@@ -167,7 +168,7 @@ class LinearSolveResult:
 def factor_and_solve(
     G, rhs, reg_shift, init_tau_reg, solver, target_atol=1e-10,
     max_solve_attempts=20, max_refinement_steps=10, *, target_rtol=1e-6,
-    residual_blocks=None, backend='qdldl',
+    residual_blocks=None, backend='qdldl', backend_options=None,
 ):
     """Return the best verified finite direction and an explicit accuracy status.
 
@@ -204,6 +205,7 @@ def factor_and_solve(
     # Preserve the historical instrumentation hook while resolving every
     # alternate backend explicitly. A wrong name never silently selects QDLDL.
     factory = _QDLDLFactorization if backend == 'qdldl' else backend_type(backend)
+    options = _backend_options(backend, backend_options)
 
     def close(factor):
         release = getattr(factor, 'close', None)
@@ -235,9 +237,10 @@ def factor_and_solve(
             shifted.sort_indices()
             if not np.all(np.isfinite(shifted.data)):
                 raise LinearSolveError("Nonfinite shifted factorization matrix")
-            if not isinstance(solver, factory) or not solver.matches(shifted):
+            if (not isinstance(solver, factory) or getattr(solver, 'options', {}) != options
+                    or not solver.matches(shifted)):
                 close(solver)
-                solver = factory(shifted)
+                solver = factory(shifted, options=options) if options else factory(shifted)
             else:
                 solver.update(shifted)
             x = solver.solve(rhs)

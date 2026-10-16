@@ -32,10 +32,17 @@ class SparseFactorization:
     """
     name = None
 
-    def __init__(self, matrix):
+    def __init__(self, matrix, options=None):
+        if (matrix.format != 'csc' or matrix.shape[0] != matrix.shape[1]
+                or not matrix.shape[0] or matrix.dtype != np.dtype('float64')):
+            raise ValueError('A nonempty square float64 CSC matrix is required')
+        matrix.check_format(full_check=True)
+        if not matrix.has_canonical_format or not np.isfinite(matrix.data).all():
+            raise ValueError('Factorization matrix must be canonical and finite')
         self.shape = matrix.shape
         self.indptr = matrix.indptr.copy()
         self.indices = matrix.indices.copy()
+        self.options = backend_options(self.name, options)
 
     def matches(self, matrix):
         return (self.shape == matrix.shape
@@ -46,7 +53,13 @@ class SparseFactorization:
         pass
 
     def diagnostics(self):
-        return {'backend': self.name}
+        return {'backend': self.name, 'options': self.options.copy()}
+
+    def _rhs(self, rhs):
+        rhs = np.asarray(rhs, dtype=float)
+        if rhs.ndim != 1 or rhs.size != self.shape[0]:
+            raise ValueError('Backend RHS must be a vector matching the matrix dimension')
+        return rhs
 
     def _lower_pattern(self):
         # Lower CSC is also upper CSR for a symmetric matrix. Cache this gather
@@ -60,8 +73,8 @@ class SparseFactorization:
 class QDLDLFactorization(SparseFactorization):
     name = 'qdldl'
 
-    def __init__(self, matrix):
-        super().__init__(matrix)
+    def __init__(self, matrix, options=None):
+        super().__init__(matrix, options)
         try:
             self.factor = qdldl.Solver(matrix)
         except RuntimeError as exc:
@@ -75,13 +88,13 @@ class QDLDLFactorization(SparseFactorization):
 
     def solve(self, rhs):
         try:
-            return self.factor.solve(rhs)
+            return self.factor.solve(self._rhs(rhs))
         except RuntimeError as exc:
             raise FactorizationError(str(exc)) from exc
 
     def diagnostics(self):
         lower, diagonal, permutation = self.factor.factors()
-        return dict(backend=self.name, factor_nnz=int(lower.nnz + len(diagonal)),
+        return dict(backend=self.name, options=self.options.copy(), factor_nnz=int(lower.nnz + len(diagonal)),
                     factor_array_bytes=int(lower.data.nbytes + lower.indices.nbytes
                         + lower.indptr.nbytes + diagonal.nbytes + permutation.nbytes))
 
@@ -90,20 +103,20 @@ class SuperLUFactorization(SparseFactorization):
     """Pivoted LU control. SciPy does not expose symbolic-only reuse."""
     name = 'superlu'
 
-    def __init__(self, matrix):
-        super().__init__(matrix)
+    def __init__(self, matrix, options=None):
+        super().__init__(matrix, options)
         self.update(matrix)
 
     def update(self, matrix):
         try:
-            self.factor = splu(csc_array(matrix), permc_spec='COLAMD',
+            self.factor = splu(csc_array(matrix), permc_spec=self.options['ordering'],
                                options={'Equil': False, 'IterRefine': 'NOREFINE'})
         except RuntimeError as exc:
             raise FactorizationError(str(exc)) from exc
 
     def solve(self, rhs):
         try:
-            return self.factor.solve(rhs)
+            return self.factor.solve(self._rhs(rhs))
         except RuntimeError as exc:
             raise FactorizationError(str(exc)) from exc
 
@@ -111,7 +124,7 @@ class SuperLUFactorization(SparseFactorization):
         lower, upper = self.factor.L, self.factor.U
         size = sum(a.nbytes for factor in (lower, upper)
                    for a in (factor.data, factor.indices, factor.indptr))
-        return dict(backend=self.name, factor_nnz=int(lower.nnz + upper.nnz),
+        return dict(backend=self.name, options=self.options.copy(), factor_nnz=int(lower.nnz + upper.nnz),
                     factor_array_bytes=int(size), symbolic_reuse=False)
 
 
@@ -119,8 +132,8 @@ class FeralFactorization(SparseFactorization):
     """POUNCE's Rust LDLᵀ engine through the optional feral-solver package."""
     name = 'feral'
 
-    def __init__(self, matrix):
-        super().__init__(matrix)
+    def __init__(self, matrix, options=None):
+        super().__init__(matrix, options)
         try:
             import feral
         except ImportError as exc:
@@ -129,7 +142,8 @@ class FeralFactorization(SparseFactorization):
         threads = int(os.environ.get('BENCH_THREADS', '1'))
         if threads > 1 and os.environ.get('RAYON_NUM_THREADS') != str(threads):
             raise ValueError('Set RAYON_NUM_THREADS=BENCH_THREADS before using parallel FERAL')
-        self.factor = feral.Solver(parallel=threads > 1, ordering='amd',
+        self.factor = feral.Solver(parallel=threads > 1, ordering=self.options['ordering'],
+                                  scaling=self.options['scaling'],
                                   partial_singular_warning=False)
         self._positions, indptr, indices = self._lower_pattern()
         self.matrix = feral.CscMatrix(matrix.shape[0], indptr.astype(np.int64),
@@ -154,12 +168,12 @@ class FeralFactorization(SparseFactorization):
     def solve(self, rhs):
         # Deliberately use solve, never solve_refined: GLQP owns refinement.
         try:
-            return self.factor.solve(np.asarray(rhs, dtype=float))
+            return self.factor.solve(self._rhs(rhs))
         except (self._feral.SingularError, self._feral.NumericFailure) as exc:
             raise FactorizationError(str(exc)) from exc
 
     def diagnostics(self):
-        return dict(backend=self.name, version=self._feral.__version__,
+        return dict(backend=self.name, options=self.options.copy(), version=self._feral.__version__,
                     factor_nnz=self.factor.factor_nnz,
                     symbolic_calls=self.factor.symbolic_call_count,
                     ordering=self.factor.ordering, scaling=self.factor.scaling,
@@ -175,8 +189,8 @@ class PardisoFactorization(SparseFactorization):
     """
     name = 'pardiso'
 
-    def __init__(self, matrix):
-        super().__init__(matrix)
+    def __init__(self, matrix, options=None):
+        super().__init__(matrix, options)
         from sparse_dot_mkl._mkl_interface._cfunctions import MKL
         from sparse_dot_mkl.solvers import pardisoinit
         self._mkl = MKL
@@ -194,8 +208,10 @@ class PardisoFactorization(SparseFactorization):
         # 3 retains Bunch-Kaufman pivoting but disables mandatory refinement
         # on perturbed pivots. Merely setting iparm[7]=0 is insufficient.
         self.iparm[20] = 3
-        self.iparm[10] = 1
-        self.iparm[12] = 1
+        self.iparm[1] = {'amd': 0, 'metis': 2}[self.options['ordering']]
+        self.iparm[9] = self.options['pivot_exponent']
+        self.iparm[10] = int(self.options['scaling'])
+        self.iparm[12] = int(self.options['matching'])
         self._closed = False
         try:
             self._call(11)
@@ -231,7 +247,7 @@ class PardisoFactorization(SparseFactorization):
         self._call(22)
 
     def solve(self, rhs):
-        return self._call(33, rhs)
+        return self._call(33, self._rhs(rhs))
 
     def close(self):
         if not getattr(self, '_closed', True):
@@ -249,13 +265,14 @@ class PardisoFactorization(SparseFactorization):
             pass
 
     def diagnostics(self):
-        return dict(backend=self.name, factor_nnz=int(self.iparm[17]),
+        return dict(backend=self.name, options=self.options.copy(), factor_nnz=int(self.iparm[17]),
                     factor_memory_kib=int(self.iparm[16]),
                     analysis_peak_kib=int(self.iparm[14]),
                     perturbed_pivots=int(self.iparm[13]), inner_refinements=int(self.iparm[6]),
                     positive_eigenvalues=int(self.iparm[21]),
                     negative_eigenvalues=int(self.iparm[22]),
-                    ordering='metis', scaling=True, matching=True)
+                    ordering=self.options['ordering'], scaling=self.options['scaling'],
+                    matching=self.options['matching'])
 
 
 BACKENDS = {backend.name: backend for backend in (
@@ -268,3 +285,44 @@ def backend_type(name):
         return BACKENDS[name]
     except (KeyError, TypeError) as exc:
         raise ValueError(f'Unknown linear backend {name!r}; choose {tuple(BACKENDS)}') from exc
+
+
+def backend_options(name, supplied=None):
+    """Validate explicit settings and return the canonical cache identity.
+
+    These options select factorization implementations only. Internal iterative
+    refinement, automatic fallback, and outer regularization are not options.
+    """
+    backend_type(name)
+    defaults = {
+        'qdldl': {},
+        'superlu': {'ordering': 'COLAMD'},
+        'feral': {'ordering': 'amd', 'scaling': 'auto'},
+        'pardiso': {'ordering': 'metis', 'scaling': True, 'matching': True,
+                    'pivot_exponent': 8},
+    }[name]
+    if supplied is None:
+        supplied = {}
+    if not isinstance(supplied, dict):
+        raise ValueError('Linear backend options must be a mapping or None')
+    unknown = set(supplied) - set(defaults)
+    if unknown:
+        raise ValueError(f'Unsupported {name} options: {sorted(map(str, unknown))}')
+    options = {**defaults, **supplied}
+    orderings = {
+        'superlu': ('COLAMD', 'MMD_AT_PLUS_A', 'MMD_ATA', 'NATURAL'),
+        'feral': ('amd', 'amf', 'metis', 'scotch', 'kahip', 'auto', 'auto_race'),
+        'pardiso': ('amd', 'metis'),
+    }
+    if name in orderings and options['ordering'] not in orderings[name]:
+        raise ValueError(f'Invalid {name} ordering {options["ordering"]!r}')
+    if name == 'feral' and options['scaling'] not in ('auto', 'none', 'infnorm', 'mc64'):
+        raise ValueError(f'Invalid FERAL scaling {options["scaling"]!r}')
+    if name == 'pardiso':
+        if any(type(options[key]) is not bool for key in ('scaling', 'matching')):
+            raise ValueError('PARDISO scaling and matching must be booleans')
+        if options['scaling'] and not options['matching']:
+            raise ValueError('PARDISO symmetric scaling requires matching')
+        if type(options['pivot_exponent']) is not int or not 1 <= options['pivot_exponent'] <= 20:
+            raise ValueError('PARDISO pivot_exponent must be an integer from 1 to 20')
+    return options
