@@ -43,12 +43,17 @@ ordering/scaling options and shared verified float64 GMRES refinement.
   fresh-residual accuracy checks.
 
 The sibling `glqp-bench` repository contains committed-source comparison
-campaigns, explicit per-variant presolve/backend settings, and 27 GLM examples.
+campaigns, explicit per-variant presolve/backend settings, and 39 GLM examples,
+including large sparse and weighted real-data problems.
 Routine tests use eight independent one-thread workers; serial and multithreaded
 per-problem profiles are explicit alternatives. The 2026-10-16 checkpoint
-retains 169/178 QP successes with bitwise-identical accepted primal/dual vectors
-and 17.3% lower paired geometric-mean wall time. Presolve and backend changes
-remain opt-in; their gains depend on the problem.
+retains 169/178 QP successes with byte-identical accepted primal/dual vectors
+and 23.7% lower paired geometric mean wall time than the original accepted
+float64 GMRES implementation. All 39 GLMs pass under the explicit `glm-v2`
+profile; see the [Poisson trial-budget diagnosis](docs/poisson-linesearch.md).
+Presolve and backend changes remain opt-in; their gains depend on the problem,
+and the presolve guide documents a reproduced convergence regression and an
+explicit pass option that avoids it.
 
 #### Convergence tolerance
 
