@@ -1,10 +1,13 @@
 """Reusable factor-input storage must match ordinary sparse addition exactly."""
+import importlib.util
+
 import numpy as np
 from numpy.testing import assert_array_equal
 import pytest
 from scipy.sparse import csc_array, eye_array
 
 from glqp.linear import ShiftedSystemWorkspace, factor_and_solve
+from glqp.backends import BACKENDS
 from glqp import GLQP, SolverSettings
 from glqp.obj import LogisticNLL
 import glqp.linear as linear
@@ -81,6 +84,57 @@ def test_reused_shifted_matrix_preserves_solutions_and_all_accuracy_fields(tau):
         assert original.info == reused.info
         # Refinement continues to certify the unshifted G, never the buffer.
         assert reused.info.absolute_error == np.max(np.abs(rhs-G@reused.solution))
+
+
+@pytest.mark.parametrize("backend", tuple(BACKENDS))
+def test_backends_rebuild_on_zero_crossings_and_refresh_changed_coefficients(backend):
+    if backend == "feral" and importlib.util.find_spec("feral") is None:
+        pytest.skip("optional feral-solver is not installed")
+    G = csc_array([[2., .25], [.25, -3.]])
+    shift = csc_array([[1., -.25], [-.25, -1.]])
+    rhs = np.array([1., -2.])
+    workspace = ShiftedSystemWorkspace()
+    factors = [None, None]
+    previous_pattern = None
+    replacements = 0
+    try:
+        for iteration, tau in enumerate((0., 1., .001, 2., 1., 0., 1.)):
+            if iteration == 4:
+                # Both off-diagonals change in place. They still cancel at
+                # tau=1, then must reappear with their new values at tau=0.
+                G.data[[1, 2]] *= 2
+                shift.data[[1, 2]] *= 2
+            original_data = G.data.copy(), shift.data.copy()
+            ordinary = csc_array(G + tau * shift)
+            assert ordinary.nnz == (2 if tau == 1. else 4)
+            pattern = ordinary.indptr.copy(), ordinary.indices.copy()
+            same_pattern = previous_pattern is not None and all(
+                np.array_equal(current, previous)
+                for current, previous in zip(pattern, previous_pattern))
+
+            original = factor_and_solve(G, rhs, shift, tau, factors[0],
+                backend=backend, target_atol=1e-13)
+            reused = factor_and_solve(G, rhs, shift, tau, factors[1],
+                backend=backend, target_atol=1e-13, workspace=workspace)
+            assert (reused.factorization is factors[1]) == same_pattern
+            replacements += reused.factorization is not factors[1]
+            factors = [original.factorization, reused.factorization]
+            previous_pattern = pattern
+
+            assert reused.factorization.matches(ordinary)
+            assert_array_equal(original.solution, reused.solution)
+            assert original.info == reused.info
+            assert_array_equal(G.data, original_data[0])
+            assert_array_equal(shift.data, original_data[1])
+            assert not np.shares_memory(workspace.matrix.data, G.data)
+            assert not np.shares_memory(workspace.matrix.data, shift.data)
+        # Initial construction plus five cancellations/reappearances; the
+        # .001 -> 2 transition keeps the pattern and must reuse its factor.
+        assert replacements == 6
+    finally:
+        for factor in factors:
+            if factor is not None:
+                factor.close()
 
 
 def test_retry_reads_the_larger_shift_and_original_values(monkeypatch):
