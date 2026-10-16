@@ -93,15 +93,29 @@ PARDISO follows the MKL thread limit. More cores do not make QDLDL parallel.
 ## What was learned from POUNCE
 
 Research pinned [POUNCE c70e06dc](https://github.com/jkitchin/pounce/tree/c70e06dc82504118836046188d5f4e8f019e4a53)
-and its FERAL dependency version 0.19.0, whose release source is
+and its [FERAL dependency version 0.19.0](https://github.com/jkitchin/pounce/blob/c70e06dc82504118836046188d5f4e8f019e4a53/Cargo.toml#L277), whose release source is
 [FERAL 6fbea336](https://github.com/jkitchin/feral/tree/6fbea336ee3a7428d908355d482fe9637d59f884).
-POUNCE separates its symmetric solver interface from concrete FERAL and optional
-HSL MA57 implementations. Its FERAL adapter caches triplet-to-CSC placement and
-numeric buffers across iterates, reuses symbolic analysis, and exposes separate
-ordering, scaling, pivot-quality, and refinement controls. Its comments explain
-the cost of nested backend and outer refinement. These design lessons motivated
-the small lifecycle above; GLQP does not import POUNCE's algorithm, inertia-based
-regularization policy, or solver code.
+The implemented choices behind POUNCE's `linear_solver` option are FERAL and
+optional HSL MA57; its inherited option registry also lists names that the
+[implementation rejects](https://github.com/jkitchin/pounce/blob/c70e06dc82504118836046188d5f4e8f019e4a53/crates/pounce-algorithm/src/application.rs#L2690).
+The experiments here measure that FERAL engine inside GLQP's numerical contract.
+They establish factorization and complete-GLQP behavior, with the scope below.
+
+| POUNCE design and pinned implementation | What this GLQP study exercises |
+| --- | --- |
+| [Sparse solver interface](https://github.com/jkitchin/pounce/blob/c70e06dc82504118836046188d5f4e8f019e4a53/crates/pounce-linsol/src/sparse_sym_iface.rs) separates structure initialization, numeric values, factor/solve, and factor-quality escalation. [TSymLinearSolver](https://github.com/jkitchin/pounce/blob/c70e06dc82504118836046188d5f4e8f019e4a53/crates/pounce-linsol/src/t_sym_solver.rs) marshals formats, applies optional symmetric scaling, handles retry statuses, and supports multiple RHS columns. | Pattern/option cache identity, numeric updates, and repeated single-vector solves. Multi-RHS batching and POUNCE's retry/quality policy are outside these measurements. |
+| [FERAL adapter](https://github.com/jkitchin/pounce/blob/c70e06dc82504118836046188d5f4e8f019e4a53/crates/pounce-feral/src/lib.rs#L1218) caches triplet-to-CSC scatter positions and numeric storage, preserves structural zeros, and reuses symbolic analysis. Its [backsolve](https://github.com/jkitchin/pounce/blob/c70e06dc82504118836046188d5f4e8f019e4a53/crates/pounce-feral/src/lib.rs#L1441) uses Rust `solve_into` APIs and reusable output scratch. | Cached triangular value maps, fixed-pattern FERAL numeric refactors, and inverse applications through its Python wheel. Timings include this Python boundary and its returned-vector allocation. |
+| [Actual FeralConfig defaults](https://github.com/jkitchin/pounce/blob/c70e06dc82504118836046188d5f4e8f019e4a53/crates/pounce-feral/src/lib.rs#L691) select automatic ordering, ordering preprocessing, and scaling. | AMD and automatic ordering with automatic scaling were measured. Thread budgets were imposed explicitly by the benchmark profiles. |
+| FERAL's wrapper defaults to internal refinement with a [10-step cap](https://github.com/jkitchin/feral/blob/6fbea336ee3a7428d908355d482fe9637d59f884/src/numeric/solve.rs#L1954). The [limited-memory IPM option path](https://github.com/jkitchin/pounce/blob/c70e06dc82504118836046188d5f4e8f019e4a53/crates/pounce-algorithm/src/application.rs#L8195) disables it unless overridden; the [outer primal-dual solver](https://github.com/jkitchin/pounce/blob/c70e06dc82504118836046188d5f4e8f019e4a53/crates/pounce-algorithm/src/kkt/pd_full_space_solver.rs) refines its unreduced KKT system and can request better factors. | Plain FERAL `solve` followed by GLQP's existing bounded right-GMRES and fresh requested-system residual. No POUNCE refinement defaults or factor-quality escalation were imported. |
+| [Factor acceptance](https://github.com/jkitchin/pounce/blob/c70e06dc82504118836046188d5f4e8f019e4a53/crates/pounce-feral/src/lib.rs#L1305) distinguishes zero pivots, small pivots, and unreliable or incorrect inertia, which steer POUNCE's regularization. | Native status and exact zero-pivot rejection, followed by GLQP residual verification and its existing shift retry. POUNCE's pivot floors and expected-inertia rules are outside this comparison. |
+| [Small-Schur solver](https://github.com/jkitchin/pounce/blob/c70e06dc82504118836046188d5f4e8f019e4a53/crates/pounce-feral/src/schur.rs) and [arrowhead block solver](https://github.com/jkitchin/pounce/blob/c70e06dc82504118836046188d5f4e8f019e4a53/crates/pounce-feral/src/block.rs) factor caller-specified blocks and a dense Schur complement; the latter runs independent blocks in parallel. | Monolithic sparse factorization only. Structured block methods remain a separate experiment requiring a partition and full residual/performance validation. |
+| [MA57 adapter](https://github.com/jkitchin/pounce/blob/c70e06dc82504118836046188d5f4e8f019e4a53/crates/pounce-hsl/src/ma57.rs) supports symbolic reuse, pivot-quality changes, workspace-growth retries, and an explicit batching option. | MA57 was not installed or measured. PARDISO and SuperLU are independent GLQP comparison backends, not POUNCE implementations. |
+
+The useful design lessons are explicit factor lifecycles, reusable storage,
+observable options, and residual checks owned by the outer solver. POUNCE's
+refinement and quality controls also show why a fast raw factorization alone
+cannot settle the complete-solver choice. These results do not measure POUNCE
+end to end or rank its untested structured and MA57 paths.
 
 POUNCE is EPL-2.0; FERAL is MIT with separate third-party notices for incorporated
 components. This integration uses the unmodified FERAL wheel as an optional
