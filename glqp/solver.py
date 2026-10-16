@@ -336,6 +336,10 @@ class GLQP():
         primal = self.f(z) + 0.5*np.dot(x,Qx) - np.dot(x,self.b)
         
         H = self.get_H(z)
+        # A loss may explicitly declare predictor-independent curvature.
+        # Keep reuse local to this solve so changed weights/design are read
+        # again on the next solve, and public get_H calls remain fresh.
+        constant_hessian = self.dummy_A or getattr(self.f, 'hessian_is_constant', False)
         gradf = AT@self.f.d1f(z) + Qx
         rx,rp,rc,req = self.KKT_res(x,gradf,y,s,nu)
         kkt_res = maxnorm(np.hstack([rx,rp,rc,req]))
@@ -513,7 +517,8 @@ class GLQP():
             gradf = AT@self.f.d1f(z) + Qx
             rx,rp,rc,req = self.KKT_res(x,gradf,y,s,nu)
 
-            H = self.get_H(z)
+            if not constant_hessian:
+                H = self.get_H(z)
             kkt_res = np.max([maxnorm(rx),maxnorm(rp),maxnorm(rc),maxnorm(req)])
 
             #Update mu here

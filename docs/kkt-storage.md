@@ -1,12 +1,18 @@
 # Hessian contributions and KKT storage
 
-The iteration loop always requests `get_H(z)`. The objective Hessian is the
+The objective Hessian is the
 stored quadratic matrix `Q` plus an optional GLM contribution. Setup selects a
 no-contribution callable when the GLM is absent; it returns `None`, so `get_H`
 returns `Q` directly without evaluating a dummy sparse product or adding zeros.
-For a GLM, the contribution is evaluated at the current predictor:
+For a general GLM, the contribution is evaluated at the current predictor:
 `A.T @ diag(f.d2f(z)) @ A`. Callers must treat the returned Hessian as read-only.
-There is no separate QP iteration loop or general constant-GLM-Hessian cache.
+An objective may declare `hessian_is_constant = True`, as `GaussianNLL` does.
+The iteration then retains the initially evaluated Hessian for that solve.
+This cache is local to the iteration loop: a new solve reads changed weights,
+design, and quadratic matrix afresh, and external `get_H(z)` calls always
+evaluate current problem data. Objectives without this declaration retain
+the ordinary per-iterate curvature evaluation. There is one iteration loop
+for both QPs and GLMs.
 
 `KKTWorkspace` owns a full symmetric CSC matrix and the right-hand side for one
 solve. Its structure contains the Hessian, both scaled inequality blocks, both

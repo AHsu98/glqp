@@ -61,6 +61,23 @@ def test_padding_does_not_enter_likelihood_or_derivatives(objective_type, respon
         assert_array_equal(objective.d2f(padded), np.r_[objective.d2f(z), 0.0, 0.0])
 
 
+@pytest.mark.parametrize("objective_type,response", OBJECTIVES)
+@pytest.mark.parametrize("padding", [0, 2])
+def test_derivatives_own_their_output_and_accept_read_only_predictors(
+    objective_type, response, padding
+):
+    objective = objective_type(response, [0.7, 0.0, 2.3])
+    z = np.r_[[-.4, .2, 1.1], np.zeros(padding)]
+    z.flags.writeable = False
+    weights = objective.w.copy()
+    for derivative in (objective.d1f, objective.d2f):
+        output = derivative(z)
+        reference = output.copy()
+        output[:] = 17.
+        assert_array_equal(derivative(z), reference)
+        assert_array_equal(objective.w, weights)
+
+
 def test_poisson_uses_standard_weighted_negative_log_likelihood_scale():
     # Rates 2 and 4 give 0.5*2 + 2*(4 - 2*log(4)); no outer factor of 1/2.
     objective = PoissonNLL([0, 2], [0.5, 2.0])

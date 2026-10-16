@@ -18,6 +18,7 @@ import time
 import numpy as np
 from pandas.api.types import is_numeric_dtype
 from scipy import sparse
+from scipy.special import expit
 from glqp_bench.qp import load_problem, validate_solution
 
 
@@ -31,6 +32,30 @@ def load_package(name, source):
     return module
 
 
+def validate_glm(params, glm, result, tolerance=1e-6):
+    """Check the original bound-constrained GLM equations independently."""
+    loss, response, weights = glm
+    z = params['A'] @ result.x
+    mean = {'GaussianNLL':lambda: z, 'LogisticNLL':lambda: expit(z),
+            'PoissonNLL':lambda: np.exp(z)}[loss]()
+    gradient = params['A'].T @ (weights*(mean-response)) + params['Q'] @ result.x
+    slack = params['c'] - params['C'] @ result.x
+    errors = dict(
+        stationarity=float(np.max(np.abs(gradient + params['C'].T @ result.y))),
+        inequality=float(max(0., -np.min(slack))),
+        complementarity=float(np.max(np.abs(result.y*slack))),
+        dual_sign=float(max(0., -np.min(result.y))))
+    finite = np.isfinite(result.x).all() and np.isfinite(result.y).all()
+    accepted = finite and all(np.isfinite(v) and v <= tolerance for v in errors.values())
+    return dict(accepted=bool(accepted), tolerance=tolerance, **errors)
+
+
+def source_hashes(source):
+    root = Path(source)
+    return {str(path.relative_to(root)):hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in sorted((root/'glqp').glob('*.py'))}
+
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--reference', required=True)
 parser.add_argument('--candidate', required=True)
@@ -38,6 +63,8 @@ parser.add_argument('--output', required=True)
 parser.add_argument('--repeats', type=int, default=3)
 parser.add_argument('--benchmark-repo', type=Path,
                     default=Path(__file__).resolve().parents[2]/'glqp-bench')
+parser.add_argument('--cases', nargs='+', help='Subset of the fixed QP/GLM panel')
+parser.add_argument('--profile-case', default='QPCBOEI2')
 args = parser.parse_args()
 out = Path(args.output)
 out.mkdir(parents=True, exist_ok=False)
@@ -61,6 +88,14 @@ for loss in ['GaussianNLL', 'LogisticNLL', 'PoissonNLL']:
                  'PoissonNLL':rng.poisson(1,size=1000)}[loss]
     cases[loss] = (dict(A=A, Q=Q, C=C, c=np.ones(80)), None,
                    (loss, responses, rng.uniform(.5,1.5,size=1000)))
+
+if args.cases:
+    unknown = set(args.cases) - cases.keys()
+    if unknown:
+        parser.error(f'Unknown cases: {sorted(unknown)}')
+    cases = {name:cases[name] for name in args.cases}
+if args.profile_case not in cases:
+    parser.error('--profile-case must be one of the selected cases')
 
 summaries = []
 for index, (name, (kwargs, qp, glm)) in enumerate(cases.items()):
@@ -96,12 +131,8 @@ for index, (name, (kwargs, qp, glm)) in enumerate(cases.items()):
         item['validation']={label:validate_solution(qp, r.x, r.nu[:qp.p], r.y[:qp.m])
                             for label, (_,r) in results.items()}
     else:
-        item['validation']={label:dict(accepted=r.termination_tag=='optimal',
-            stationarity=float(np.max(np.abs(params['A'].T@params['f'].d1f(params['A']@r.x)
-               +params['Q']@r.x+params['C'].T@r.y))),
-            inequality=float(max(0.,np.max(params['C']@r.x-params['c']))),
-            complementarity=float(np.max(np.abs(r.y*(params['c']-params['C']@r.x)))))
-            for label,(_,r) in results.items()}
+        item['validation']={label:validate_glm(params, glm, r)
+                            for label,(_,r) in results.items()}
     for label,(_,r) in results.items():
         r.history.to_csv(out/f'{name}-{label}.csv',index=False)
     summaries.append(item)
@@ -109,7 +140,11 @@ for index, (name, (kwargs, qp, glm)) in enumerate(cases.items()):
 
 profiles = {}
 for label, mod in modules.items():
-    params = cases['QPCBOEI2'][0]
+    kwargs, _, glm = cases[args.profile_case]
+    params = kwargs.copy()
+    if glm:
+        loss, y, w = glm
+        params['f'] = getattr(sys.modules[mod.__name__+'.obj'], loss)(y,w)
     profiler = cProfile.Profile()
     profiler.enable()
     mod.GLQP(**params).solve(settings=mod.SolverSettings(**settings), verbose=False)
@@ -121,8 +156,10 @@ for label, mod in modules.items():
         for key,value in sorted(stats.stats.items(),key=lambda item:item[1][3],reverse=True)[:60]]
 summary = dict(kind='exploratory same-process paired timing; not a cold campaign',
                repeats=args.repeats,
+               profile_case=args.profile_case,
                affinity=sorted(os.sched_getaffinity(0)), sources={label:dict(path=str(source),
-               solver_sha256=hashlib.sha256((Path(source)/'glqp/solver.py').read_bytes()).hexdigest())
+               solver_sha256=hashlib.sha256((Path(source)/'glqp/solver.py').read_bytes()).hexdigest(),
+               file_sha256=source_hashes(source))
                for label,source in [('reference',args.reference),('candidate',args.candidate)]},
                settings=settings, cases=summaries, profiles=profiles)
 (out/'summary.json').write_text(json.dumps(summary,indent=2)+'\n')

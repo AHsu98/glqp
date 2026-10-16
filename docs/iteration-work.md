@@ -50,3 +50,21 @@ paired timings, independent QP checks, full iteration histories, and cProfile
 statistics. Compact evidence is retained in
 [`experiments/iteration-work-round1.json`](experiments/iteration-work-round1.json)
 and [`experiments/iteration-work-round2.json`](experiments/iteration-work-round2.json).
+
+The third round lets a loss declare `hessian_is_constant = True`. Gaussian
+curvature is evaluated once at initialization and retained locally for that
+solve. Later solves and public `get_H` calls read current weights and matrices;
+tests cover both paths after weight, design, and quadratic changes. The generic
+nonlinear path still evaluates curvature at each accepted iterate. Loss methods
+also read predictor arrays without copying them and avoid an extra concatenation
+when no derivative padding is needed; returned derivatives still own their data.
+
+Five alternating warm observations of the constrained Gaussian example reduced
+median solve time from about 24 to 7.5 ms, with bitwise-identical histories and
+solutions. Logistic and Poisson histories also matched exactly, and their
+timings changed by less than 3%. The Gaussian example has 1,000 observations and
+40 predictors; its repeated sparse Hessian products dominate the previous time.
+This is a workload-specific result, not a claimed speedup for arbitrary GLMs.
+The [round-three diagnostic](experiments/iteration-work-round3.json) retains
+the observations and source hashes. Use `--cases` and `--profile-case` to keep
+future profiling panels small.
