@@ -186,9 +186,10 @@ class FeralFactorization(SparseFactorization):
 class PardisoFactorization(SparseFactorization):
     """oneMKL symmetric-indefinite LDLᵀ with symbolic reuse and no inner IR.
 
-    sparse-dot-mkl's pinned ABI bindings select MKL_INT consistently with its
-    sparse BLAS. Calling that binding directly avoids its convenience wrapper's
-    repeated index casts and permutation allocation on every back-substitution.
+    sparse-dot-mkl's pinned ABI binding selects MKL_INT consistently with its
+    sparse BLAS. An instance-local pointer binding to that same function keeps
+    validated, owned matrix buffers and scalar arguments across calls. The
+    shared sparse-dot-mkl binding and its array checks are never modified.
     """
     name = 'pardiso'
 
@@ -215,6 +216,7 @@ class PardisoFactorization(SparseFactorization):
         self.iparm[9] = self.options['pivot_exponent']
         self.iparm[10] = int(self.options['scaling'])
         self.iparm[12] = int(self.options['matching'])
+        self._bind_native_call()
         self._closed = False
         try:
             self._call(11)
@@ -223,30 +225,68 @@ class PardisoFactorization(SparseFactorization):
             self.close()
             raise
 
+    def _bind_native_call(self):
+        """Bind already validated storage once, using the active MKL ABI.
+
+        Every cached pointer owns its NumPy array or ctypes scalar. Matrix
+        buffers are refilled, never resized. RHS/output pointers are temporary
+        and their arrays stay alive throughout the synchronous native call.
+        As with the native factorization, an instance is not reentrant.
+        """
+        integer = self._mkl.MKL_INT
+        integer_pointer = ctypes.POINTER(integer)
+        self._double_pointer = ctypes.POINTER(ctypes.c_double)
+        if self._pt.itemsize != ctypes.sizeof(ctypes.c_void_p):
+            raise RuntimeError('PARDISO handle storage differs from the native pointer width')
+        # Cast the loaded symbol; do not load another MKL library or change
+        # the ndarray argument types on the shared sparse-dot-mkl function.
+        self._native_symbol = self._mkl._pardiso
+        prototype = ctypes.CFUNCTYPE(None, ctypes.c_void_p,
+            integer_pointer, integer_pointer, integer_pointer, integer_pointer,
+            integer_pointer, self._double_pointer, integer_pointer, integer_pointer,
+            integer_pointer, integer_pointer, integer_pointer, integer_pointer,
+            self._double_pointer, self._double_pointer, integer_pointer)
+        self._native_call = prototype(ctypes.cast(self._native_symbol, ctypes.c_void_p).value)
+        arg = lambda value: ctypes.byref(integer(value))
+        self._phase_arguments = {phase: arg(phase) for phase in (-1, 11, 22, 33)}
+        self._error = integer(0)
+        self._native_prefix = (self._pt.ctypes.data_as(ctypes.c_void_p), arg(1), arg(1), arg(-2))
+        self._native_matrix = (arg(self.shape[0]),
+            self._values.ctypes.data_as(self._double_pointer),
+            self._indptr.ctypes.data_as(integer_pointer),
+            self._indices.ctypes.data_as(integer_pointer),
+            self._perm.ctypes.data_as(integer_pointer), arg(1),
+            self.iparm.ctypes.data_as(integer_pointer), arg(0))
+        self._dummy_pointer = self._dummy.ctypes.data_as(self._double_pointer)
+        self._error_pointer = ctypes.byref(self._error)
+
     def _call(self, phase, rhs=None):
         if self._closed:
             raise RuntimeError('PARDISO factorization has been closed')
-        mkl = self._mkl
-        integer = mkl.MKL_INT
-        arg = lambda value: ctypes.byref(integer(value))
-        rhs = self._dummy if rhs is None else np.ascontiguousarray(rhs, dtype=float)
-        solution = self._dummy if phase != 33 else np.empty_like(rhs)
-        error = integer(0)
-        mkl._pardiso(self._pt, arg(1), arg(1), arg(-2), arg(phase), arg(self.shape[0]),
-            self._values, self._indptr, self._indices, self._perm, arg(1), self.iparm,
-            arg(0), rhs, solution, ctypes.byref(error))
-        if error.value in (-4, -7):
-            raise FactorizationError(f'PARDISO phase {phase}: numerical error {error.value}')
-        if error.value in (-2, -9):
-            raise MemoryError(f'PARDISO phase {phase}: insufficient memory ({error.value})')
-        if error.value:
-            raise RuntimeError(f'PARDISO phase {phase}: error {error.value}')
+        if phase == 33:
+            rhs = np.ascontiguousarray(rhs, dtype=float)
+            solution = np.empty_like(rhs)
+            rhs_pointer = rhs.ctypes.data_as(self._double_pointer)
+            solution_pointer = solution.ctypes.data_as(self._double_pointer)
+        else:
+            solution = self._dummy
+            rhs_pointer = solution_pointer = self._dummy_pointer
+        self._error.value = 0
+        self._native_call(*self._native_prefix, self._phase_arguments[phase],
+            *self._native_matrix, rhs_pointer, solution_pointer, self._error_pointer)
+        error = self._error.value
+        if error in (-4, -7):
+            raise FactorizationError(f'PARDISO phase {phase}: numerical error {error}')
+        if error in (-2, -9):
+            raise MemoryError(f'PARDISO phase {phase}: insufficient memory ({error})')
+        if error:
+            raise RuntimeError(f'PARDISO phase {phase}: error {error}')
         if phase == 33 and self.iparm[6] != 0:
             raise RuntimeError('PARDISO unexpectedly performed internal iterative refinement')
         return solution
 
     def update(self, matrix):
-        self._values[:] = matrix.data[self._positions]
+        np.take(matrix.data, self._positions, out=self._values)
         self._call(22)
 
     def solve(self, rhs):

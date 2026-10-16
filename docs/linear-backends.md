@@ -33,6 +33,14 @@ PyPI package named `feral` is not this solver. PARDISO uses the already required
 `sparse-dot-mkl==0.9.8` ABI bindings and an available oneMKL runtime; it introduces
 no second MKL instance or new integer ABI. SuperLU comes with SciPy.
 
+PARDISO caches typed pointers to its validated matrix buffers and scalar
+arguments. Its instance-local binding calls the same loaded MKL symbol; the
+shared `sparse-dot-mkl` binding keeps its ndarray validation. Numeric updates
+refill owned storage, and each inverse application returns a new vector.
+Regression tests compare results bit for bit with the original checked binding
+after updates, including strided read-only right-hand sides and garbage
+collection. A factorization instance, like the native context, is not reentrant.
+
 `SparseFactorization` in `glqp/backends.py` defines `matches(matrix)`,
 `update(matrix)`, `solve(rhs)`, `close()`, and `diagnostics()`. Construction
 performs the initial analysis and numeric factorization. Matrices are canonical,
@@ -119,3 +127,23 @@ BOYD2, motivating a shorter per-worker cap with continued testing of other
 backends. These findings justify targeted QP confirmation; they do not establish
 a universal replacement for QDLDL. The benchmark report retains exact source
 hashes, options, raw repetitions, residual checks, and subsequent iterations.
+
+A subsequent CPU-10 diagnostic isolated BOYD2's PARDISO timeout in phase 11
+(analysis). Explicit `{"scaling": False, "matching": False}` with METIS completed
+analysis in 0.391 seconds and numeric factorization in 0.052 seconds, then passed
+the requested-system check with one existing GMRES correction. Matching enabled
+with scaling disabled still exceeded the 8-second process budget; AMD without
+matching also timed out during analysis. The captured matrix has median degree
+3 but maximum degree 93,263. These observations identify a useful explicit
+configuration for this structure, without establishing a universal ordering or
+matching rule. Scaling and matching remain enabled by default.
+
+The same diagnostic found repeated ctypes conversions mattered on QPCBOEI2.
+Caching native arguments reduced numeric-update time from about 158 to 134
+microseconds and inverse application from 59 to 40 microseconds, with unchanged
+factor fill and residuals. AMD reduced its factor entries from 4,625 to 4,265,
+but QDLDL still took only 46 and 9 microseconds for those two operations.
+These efficiency-core microbenchmarks establish implementation effects, not
+paired end-to-end QP performance on the standard performance-core panel. See
+`glqp-bench/benchmarks/linear-systems/backend-20261016/adapter-round4.md` for all
+observations, timeouts, exact options, and frozen-source hashes.

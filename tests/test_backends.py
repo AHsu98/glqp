@@ -150,6 +150,44 @@ def test_pardiso_constructor_failure_releases_analyzed_native_storage(monkeypatc
     assert phases == [11, 22, -1]
 
 
+def test_pardiso_cached_pointers_match_array_checked_binding_after_updates():
+    import ctypes
+    import gc
+    from sparse_dot_mkl._mkl_interface._cfunctions import MKL
+
+    argument_types = MKL._pardiso.argtypes
+    matrix = saddle_matrix()
+    factor = BACKENDS['pardiso'](matrix)
+    rhs = np.arange(2 * matrix.shape[0], dtype=float)[::-2]
+    rhs.flags.writeable = False
+    preserved = rhs.copy()
+    previous = None
+    try:
+        for scale in (1., 1e-7, 1e7, .5):
+            factor.update(matrix * scale)
+            # Drop temporary update arrays before using cached native pointers.
+            gc.collect()
+            solution = factor.solve(rhs)
+            checked_rhs = np.ascontiguousarray(rhs)
+            expected = np.empty_like(checked_rhs)
+            integer = MKL.MKL_INT
+            arg = lambda value: ctypes.byref(integer(value))
+            error = integer(0)
+            MKL._pardiso(factor._pt, arg(1), arg(1), arg(-2), arg(33), arg(matrix.shape[0]),
+                factor._values, factor._indptr, factor._indices, factor._perm,
+                arg(1), factor.iparm, arg(0), checked_rhs, expected, ctypes.byref(error))
+            assert error.value == 0
+            np.testing.assert_array_equal(solution, expected)
+            np.testing.assert_array_equal(rhs, preserved)
+            if previous is not None:
+                assert not np.shares_memory(solution, previous)
+            previous = solution
+        # The instance binding must not disable validation for other MKL users.
+        assert MKL._pardiso.argtypes is argument_types
+    finally:
+        factor.close()
+
+
 @pytest.mark.parametrize('name', ['not-a-backend', None, []])
 def test_unknown_backend_is_not_a_silent_fallback(name):
     with pytest.raises(ValueError, match='Unknown linear backend'):
