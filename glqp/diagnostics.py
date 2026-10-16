@@ -152,11 +152,41 @@ def start_iteration_diagnostics(iteration, rho):
                 iterate=None, linear_solve=None)
 
 
-def start_line_search_diagnostics(tmax, merit_slope):
+def policy_diagnostics(settings):
+    names = ('initial_mu_policy', 'initial_mu_scale', 'barrier_update_guard',
+             'barrier_reduction_limit', 'barrier_kkt_floor', 'slack_repair',
+             'repair_growth_limit', 'newton_fallback_policy')
+    return {name: getattr(settings, name) for name in names}
+
+
+def start_line_search_diagnostics(tmax, merit_slope, *, fallback_policy='finite',
+                                  perturbed_kkt_before=None):
     return dict(acceptance_reason=None, trial_count=0, rejection_count=0,
                 rejection_reasons={}, armijo_failure_count=0, residual_check_count=0,
                 tmax=float(tmax), accepted_step=None, accepted_fraction=None,
-                merit_slope=float(merit_slope))
+                merit_slope=float(merit_slope), fallback_policy=fallback_policy,
+                fallback_perturbed_kkt_before=(None if perturbed_kkt_before is None
+                                               else float(perturbed_kkt_before)),
+                fallback_progress_check_count=0, fallback_progress_rejection_count=0,
+                fallback_progress_checks=[], last_trial_perturbed_kkt=None)
+
+
+def record_fallback_progress(diagnostics, step, old_norm, trial_norm, limit, accepted):
+    diagnostics['fallback_progress_check_count'] += 1
+    diagnostics['fallback_progress_rejection_count'] += int(not accepted)
+    diagnostics['last_trial_perturbed_kkt'] = float(trial_norm)
+    diagnostics['fallback_progress_checks'].append(dict(
+        step=float(step), previous_perturbed_kkt=float(old_norm),
+        trial_perturbed_kkt=float(trial_norm), contraction_limit=float(limit),
+        accepted=bool(accepted)))
+
+
+def start_repair_diagnostics(settings):
+    return dict(policy=settings.slack_repair, proposed=False, proposed_count=0,
+                applied=False, rejected=False, decision='not_triggered',
+                rejection_reason=None, rejection_reasons=(),
+                candidate_finite_positive=None, candidate_primal_inf=None,
+                candidate_kkt_inf=None, primal_limit=None, kkt_limit=None)
 
 
 def reject_trial(diagnostics, reason):
@@ -186,4 +216,7 @@ def history_diagnostics(iteration):
                 diag_accepted_fraction=search['accepted_fraction'], diag_rho=iteration['rho'],
                 diag_direction_edits=direction['edited_ds_count']+direction['edited_dy_count'],
                 diag_repair_count=repair['count'], diag_kkt_pre_repair=barrier['pre_repair_kkt'],
+                diag_repair_proposed=repair['proposed'], diag_repair_applied=repair['applied'],
+                diag_repair_rejected=repair['rejected'],
+                diag_fallback_progress_checks=search['fallback_progress_check_count'],
                 diag_true_slack_comp_scaled=point['true_slack_complementarity_scaled'])

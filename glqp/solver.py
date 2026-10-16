@@ -15,11 +15,14 @@ from .linear import LinearSolveError, ShiftedSystemWorkspace
 from .kkt import KKTWorkspace
 from .barrier import (
     validate_barrier_settings, select_barrier_target, describe_barrier_update,
+    initial_barrier_target, describe_initial_target,
 )
+from .outer_policy import validate_repair_and_fallback_settings, guarded_slack_repair
 from .diagnostics import (
     observe_iteration, point_diagnostics, direction_diagnostics,
     start_iteration_diagnostics, start_line_search_diagnostics, reject_trial,
     slack_repair_diagnostics, history_diagnostics,
+    policy_diagnostics, start_repair_diagnostics, record_fallback_progress,
 )
 
 from dataclasses import dataclass
@@ -55,10 +58,17 @@ class SolverSettings():
     # Keep legacy as the default pending the measured LISWET regressions.
     barrier_update_guard:str = 'legacy'
     barrier_reduction_limit:float = 0.1
+    barrier_kkt_floor:float = 0.01
+    initial_mu_policy:str = 'fixed'
+    initial_mu_scale:float = 1.0
+    slack_repair:str = 'legacy'
+    repair_growth_limit:float = 1.1
+    newton_fallback_policy:str = 'finite'
     iteration_diagnostics:bool = False
 
     def __post_init__(self):
         validate_barrier_settings(self)
+        validate_repair_and_fallback_settings(self)
 
 @dataclass
 class SolverResults():
@@ -166,6 +176,7 @@ class GLQP():
                 settings = SolverSettings()
         self.settings = settings
         validate_barrier_settings(settings)
+        validate_repair_and_fallback_settings(settings)
         self._initial_linear_info = None
         # Problem matrices may have been replaced since the previous solve.
         self._kkt_workspace = None
@@ -350,7 +361,8 @@ class GLQP():
         termination_tag = 'not_optimal'
         x,y,s,nu,settings = self.initialize(x0,y0,s0,settings)
         diagnostics_enabled = settings.iteration_diagnostics
-        diagnostics = (dict(schema_version=1, initial=None, iterations=[])
+        diagnostics = (dict(schema_version=1, initial=None, iterations=[],
+                            policies=policy_diagnostics(settings), initial_target=None)
                        if diagnostics_enabled else None)
         if verbose is True:
             k = self.k
@@ -367,13 +379,7 @@ class GLQP():
             )
 
         start = time.time()
-        if mu0 is None:
-            if self.dummy_ineq is True:
-                mu = settings.min_mu
-            else:
-                mu = 100.
-        else:
-            mu = mu0
+        mu = initial_barrier_target(s, y, self.dummy_ineq, mu0, settings)
         
 
         z = np.zeros(self.m) if self.dummy_A else self.A@x
@@ -395,6 +401,8 @@ class GLQP():
             initial_point = point_diagnostics(
                 self, x, y, s, primal, mu, kkt_res, rx, rp, rc, req)
             diagnostics['initial'] = initial_point
+            diagnostics['initial_target'] = describe_initial_target(
+                s, y, self.dummy_ineq, mu0, mu, settings)
         if iteration_callback is not None:
             observe_iteration(iteration_callback, self, 0, 'initial',
                               x, y, s, nu, primal, mu, kkt_res, initial_point)
@@ -436,6 +444,10 @@ class GLQP():
                 termination_tag = "stagnated"
                 break
             prox_reg = np.minimum(settings.prox_reg,kkt_res*1e-3)
+            # Only the experimental progress policy asks for this norm. rc
+            # already contains y*s-mu, and the target stays fixed in line search.
+            perturbed_kkt_before = (maxnorm(np.hstack([rx, rp, rc, req]))
+                                    if settings.newton_fallback_policy == 'progress' else None)
             if diagnostics_enabled:
                 iteration_diag = start_iteration_diagnostics(iteration_number+1, prox_reg)
 
@@ -495,7 +507,9 @@ class GLQP():
             ds_gs = np.dot(ds,gs)
             merit_slope = dx_gx + ds_gs
             if diagnostics_enabled:
-                search_diag = start_line_search_diagnostics(tmax, merit_slope)
+                search_diag = start_line_search_diagnostics(
+                    tmax, merit_slope, fallback_policy=settings.newton_fallback_policy,
+                    perturbed_kkt_before=perturbed_kkt_before)
                 iteration_diag['line_search'] = search_diag
 
             t = tmax
@@ -564,7 +578,8 @@ class GLQP():
                 # only once the explicitly enabled Newton fallback applies.
                 # Skip derivatives and constraint products otherwise.
                 residual_acceptance = self.QP_mode or merit_slope >= 0
-                newton_fallback = t < settings.let_newton_cook*tmax
+                newton_fallback = (settings.newton_fallback_policy != 'off'
+                                   and t < settings.let_newton_cook*tmax)
                 if not (residual_acceptance or newton_fallback):
                     if diagnostics_enabled:
                         reject_trial(search_diag, 'acceptance_tests_failed')
@@ -577,8 +592,8 @@ class GLQP():
                 trial_glm_gradient = 0. if self.dummy_A else AT@self.f.d1f(trial_z)
                 ls_gradf = trial_glm_gradient + Qx + t*Qdx
                 trial_products = self._constraint_products(trial_x, trial_y, nu+t*dnu)
-                ls_kkt_res = maxnorm(np.hstack(self._kkt_residuals(
-                    ls_gradf, trial_y, trial_s, trial_products)))
+                ls_blocks = self._kkt_residuals(ls_gradf, trial_y, trial_s, trial_products)
+                ls_kkt_res = maxnorm(np.hstack(ls_blocks))
                 # Preserve residual acceptance for QPs, including restoration
                 # from an inconsistent positive slack warm start. For nonlinear
                 # GLMs, alternating merit decreases and residual-only steps can
@@ -594,6 +609,22 @@ class GLQP():
                 # Preserve the explicitly configured Newton fallback, but
                 # never use it to accept nonfinite or non-interior trials.
                 if np.isfinite(ls_kkt_res) and newton_fallback:
+                    if settings.newton_fallback_policy == 'progress':
+                        ls_rx, ls_rp, ls_rc, ls_req = ls_blocks
+                        trial_perturbed_kkt = maxnorm(np.hstack(
+                            [ls_rx, ls_rp, ls_rc-mu, ls_req]))
+                        contraction_limit = (1-settings.armijo_param*t)*perturbed_kkt_before
+                        progress = bool(np.isfinite(trial_perturbed_kkt) and (
+                            trial_perturbed_kkt < contraction_limit
+                            or trial_perturbed_kkt < settings.tol))
+                        if diagnostics_enabled:
+                            record_fallback_progress(search_diag, t, perturbed_kkt_before,
+                                                     trial_perturbed_kkt, contraction_limit, progress)
+                        if not progress:
+                            if diagnostics_enabled:
+                                reject_trial(search_diag, 'fallback_no_progress')
+                            t = 0.9*t
+                            continue
                     successful = True
                     if diagnostics_enabled:
                         search_diag['acceptance_reason'] = 'newton_fallback'
@@ -645,6 +676,7 @@ class GLQP():
                     self, x, y, s, primal, mu, kkt_res, rx, rp, rc, req)
                 pre_repair_s, pre_repair_rp, pre_repair_rc = s.copy(), rp.copy(), rc.copy()
                 repair_triggered = False
+                repair_policy_diag = start_repair_diagnostics(settings)
             if self.dummy_ineq:
                 mu = settings.min_mu
                 if diagnostics_enabled:
@@ -660,16 +692,41 @@ class GLQP():
                 if tmax<1e-4 and np.min(s*y)/mu_est<fix_threshold:
                     if diagnostics_enabled:
                         repair_triggered = True
-                    print("Adjusted")
-                    args_to_fix = (s*y)/mu_est<=fix_threshold
-                    s[args_to_fix] = fix_threshold*mu_est/(y[args_to_fix])
-                    # The repair changes the iterate after the residuals were
-                    # evaluated. Refresh both slack-dependent equations before
-                    # logging, convergence checks, or the next Newton solve.
-                    # Keep the barrier target chosen from the accepted step.
-                    rp = self.C@x + s - self.c
-                    rc = y*s
-                    kkt_res = max(maxnorm(rx), maxnorm(rp), maxnorm(rc), maxnorm(req))
+                    if settings.slack_repair == 'off':
+                        if diagnostics_enabled:
+                            repair_policy_diag.update(decision='disabled', rejection_reason='disabled')
+                    else:
+                        args_to_fix = (s*y)/mu_est<=fix_threshold
+                        if settings.slack_repair == 'legacy':
+                            print("Adjusted")
+                            s[args_to_fix] = fix_threshold*mu_est/(y[args_to_fix])
+                            # Preserve the accepted legacy update and residual
+                            # arithmetic. Its barrier was chosen before repair.
+                            rp = self.C@x + s - self.c
+                            rc = y*s
+                            kkt_res = max(maxnorm(rx), maxnorm(rp), maxnorm(rc), maxnorm(req))
+                            if diagnostics_enabled:
+                                repair_policy_diag.update(
+                                    proposed=True, proposed_count=int(np.count_nonzero(args_to_fix)),
+                                    applied=True, decision='legacy_applied',
+                                    candidate_primal_inf=float(maxnorm(rp)), candidate_kkt_inf=float(kkt_res),
+                                    candidate_finite_positive=bool(np.all(np.isfinite(s)) and np.all(s > 0)
+                                        and np.all(np.isfinite(rp)) and np.all(np.isfinite(rc))
+                                        and np.isfinite(kkt_res)),
+                                    primal_limit=float(max(settings.repair_growth_limit*
+                                        pre_repair_point['primal_residual_inf'], settings.tol)),
+                                    kkt_limit=float(max(settings.repair_growth_limit*pre_repair_kkt, settings.tol)))
+                        else:
+                            proposal = guarded_slack_repair(
+                                self.C, self.c, x, y, s, rx, rp, req, pre_repair_kkt,
+                                mu_est, args_to_fix, fix_threshold, settings.repair_growth_limit, settings.tol)
+                            if proposal.accepted:
+                                s, rp, rc, kkt_res = (proposal.s, proposal.rp, proposal.rc,
+                                                     proposal.kkt_residual)
+                            if diagnostics_enabled:
+                                repair_policy_diag.update(proposal.metrics)
+                                repair_policy_diag['decision'] = ('guarded_applied' if proposal.accepted
+                                                                  else 'guarded_rejected')
 
             accepted_point = None
             if diagnostics_enabled:
@@ -681,6 +738,7 @@ class GLQP():
                 iteration_diag['repair'] = slack_repair_diagnostics(
                     repair_triggered, pre_repair_s, s, pre_repair_rp, rp,
                     pre_repair_rc, rc, pre_repair_point, accepted_point)
+                iteration_diag['repair'].update(repair_policy_diag)
                 iteration_diag['iterate'] = accepted_point
                 iteration_diag['status'] = 'accepted'
                 diagnostics['iterations'].append(iteration_diag)
