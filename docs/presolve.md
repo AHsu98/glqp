@@ -318,3 +318,20 @@ passes 39,097 assertions, including free and clipped scalar minima, original
 scaled-bound multipliers, reverse equality-pivot propagation, and uncertain
 activity retention. Python tests add 12 randomized original-KKT cases and
 exercise every standalone CLI option.
+
+The sixth iteration stores only pivots that need a dual multiplier on the
+recovery tape. Interior scalar minima already have their primal values in
+the fixed-value array. Omitting their row-free entries avoids constructing
+recovery CSR and computing stationarity matrix-vector products when every
+elimination is an interior minimum, as on PRIMAL1 through PRIMAL4. Mixed
+equality, fixed-bound, and active scalar-bound pivots keep their existing
+reverse ordering.
+
+The [enabled-option compatibility check](experiments/presolve/iteration-6-compatibility.json)
+compares against `a6f9e36` with both optional passes enabled. Every reduced
+output and recovered primal/dual array remains bitwise identical on all 138
+inputs over three checks. The [final-source sanitizer run](experiments/presolve/iteration-6-sanitizer.json)
+also passes 39,097 assertions; the complete Python suite passes 261 tests.
+These checks omit benchmark timing claims. The alternating component
+diagnostic is prepared in `compare_recovery.py --separable-quadratics` for
+an exclusive measurement window.

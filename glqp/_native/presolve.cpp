@@ -277,7 +277,11 @@ class Presolver {
         if (pivot.upper >= 0) removed[p + pivot.upper] = 1;
         fixed[variable] = 1;
         r.fixed_values[variable] = value;
-        r.tape.push_back(pivot);
+        // Interior scalar minima only need primal scattering. Keeping their
+        // row-free pivots would force unnecessary CSR construction and
+        // stationarity products when no dual multipliers require recovery.
+        if (pivot.equality >= 0 || pivot.lower >= 0 || pivot.upper >= 0)
+            r.tape.push_back(pivot);
         for (int matrix = 1; matrix <= 2; ++matrix) {
             const auto &a = r.original[matrix];
             for (Index k = a.ptr[variable]; k < a.ptr[variable + 1]; ++k) {

@@ -57,6 +57,23 @@ def test_bound_dual_updates_an_earlier_equality_pivot_in_reverse_order():
         assert_allclose(Q @ x + A.T @ y + G.T @ z, 0., atol=0.)
 
 
+def test_interior_minima_preserve_duals_of_the_remaining_coupled_problem():
+    Q = sparse.csc_matrix([[2., 1., 0.], [1., 2., 0.], [0., 0., 4.]])
+    q = np.array([0., 0., -4.])
+    A = sparse.csc_matrix([[1., 1., 0.]])
+    G = sparse.csc_matrix([[0., 0., -1.], [1., 0., 0.]])
+    h = np.array([0., 2.])
+    with presolve_qp(Q, q, A, [2.], G, h, options=SEPARABLE) as reduced:
+        assert_array_equal(reduced.variable_map, [0, 1])
+        assert_array_equal(reduced.inequality_map, [1])
+        x, y, z = reduced.recover([1., 1.], [-3.], [0.])
+        assert_array_equal(x, [1., 1., 1.])
+        assert_array_equal(y, [-3.])
+        assert_array_equal(z, [0., 0.])
+        assert_allclose(Q @ x + q + A.T @ y + G.T @ z, 0., atol=0.)
+        assert_allclose(z * (G @ x - h), 0., atol=0.)
+
+
 def test_ambiguous_bound_activity_retains_the_variable_and_independent_work():
     with presolve_qp(sparse.diags([3., 2.]), [1., -2.], G=[[-3., 0.]], h=[1.], options=SEPARABLE) as reduced:
         assert_array_equal(reduced.variable_map, [0])
