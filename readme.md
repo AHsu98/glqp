@@ -23,11 +23,32 @@ The main additional requirement comes from [sparse_dot_mkl](https://github.com/f
 needing the associated MKL dependencies.
 These are packaged with Conda, and can be installed into Miniconda with `conda install -c intel mkl`.
 
-In a later update, these may be made optional, but it sepeds up formation of the hessian significantly.
+In a later update, these may be made optional, but it speeds up formation of the Hessian significantly.
 
 See https://github.com/flatironinstitute/sparse_dot for more details.
 
-We solve KKT systems using [qdldl](https://github.com/osqp/qdldl-python)[[2]](#2).
+QDLDL is the default KKT factorization. The [backend guide](docs/linear-backends.md)
+describes optional SuperLU, FERAL, and PARDISO alternatives with explicit
+ordering/scaling options and shared verified float64 GMRES refinement.
+
+#### Numerical experiments
+
+- [Standalone C++ QP presolve](docs/presolve.md): optional structural reductions,
+  objective offsets, and original primal/dual recovery, available through a
+  C ABI, CLI, and Python adapter.
+- [Iteration work reuse](docs/iteration-work.md): matvec, transpose, curvature,
+  and allocation optimizations with unchanged acceptance rules.
+- [Verified linear solves](docs/linear-solves.md) and
+  [factorization options](docs/linear-backends.md): separate factor reuse from
+  fresh-residual accuracy checks.
+
+The sibling `glqp-bench` repository contains committed-source comparison
+campaigns, explicit per-variant presolve/backend settings, and 27 GLM examples.
+Routine tests use eight independent one-thread workers; serial and multithreaded
+per-problem profiles are explicit alternatives. The 2026-10-16 checkpoint
+retains 169/178 QP successes with bitwise-identical accepted primal/dual vectors
+and 17.3% lower paired geometric-mean wall time. Presolve and backend changes
+remain opt-in; their gains depend on the problem.
 
 #### Convergence tolerance
 
@@ -49,10 +70,12 @@ This supplements the original absolute KKT test; its tolerance, Newton equations
 and line-search settings are unchanged. Some problems consequently require more
 iterations or reach their iteration/time limit before receiving `optimal` status.
 
-#### Benchmark
+#### Historical benchmark
 I ran a benchmark on the MM problems [[7]](#7) starting with the experiments and code from the assocated repository for [[1]](#1) in this repo:
 https://github.com/AHsu98/glqp-benchmark
-The benchmark shows that with well tuned QP settings, we complete 133/138 of them.
+That earlier benchmark reported completion on 133/138 with tuned QP settings.
+It predates the current independent correctness checks and should not be mixed
+with the versioned comparisons in `glqp-bench`.
 
 ## References
 <a id="1">[1]</a>
