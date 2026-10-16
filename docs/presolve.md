@@ -332,6 +332,13 @@ compares against `a6f9e36` with both optional passes enabled. Every reduced
 output and recovered primal/dual array remains bitwise identical on all 138
 inputs over three checks. The [final-source sanitizer run](experiments/presolve/iteration-6-sanitizer.json)
 also passes 39,097 assertions; the complete Python suite passes 261 tests.
-These checks omit benchmark timing claims. The alternating component
-diagnostic is prepared in `compare_recovery.py --separable-quadratics` for
-an exclusive measurement window.
+These correctness checks omit timing observations. A subsequent
+[alternating recovery diagnostic](experiments/presolve/iteration-6-recovery.json)
+ran alone on the machine, pinned to CPU 10, with 101 observations per version
+and problem. PRIMAL1 recovery fell from 37.1 to 31.8 microseconds (14% less)
+and PRIMAL4 from 51.9 to 34.5 microseconds (34% less). A synthetic 100,000-variable
+independent diagonal QP fell from 616 to 80.1 microseconds (87% less).
+MOSARQP1, STCQP2, QSHELL, and an unchanged tridiagonal control stayed within
+4% of their reference recovery times. Every recovered array remained bitwise
+identical. These component timings measure the storage optimization against
+`a6f9e36`; complete-solve comparisons are needed to assess the scalar pass.
