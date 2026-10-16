@@ -17,6 +17,63 @@ from .backends import (
 )
 
 
+class ShiftedSystemWorkspace:
+    """Reuse canonical storage for ``G + tau * shift`` without changing G.
+
+    Coefficients are always read afresh. Pattern comparisons include both
+    matrices, and exact zero entries are removed just as in sparse addition.
+    Noncanonical or non-float64 inputs use SciPy's original addition path.
+    Returned storage is borrowed until the next call to ``assemble``.
+    """
+
+    def __init__(self):
+        self.matrix = None
+
+    def _matches(self, G, shift):
+        return (self.matrix is not None and self.matrix.shape == G.shape
+            and np.array_equal(G.indptr, self._g_indptr)
+            and np.array_equal(G.indices, self._g_indices)
+            and np.array_equal(shift.indptr, self._shift_indptr)
+            and np.array_equal(shift.indices, self._shift_indices))
+
+    def _build(self, G, shift):
+        # Construct the structural union independently of coefficient zeros
+        # and cancellations. Numeric assembly below handles those separately.
+        left, right = G.copy(), shift.copy()
+        left.data.fill(1.)
+        right.data.fill(1.)
+        self.matrix = csc_array(left + right)
+        self._g_indptr, self._g_indices = G.indptr.copy(), G.indices.copy()
+        self._shift_indptr = shift.indptr.copy()
+        self._shift_indices = shift.indices.copy()
+
+        def keys(matrix):
+            columns = np.repeat(np.arange(matrix.shape[1], dtype=np.int64), np.diff(matrix.indptr))
+            return columns*matrix.shape[0] + matrix.indices
+
+        union = keys(self.matrix)
+        self._g_slots = np.searchsorted(union, keys(G))
+        self._shift_slots = np.searchsorted(union, keys(shift))
+
+    def assemble(self, G, shift, tau):
+        if (G.dtype != np.dtype('float64') or shift.dtype != np.dtype('float64')
+                or not G.has_canonical_format or not shift.has_canonical_format):
+            return csc_array(G + tau*shift)
+        if not self._matches(G, shift):
+            self._build(G, shift)
+        data = self.matrix.data
+        data.fill(0.)
+        data[self._g_slots] = G.data
+        data[self._shift_slots] += tau*shift.data
+        if np.any(data == 0):
+            # Keep the union available for later zero crossings, but give the
+            # factor backend exactly the pattern ordinary addition produces.
+            result = self.matrix.copy()
+            result.eliminate_zeros()
+            return result
+        return self.matrix
+
+
 def _maxnorm(vector):
     return float(np.max(np.abs(vector), initial=0.))
 
@@ -168,7 +225,7 @@ class LinearSolveResult:
 def factor_and_solve(
     G, rhs, reg_shift, init_tau_reg, solver, target_atol=1e-10,
     max_solve_attempts=20, max_refinement_steps=10, *, target_rtol=1e-6,
-    residual_blocks=None, backend='qdldl', backend_options=None,
+    residual_blocks=None, backend='qdldl', backend_options=None, workspace=None,
 ):
     """Return the best verified finite direction and an explicit accuracy status.
 
@@ -186,9 +243,15 @@ def factor_and_solve(
     float64, as are factor applications and Krylov arithmetic.
     With a nonzero residual, the first correction also polishes an otherwise
     accurate direction when abs_error >= 0.1 * atol or rel_error > rtol.
+    An optional ShiftedSystemWorkspace reuses factorization-input storage;
+    refinement still reads G and evaluates every residual afresh.
     """
-    G = csc_array(G)
-    reg_shift = csc_array(reg_shift)
+    # Solver-owned CSC arrays already have the required representation.
+    # Keep normalization for other formats, matrix classes, and subclasses.
+    if type(G) is not csc_array:
+        G = csc_array(G)
+    if type(reg_shift) is not csc_array:
+        reg_shift = csc_array(reg_shift)
     rhs = np.asarray(rhs, dtype=float)
     if rhs.ndim != 1 or G.shape != (rhs.size, rhs.size) or reg_shift.shape != G.shape:
         raise ValueError("Linear matrix, shift, and right-hand side shapes must agree")
@@ -232,7 +295,8 @@ def factor_and_solve(
     tau = init_tau_reg
     for attempt in range(1, max_solve_attempts + 1):
         try:
-            shifted = csc_array(G + tau * reg_shift)
+            shifted = (csc_array(G + tau * reg_shift) if workspace is None
+                       else workspace.assemble(G, reg_shift, tau))
             shifted.sum_duplicates()
             shifted.sort_indices()
             if not np.all(np.isfinite(shifted.data)):

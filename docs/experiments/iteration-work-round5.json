@@ -1,0 +1,2326 @@
+{
+  "kind": "Exploratory warm work diagnostics; cold parallel-8 campaigns determine benchmark acceptance",
+  "comparison_scope": "Combined exact-product reuse (round4) and shifted-storage reuse (round5); not an isolated shifted-workspace timing",
+  "reference_commit": "683f4ef",
+  "source_hashes": {
+    "reference": {
+      "path": "../.conda/optimization-reference-683f4ef",
+      "solver_sha256": "4ac2e56f43aa03aa0d02388872300b95e3e1aa11efde08afe14c0b1f96054344",
+      "file_sha256": {
+        "glqp/__init__.py": "c6c7e84cb24a961ccd87098e19b20784f5a4ec36bd7d751f728b46693662c004",
+        "glqp/backends.py": "0e98c1fa44dd7a0d969718a1bd58300f0da6462474215871a850ae4ad91cb604",
+        "glqp/kkt.py": "fdf0f2fad742e419cd1e762cf59f842d0f028fedef6e14885d01af8eb62a5f46",
+        "glqp/linear.py": "09f883f66b5c815312bbeedb305de33bdbbc3b37aec42db7b848b1e5b4eef650",
+        "glqp/obj.py": "59b50bd0ee3b9609fa11edee442cc203155899234334f1f33e96d50cf757c1d5",
+        "glqp/presolve.py": "c36402566acec99f72c1018f1d3b94c85c22558003db3915bb184fee935cb68f",
+        "glqp/solver.py": "4ac2e56f43aa03aa0d02388872300b95e3e1aa11efde08afe14c0b1f96054344",
+        "glqp/util.py": "a6a2d09f549118a09c5933f8b49e7e3169ac31e9a02d707005938a7af3969c3a"
+      }
+    },
+    "candidate": {
+      "path": ".",
+      "solver_sha256": "cd08aeaad162aba372e0d11b433911dc368c6183d76c26bdeacca4bf04cac328",
+      "file_sha256": {
+        "glqp/__init__.py": "c6c7e84cb24a961ccd87098e19b20784f5a4ec36bd7d751f728b46693662c004",
+        "glqp/backends.py": "0e98c1fa44dd7a0d969718a1bd58300f0da6462474215871a850ae4ad91cb604",
+        "glqp/kkt.py": "fdf0f2fad742e419cd1e762cf59f842d0f028fedef6e14885d01af8eb62a5f46",
+        "glqp/linear.py": "bbb31a692583297f822ebe9da32a80cb982eca0c18d8ff410d08887fce64ae66",
+        "glqp/obj.py": "59b50bd0ee3b9609fa11edee442cc203155899234334f1f33e96d50cf757c1d5",
+        "glqp/presolve.py": "3e891eac623c44f1ed41a4432f15557cc070400021d0c276b556fd5cd177a292",
+        "glqp/solver.py": "cd08aeaad162aba372e0d11b433911dc368c6183d76c26bdeacca4bf04cac328",
+        "glqp/util.py": "a6a2d09f549118a09c5933f8b49e7e3169ac31e9a02d707005938a7af3969c3a"
+      }
+    }
+  },
+  "settings": {
+    "tol": 1e-07,
+    "max_iterative_refinement": 10,
+    "max_stagnation": 5000,
+    "max_iter": 10000,
+    "max_linesearch_steps": 40,
+    "let_newton_cook": 0.5,
+    "max_time": 60
+  },
+  "affinity": [
+    11
+  ],
+  "repeats": 3,
+  "cases": [
+    {
+      "problem": "HS21",
+      "timings": {
+        "reference": [
+          0.01751258794683963,
+          0.016912788967601955,
+          0.01783207803964615
+        ],
+        "candidate": [
+          0.014365141978487372,
+          0.014613535022363067,
+          0.015371316927485168
+        ]
+      },
+      "median_ratio": 0.8344589084562036,
+      "statuses": [
+        "optimal",
+        "optimal"
+      ],
+      "iterations": [
+        22,
+        22
+      ],
+      "identical_history": true,
+      "max_x_difference": 0.0,
+      "identical_solution_arrays": {
+        "x": true,
+        "y": true,
+        "s": true,
+        "nu": true
+      },
+      "validation": {
+        "reference": {
+          "validation_version": "qp-kkt-v1",
+          "accepted": true,
+          "tolerance": 1e-06,
+          "objective": 0.04000000894934413,
+          "dual_objective": 0.03999996414471874,
+          "reference_objective": -99.96,
+          "reference_relative_error": 1.0004001601535548,
+          "reference_agrees": false,
+          "reference_is_acceptance_gate": false,
+          "primal_residual_absolute": 0.0,
+          "primal_residual_scaled": 0.0,
+          "stationarity_residual_absolute": 4.607147996438243e-13,
+          "stationarity_residual_scaled": 4.2658777391327807e-13,
+          "complementarity_residual_absolute": 8.97851493756257e-09,
+          "complementarity_residual_l1": 4.48037039492268e-08,
+          "complementarity_residual_scaled": 4.48037039492268e-08,
+          "dual_sign_violation_absolute": 0.0,
+          "dual_sign_violation_scaled": 0.0,
+          "failure_reasons": []
+        },
+        "candidate": {
+          "validation_version": "qp-kkt-v1",
+          "accepted": true,
+          "tolerance": 1e-06,
+          "objective": 0.04000000894934413,
+          "dual_objective": 0.03999996414471874,
+          "reference_objective": -99.96,
+          "reference_relative_error": 1.0004001601535548,
+          "reference_agrees": false,
+          "reference_is_acceptance_gate": false,
+          "primal_residual_absolute": 0.0,
+          "primal_residual_scaled": 0.0,
+          "stationarity_residual_absolute": 4.607147996438243e-13,
+          "stationarity_residual_scaled": 4.2658777391327807e-13,
+          "complementarity_residual_absolute": 8.97851493756257e-09,
+          "complementarity_residual_l1": 4.48037039492268e-08,
+          "complementarity_residual_scaled": 4.48037039492268e-08,
+          "dual_sign_violation_absolute": 0.0,
+          "dual_sign_violation_scaled": 0.0,
+          "failure_reasons": []
+        }
+      }
+    },
+    {
+      "problem": "QAFIRO",
+      "timings": {
+        "reference": [
+          0.026141709997318685,
+          0.026089787017554045,
+          0.025835652952082455
+        ],
+        "candidate": [
+          0.022685745963826776,
+          0.022308097104541957,
+          0.021149020991288126
+        ]
+      },
+      "median_ratio": 0.8550509473125386,
+      "statuses": [
+        "optimal",
+        "optimal"
+      ],
+      "iterations": [
+        28,
+        28
+      ],
+      "identical_history": true,
+      "max_x_difference": 0.0,
+      "identical_solution_arrays": {
+        "x": true,
+        "y": true,
+        "s": true,
+        "nu": true
+      },
+      "validation": {
+        "candidate": {
+          "validation_version": "qp-kkt-v1",
+          "accepted": true,
+          "tolerance": 1e-06,
+          "objective": -1.590781792198768,
+          "dual_objective": -1.5907817952002496,
+          "reference_objective": -1.5907818,
+          "reference_relative_error": 4.904023986667315e-09,
+          "reference_agrees": true,
+          "reference_is_acceptance_gate": false,
+          "primal_residual_absolute": 1.4210854715202004e-14,
+          "primal_residual_scaled": 1.4210854715202004e-14,
+          "stationarity_residual_absolute": 2.55351295663786e-15,
+          "stationarity_residual_scaled": 1.4109437054229294e-15,
+          "complementarity_residual_absolute": 5.885510728752818e-11,
+          "complementarity_residual_l1": 3.001544234782032e-09,
+          "complementarity_residual_scaled": 1.8868359217074105e-09,
+          "dual_sign_violation_absolute": 0.0,
+          "dual_sign_violation_scaled": 0.0,
+          "failure_reasons": []
+        },
+        "reference": {
+          "validation_version": "qp-kkt-v1",
+          "accepted": true,
+          "tolerance": 1e-06,
+          "objective": -1.590781792198768,
+          "dual_objective": -1.5907817952002496,
+          "reference_objective": -1.5907818,
+          "reference_relative_error": 4.904023986667315e-09,
+          "reference_agrees": true,
+          "reference_is_acceptance_gate": false,
+          "primal_residual_absolute": 1.4210854715202004e-14,
+          "primal_residual_scaled": 1.4210854715202004e-14,
+          "stationarity_residual_absolute": 2.55351295663786e-15,
+          "stationarity_residual_scaled": 1.4109437054229294e-15,
+          "complementarity_residual_absolute": 5.885510728752818e-11,
+          "complementarity_residual_l1": 3.001544234782032e-09,
+          "complementarity_residual_scaled": 1.8868359217074105e-09,
+          "dual_sign_violation_absolute": 0.0,
+          "dual_sign_violation_scaled": 0.0,
+          "failure_reasons": []
+        }
+      }
+    },
+    {
+      "problem": "CVXQP1_S",
+      "timings": {
+        "reference": [
+          0.016698794905096292,
+          0.014859496965073049,
+          0.014881141018122435
+        ],
+        "candidate": [
+          0.013978676055558026,
+          0.013076927978545427,
+          0.013212410034611821
+        ]
+      },
+      "median_ratio": 0.8878626994073632,
+      "statuses": [
+        "optimal",
+        "optimal"
+      ],
+      "iterations": [
+        14,
+        14
+      ],
+      "identical_history": true,
+      "max_x_difference": 0.0,
+      "identical_solution_arrays": {
+        "x": true,
+        "y": true,
+        "s": true,
+        "nu": true
+      },
+      "validation": {
+        "reference": {
+          "validation_version": "qp-kkt-v1",
+          "accepted": true,
+          "tolerance": 1e-06,
+          "objective": 11590.718119564463,
+          "dual_objective": 11590.718118859844,
+          "reference_objective": 11590.718,
+          "reference_relative_error": 1.0315535395110018e-08,
+          "reference_agrees": true,
+          "reference_is_acceptance_gate": false,
+          "primal_residual_absolute": 7.487344078072056e-13,
+          "primal_residual_scaled": 1.247890679678676e-13,
+          "stationarity_residual_absolute": 3.043174203403771e-13,
+          "stationarity_residual_scaled": 3.086935434007784e-16,
+          "complementarity_residual_absolute": 3.5219030151547133e-09,
+          "complementarity_residual_l1": 7.042561440640728e-07,
+          "complementarity_residual_scaled": 6.076035469064932e-11,
+          "dual_sign_violation_absolute": 0.0,
+          "dual_sign_violation_scaled": 0.0,
+          "failure_reasons": []
+        },
+        "candidate": {
+          "validation_version": "qp-kkt-v1",
+          "accepted": true,
+          "tolerance": 1e-06,
+          "objective": 11590.718119564463,
+          "dual_objective": 11590.718118859844,
+          "reference_objective": 11590.718,
+          "reference_relative_error": 1.0315535395110018e-08,
+          "reference_agrees": true,
+          "reference_is_acceptance_gate": false,
+          "primal_residual_absolute": 7.487344078072056e-13,
+          "primal_residual_scaled": 1.247890679678676e-13,
+          "stationarity_residual_absolute": 3.043174203403771e-13,
+          "stationarity_residual_scaled": 3.086935434007784e-16,
+          "complementarity_residual_absolute": 3.5219030151547133e-09,
+          "complementarity_residual_l1": 7.042561440640728e-07,
+          "complementarity_residual_scaled": 6.076035469064932e-11,
+          "dual_sign_violation_absolute": 0.0,
+          "dual_sign_violation_scaled": 0.0,
+          "failure_reasons": []
+        }
+      }
+    },
+    {
+      "problem": "QPCBOEI2",
+      "timings": {
+        "reference": [
+          5.418285797000863,
+          5.3673114239936695,
+          5.355968213989399
+        ],
+        "candidate": [
+          4.555371650960296,
+          4.586877782014199,
+          4.587083691963926
+        ]
+      },
+      "median_ratio": 0.8545950513527737,
+      "statuses": [
+        "optimal",
+        "optimal"
+      ],
+      "iterations": [
+        3322,
+        3322
+      ],
+      "identical_history": true,
+      "max_x_difference": 0.0,
+      "identical_solution_arrays": {
+        "x": true,
+        "y": true,
+        "s": true,
+        "nu": true
+      },
+      "validation": {
+        "candidate": {
+          "validation_version": "qp-kkt-v1",
+          "accepted": true,
+          "tolerance": 1e-06,
+          "objective": 8171962.066117992,
+          "dual_objective": 8171962.24433035,
+          "reference_objective": 8171962.3,
+          "reference_relative_error": 2.8620054710778293e-08,
+          "reference_agrees": true,
+          "reference_is_acceptance_gate": false,
+          "primal_residual_absolute": 1.4166673220822815e-09,
+          "primal_residual_scaled": 1.4166673220822815e-09,
+          "stationarity_residual_absolute": 1.4901161193847656e-08,
+          "stationarity_residual_scaled": 5.879475650303702e-13,
+          "complementarity_residual_absolute": 0.17818524932051388,
+          "complementarity_residual_l1": 0.1782125175438568,
+          "complementarity_residual_scaled": 2.18077999158035e-08,
+          "dual_sign_violation_absolute": 0.0,
+          "dual_sign_violation_scaled": 0.0,
+          "failure_reasons": []
+        },
+        "reference": {
+          "validation_version": "qp-kkt-v1",
+          "accepted": true,
+          "tolerance": 1e-06,
+          "objective": 8171962.066117992,
+          "dual_objective": 8171962.24433035,
+          "reference_objective": 8171962.3,
+          "reference_relative_error": 2.8620054710778293e-08,
+          "reference_agrees": true,
+          "reference_is_acceptance_gate": false,
+          "primal_residual_absolute": 1.4166673220822815e-09,
+          "primal_residual_scaled": 1.4166673220822815e-09,
+          "stationarity_residual_absolute": 1.4901161193847656e-08,
+          "stationarity_residual_scaled": 5.879475650303702e-13,
+          "complementarity_residual_absolute": 0.17818524932051388,
+          "complementarity_residual_l1": 0.1782125175438568,
+          "complementarity_residual_scaled": 2.18077999158035e-08,
+          "dual_sign_violation_absolute": 0.0,
+          "dual_sign_violation_scaled": 0.0,
+          "failure_reasons": []
+        }
+      }
+    },
+    {
+      "problem": "CONT-101",
+      "timings": {
+        "reference": [
+          1.4952703210292384,
+          1.5634350549662486,
+          1.5740098879905418
+        ],
+        "candidate": [
+          1.5333080880809575,
+          1.563691162969917,
+          1.591514219995588
+        ]
+      },
+      "median_ratio": 1.0001638110920277,
+      "statuses": [
+        "optimal",
+        "optimal"
+      ],
+      "iterations": [
+        28,
+        28
+      ],
+      "identical_history": true,
+      "max_x_difference": 0.0,
+      "identical_solution_arrays": {
+        "x": true,
+        "y": true,
+        "s": true,
+        "nu": true
+      },
+      "validation": {
+        "reference": {
+          "validation_version": "qp-kkt-v1",
+          "accepted": true,
+          "tolerance": 1e-06,
+          "objective": 0.19552732467797418,
+          "dual_objective": 0.1955273043606367,
+          "reference_objective": 0.19552733,
+          "reference_relative_error": 5.322025820042597e-09,
+          "reference_agrees": true,
+          "reference_is_acceptance_gate": false,
+          "primal_residual_absolute": 7.43016759230386e-14,
+          "primal_residual_scaled": 7.43016759230386e-14,
+          "stationarity_residual_absolute": 7.458720259757935e-14,
+          "stationarity_residual_scaled": 7.444697084037789e-14,
+          "complementarity_residual_absolute": 1.0008608308599053e-12,
+          "complementarity_residual_l1": 2.0394036887874056e-08,
+          "complementarity_residual_scaled": 2.0394036887874056e-08,
+          "dual_sign_violation_absolute": 0.0,
+          "dual_sign_violation_scaled": 0.0,
+          "failure_reasons": []
+        },
+        "candidate": {
+          "validation_version": "qp-kkt-v1",
+          "accepted": true,
+          "tolerance": 1e-06,
+          "objective": 0.19552732467797418,
+          "dual_objective": 0.1955273043606367,
+          "reference_objective": 0.19552733,
+          "reference_relative_error": 5.322025820042597e-09,
+          "reference_agrees": true,
+          "reference_is_acceptance_gate": false,
+          "primal_residual_absolute": 7.43016759230386e-14,
+          "primal_residual_scaled": 7.43016759230386e-14,
+          "stationarity_residual_absolute": 7.458720259757935e-14,
+          "stationarity_residual_scaled": 7.444697084037789e-14,
+          "complementarity_residual_absolute": 1.0008608308599053e-12,
+          "complementarity_residual_l1": 2.0394036887874056e-08,
+          "complementarity_residual_scaled": 2.0394036887874056e-08,
+          "dual_sign_violation_absolute": 0.0,
+          "dual_sign_violation_scaled": 0.0,
+          "failure_reasons": []
+        }
+      }
+    },
+    {
+      "problem": "Q25FV47",
+      "timings": {
+        "reference": [
+          1.7849048849893734,
+          1.8472497999900952,
+          1.7353609269484878
+        ],
+        "candidate": [
+          1.7591849729651585,
+          1.756803037947975,
+          1.7529906539712101
+        ]
+      },
+      "median_ratio": 0.9842558293846758,
+      "statuses": [
+        "optimal",
+        "optimal"
+      ],
+      "iterations": [
+        154,
+        154
+      ],
+      "identical_history": true,
+      "max_x_difference": 0.0,
+      "identical_solution_arrays": {
+        "x": true,
+        "y": true,
+        "s": true,
+        "nu": true
+      },
+      "validation": {
+        "candidate": {
+          "validation_version": "qp-kkt-v1",
+          "accepted": true,
+          "tolerance": 1e-06,
+          "objective": 13744447.894865166,
+          "dual_objective": 13744447.894861292,
+          "reference_objective": 13744448.0,
+          "reference_relative_error": 7.649258348105167e-09,
+          "reference_agrees": true,
+          "reference_is_acceptance_gate": false,
+          "primal_residual_absolute": 1.815259054183116e-10,
+          "primal_residual_scaled": 5.125597111566987e-11,
+          "stationarity_residual_absolute": 3.349404433919005e-11,
+          "stationarity_residual_scaled": 3.3733853381605548e-12,
+          "complementarity_residual_absolute": 2.2087643628097577e-09,
+          "complementarity_residual_l1": 3.967824676391011e-06,
+          "complementarity_residual_scaled": 2.886856355920534e-13,
+          "dual_sign_violation_absolute": 0.0,
+          "dual_sign_violation_scaled": 0.0,
+          "failure_reasons": []
+        },
+        "reference": {
+          "validation_version": "qp-kkt-v1",
+          "accepted": true,
+          "tolerance": 1e-06,
+          "objective": 13744447.894865166,
+          "dual_objective": 13744447.894861292,
+          "reference_objective": 13744448.0,
+          "reference_relative_error": 7.649258348105167e-09,
+          "reference_agrees": true,
+          "reference_is_acceptance_gate": false,
+          "primal_residual_absolute": 1.815259054183116e-10,
+          "primal_residual_scaled": 5.125597111566987e-11,
+          "stationarity_residual_absolute": 3.349404433919005e-11,
+          "stationarity_residual_scaled": 3.3733853381605548e-12,
+          "complementarity_residual_absolute": 2.2087643628097577e-09,
+          "complementarity_residual_l1": 3.967824676391011e-06,
+          "complementarity_residual_scaled": 2.886856355920534e-13,
+          "dual_sign_violation_absolute": 0.0,
+          "dual_sign_violation_scaled": 0.0,
+          "failure_reasons": []
+        }
+      }
+    },
+    {
+      "problem": "GaussianNLL",
+      "timings": {
+        "reference": [
+          0.013875752920284867,
+          0.01318704301957041,
+          0.013264037086628377
+        ],
+        "candidate": [
+          0.012177922995761037,
+          0.012072584009729326,
+          0.012229393003508449
+        ]
+      },
+      "median_ratio": 0.9181158734875474,
+      "statuses": [
+        "optimal",
+        "optimal"
+      ],
+      "iterations": [
+        10,
+        10
+      ],
+      "identical_history": true,
+      "max_x_difference": 0.0,
+      "identical_solution_arrays": {
+        "x": true,
+        "y": true,
+        "s": true,
+        "nu": true
+      },
+      "validation": {
+        "reference": {
+          "accepted": true,
+          "tolerance": 1e-06,
+          "stationarity": 9.005405902795939e-15,
+          "inequality": 0.0,
+          "complementarity": 5.381041768592076e-09,
+          "dual_sign": 0.0
+        },
+        "candidate": {
+          "accepted": true,
+          "tolerance": 1e-06,
+          "stationarity": 9.005405902795939e-15,
+          "inequality": 0.0,
+          "complementarity": 5.381041768592076e-09,
+          "dual_sign": 0.0
+        }
+      }
+    },
+    {
+      "problem": "LogisticNLL",
+      "timings": {
+        "reference": [
+          0.06009385292418301,
+          0.05961417406797409,
+          0.059663188992999494
+        ],
+        "candidate": [
+          0.058602167991921306,
+          0.058668932993896306,
+          0.058436425984837115
+        ]
+      },
+      "median_ratio": 0.982216488609037,
+      "statuses": [
+        "optimal",
+        "optimal"
+      ],
+      "iterations": [
+        14,
+        14
+      ],
+      "identical_history": true,
+      "max_x_difference": 0.0,
+      "identical_solution_arrays": {
+        "x": true,
+        "y": true,
+        "s": true,
+        "nu": true
+      },
+      "validation": {
+        "candidate": {
+          "accepted": true,
+          "tolerance": 1e-06,
+          "stationarity": 3.632651154379611e-11,
+          "inequality": 0.0,
+          "complementarity": 1.5447496621629227e-08,
+          "dual_sign": 0.0
+        },
+        "reference": {
+          "accepted": true,
+          "tolerance": 1e-06,
+          "stationarity": 3.632651154379611e-11,
+          "inequality": 0.0,
+          "complementarity": 1.5447496621629227e-08,
+          "dual_sign": 0.0
+        }
+      }
+    },
+    {
+      "problem": "PoissonNLL",
+      "timings": {
+        "reference": [
+          0.04330222704447806,
+          0.04325488198082894,
+          0.04321081796661019
+        ],
+        "candidate": [
+          0.04244214098434895,
+          0.042305050999857485,
+          0.04237090493552387
+        ]
+      },
+      "median_ratio": 0.9795635312171962,
+      "statuses": [
+        "optimal",
+        "optimal"
+      ],
+      "iterations": [
+        10,
+        10
+      ],
+      "identical_history": true,
+      "max_x_difference": 0.0,
+      "identical_solution_arrays": {
+        "x": true,
+        "y": true,
+        "s": true,
+        "nu": true
+      },
+      "validation": {
+        "reference": {
+          "accepted": true,
+          "tolerance": 1e-06,
+          "stationarity": 1.3728980371426552e-14,
+          "inequality": 0.0,
+          "complementarity": 4.2727147726482925e-09,
+          "dual_sign": 0.0
+        },
+        "candidate": {
+          "accepted": true,
+          "tolerance": 1e-06,
+          "stationarity": 1.3728980371426552e-14,
+          "inequality": 0.0,
+          "complementarity": 4.2727147726482925e-09,
+          "dual_sign": 0.0
+        }
+      }
+    }
+  ],
+  "qpcboei2_profile_operation_counts": {
+    "reference": {
+      "_coo.py:tocsc": 3324,
+      "_compressed.py:_add_sparse": 3323,
+      "_data.py:_mul_scalar": 3325,
+      "_base.py:__matmul__": 159605
+    },
+    "candidate": {
+      "_coo.py:tocsc": 3,
+      "_compressed.py:_add_sparse": 2,
+      "_data.py:_mul_scalar": 3,
+      "_base.py:__matmul__": 116439
+    }
+  },
+  "large_sparse_glm": {
+    "kind": "Exploratory paired same-process solves; not a cold benchmark campaign",
+    "source_hashes": {
+      "reference": {
+        "glqp/__init__.py": "c6c7e84cb24a961ccd87098e19b20784f5a4ec36bd7d751f728b46693662c004",
+        "glqp/backends.py": "0e98c1fa44dd7a0d969718a1bd58300f0da6462474215871a850ae4ad91cb604",
+        "glqp/kkt.py": "fdf0f2fad742e419cd1e762cf59f842d0f028fedef6e14885d01af8eb62a5f46",
+        "glqp/linear.py": "09f883f66b5c815312bbeedb305de33bdbbc3b37aec42db7b848b1e5b4eef650",
+        "glqp/obj.py": "59b50bd0ee3b9609fa11edee442cc203155899234334f1f33e96d50cf757c1d5",
+        "glqp/presolve.py": "c36402566acec99f72c1018f1d3b94c85c22558003db3915bb184fee935cb68f",
+        "glqp/solver.py": "4ac2e56f43aa03aa0d02388872300b95e3e1aa11efde08afe14c0b1f96054344",
+        "glqp/util.py": "a6a2d09f549118a09c5933f8b49e7e3169ac31e9a02d707005938a7af3969c3a"
+      },
+      "candidate": {
+        "glqp/__init__.py": "c6c7e84cb24a961ccd87098e19b20784f5a4ec36bd7d751f728b46693662c004",
+        "glqp/backends.py": "0e98c1fa44dd7a0d969718a1bd58300f0da6462474215871a850ae4ad91cb604",
+        "glqp/kkt.py": "fdf0f2fad742e419cd1e762cf59f842d0f028fedef6e14885d01af8eb62a5f46",
+        "glqp/linear.py": "bbb31a692583297f822ebe9da32a80cb982eca0c18d8ff410d08887fce64ae66",
+        "glqp/obj.py": "59b50bd0ee3b9609fa11edee442cc203155899234334f1f33e96d50cf757c1d5",
+        "glqp/presolve.py": "3e891eac623c44f1ed41a4432f15557cc070400021d0c276b556fd5cd177a292",
+        "glqp/solver.py": "cd08aeaad162aba372e0d11b433911dc368c6183d76c26bdeacca4bf04cac328",
+        "glqp/util.py": "a6a2d09f549118a09c5933f8b49e7e3169ac31e9a02d707005938a7af3969c3a"
+      }
+    },
+    "source_paths": {
+      "reference": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef",
+      "candidate": "/scratch/awh9112/InteriorPoint/glqp"
+    },
+    "source_hashes_unchanged": true,
+    "benchmark_sources": {
+      "glm.py": "78c989713f592860c43ba4ae2452b14d961c26bcc0e3a9345eb6cf29fc0f3aae",
+      "adapters.py": "29c838595baef10b91a6b091efe89bd5039bd1128a079411fe38c00c247c4c98"
+    },
+    "affinity": [
+      12
+    ],
+    "thread_environment": {
+      "OMP_NUM_THREADS": "1",
+      "OPENBLAS_NUM_THREADS": "1",
+      "MKL_NUM_THREADS": "1"
+    },
+    "settings_profile": "glm-v2",
+    "repeats": 3,
+    "results": [
+      {
+        "problem_id": "glm_gaussian_large_sparse_box_s123_v2",
+        "canonical_data_sha256": "0ad5f4fe4c9eabf8cfae6a87a075c80e9a66f3e7648327b869285c4cd967a4bc",
+        "dimensions": {
+          "observations": 32768,
+          "variables": 1025,
+          "design_nnz": 99877
+        },
+        "settings": {
+          "reference": {
+            "max_precenter": 100,
+            "max_iter": 1000,
+            "tol": 1e-07,
+            "boundary_frac": 0.99,
+            "gamma": 0.5,
+            "min_mu": 1e-12,
+            "tau_reg": 2e-08,
+            "max_linesearch_steps": 100,
+            "max_iterative_refinement": 10,
+            "max_time": 60,
+            "max_stagnation": 100,
+            "armijo_additive_eps": 1e-08,
+            "armijo_param": 0.005,
+            "let_newton_cook": 0.0,
+            "prox_reg": 2e-08,
+            "linear_solver_backend": "qdldl",
+            "linear_solver_options": null
+          },
+          "candidate": {
+            "max_precenter": 100,
+            "max_iter": 1000,
+            "tol": 1e-07,
+            "boundary_frac": 0.99,
+            "gamma": 0.5,
+            "min_mu": 1e-12,
+            "tau_reg": 2e-08,
+            "max_linesearch_steps": 100,
+            "max_iterative_refinement": 10,
+            "max_time": 60,
+            "max_stagnation": 100,
+            "armijo_additive_eps": 1e-08,
+            "armijo_param": 0.005,
+            "let_newton_cook": 0.0,
+            "prox_reg": 2e-08,
+            "linear_solver_backend": "qdldl",
+            "linear_solver_options": null
+          }
+        },
+        "timings": {
+          "reference": [
+            1.433465056004934,
+            1.4309204700402915,
+            1.40461538603995
+          ],
+          "candidate": [
+            1.4354717379901558,
+            1.4022014410002157,
+            1.3467693030834198
+          ]
+        },
+        "median_ratio": 0.9799296818786392,
+        "statuses": {
+          "reference": "optimal",
+          "candidate": "optimal"
+        },
+        "iterations": {
+          "reference": 12,
+          "candidate": 12
+        },
+        "identical_non_time_history": true,
+        "identical_solution_arrays": {
+          "x": true,
+          "y": true,
+          "s": true,
+          "nu": true
+        },
+        "validation": {
+          "reference": {
+            "validation_version": "glm-kkt-v1",
+            "accepted": true,
+            "tolerance": 1e-06,
+            "failure_reasons": [],
+            "objective": 0.034894889678684385,
+            "dual_objective": 0.03489488446333626,
+            "primal_residual_scaled": 0.0,
+            "stationarity_residual_scaled": 1.320252323536212e-16,
+            "complementarity_residual_scaled": 5.215348128560195e-09,
+            "dual_sign_violation_scaled": 0.0,
+            "relative_gap": 5.215348128560195e-09
+          },
+          "candidate": {
+            "validation_version": "glm-kkt-v1",
+            "accepted": true,
+            "tolerance": 1e-06,
+            "failure_reasons": [],
+            "objective": 0.034894889678684385,
+            "dual_objective": 0.03489488446333626,
+            "primal_residual_scaled": 0.0,
+            "stationarity_residual_scaled": 1.320252323536212e-16,
+            "complementarity_residual_scaled": 5.215348128560195e-09,
+            "dual_sign_violation_scaled": 0.0,
+            "relative_gap": 5.215348128560195e-09
+          }
+        }
+      },
+      {
+        "problem_id": "glm_logistic_large_sparse_box_s123_v2",
+        "canonical_data_sha256": "237e276a9122178dcfff4bc980639ef9e705950ae9a51071084e0d5ef14afc1e",
+        "dimensions": {
+          "observations": 32768,
+          "variables": 1025,
+          "design_nnz": 99877
+        },
+        "settings": {
+          "reference": {
+            "max_precenter": 100,
+            "max_iter": 1000,
+            "tol": 1e-07,
+            "boundary_frac": 0.99,
+            "gamma": 0.5,
+            "min_mu": 1e-12,
+            "tau_reg": 2e-08,
+            "max_linesearch_steps": 100,
+            "max_iterative_refinement": 10,
+            "max_time": 60,
+            "max_stagnation": 100,
+            "armijo_additive_eps": 1e-08,
+            "armijo_param": 0.005,
+            "let_newton_cook": 0.0,
+            "prox_reg": 2e-08,
+            "linear_solver_backend": "qdldl",
+            "linear_solver_options": null
+          },
+          "candidate": {
+            "max_precenter": 100,
+            "max_iter": 1000,
+            "tol": 1e-07,
+            "boundary_frac": 0.99,
+            "gamma": 0.5,
+            "min_mu": 1e-12,
+            "tau_reg": 2e-08,
+            "max_linesearch_steps": 100,
+            "max_iterative_refinement": 10,
+            "max_time": 60,
+            "max_stagnation": 100,
+            "armijo_additive_eps": 1e-08,
+            "armijo_param": 0.005,
+            "let_newton_cook": 0.0,
+            "prox_reg": 2e-08,
+            "linear_solver_backend": "qdldl",
+            "linear_solver_options": null
+          }
+        },
+        "timings": {
+          "reference": [
+            1.5293115160893649,
+            1.518259791075252,
+            1.4296505049569532
+          ],
+          "candidate": [
+            1.5396650640759617,
+            1.5010958190541714,
+            1.5356076400494203
+          ]
+        },
+        "median_ratio": 1.0114261400296205,
+        "statuses": {
+          "candidate": "optimal",
+          "reference": "optimal"
+        },
+        "iterations": {
+          "candidate": 12,
+          "reference": 12
+        },
+        "identical_non_time_history": true,
+        "identical_solution_arrays": {
+          "x": true,
+          "y": true,
+          "s": true,
+          "nu": true
+        },
+        "validation": {
+          "candidate": {
+            "validation_version": "glm-kkt-v1",
+            "accepted": true,
+            "tolerance": 1e-06,
+            "failure_reasons": [],
+            "objective": 0.6123552734082209,
+            "dual_objective": 0.612355262724421,
+            "primal_residual_scaled": 0.0,
+            "stationarity_residual_scaled": 4.18926320474831e-15,
+            "complementarity_residual_scaled": 1.0683799979315315e-08,
+            "dual_sign_violation_scaled": 0.0,
+            "relative_gap": 1.0683799979315314e-08
+          },
+          "reference": {
+            "validation_version": "glm-kkt-v1",
+            "accepted": true,
+            "tolerance": 1e-06,
+            "failure_reasons": [],
+            "objective": 0.6123552734082209,
+            "dual_objective": 0.612355262724421,
+            "primal_residual_scaled": 0.0,
+            "stationarity_residual_scaled": 4.18926320474831e-15,
+            "complementarity_residual_scaled": 1.0683799979315315e-08,
+            "dual_sign_violation_scaled": 0.0,
+            "relative_gap": 1.0683799979315314e-08
+          }
+        },
+        "profiles": {
+          "reference": [
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef/glqp/backends.py",
+              "line": 92,
+              "function": "solve",
+              "calls": 15,
+              "self_seconds": 0.010268287000000001,
+              "cumulative_seconds": 1.396288503
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef/glqp/backends.py",
+              "line": 85,
+              "function": "update",
+              "calls": 11,
+              "self_seconds": 1.249209532,
+              "cumulative_seconds": 1.257831547
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef/glqp/solver.py",
+              "line": 238,
+              "function": "solve_KKT",
+              "calls": 1,
+              "self_seconds": 5.9818e-05,
+              "cumulative_seconds": 0.14225864100000002
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef/glqp/linear.py",
+              "line": 168,
+              "function": "factor_and_solve",
+              "calls": 1,
+              "self_seconds": 6.0484000000000006e-05,
+              "cumulative_seconds": 0.14033636600000002
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef/glqp/linear.py",
+              "line": 44,
+              "function": "_gmres_refine",
+              "calls": 10,
+              "self_seconds": 0.000182033,
+              "cumulative_seconds": 0.131420014
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef/glqp/backends.py",
+              "line": 76,
+              "function": "__init__",
+              "calls": 1,
+              "self_seconds": 0.12054281300000001,
+              "cumulative_seconds": 0.12116048800000001
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef/glqp/solver.py",
+              "line": 279,
+              "function": "get_H",
+              "calls": 13,
+              "self_seconds": 3.038e-05,
+              "cumulative_seconds": 0.099691242
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef/glqp/solver.py",
+              "line": 287,
+              "function": "_evaluate_glm_hessian",
+              "calls": 13,
+              "self_seconds": 0.00010848900000000001,
+              "cumulative_seconds": 0.08387285
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/sparse_dot_mkl/sparse_dot.py",
+              "line": 18,
+              "function": "dot_product_mkl",
+              "calls": 13,
+              "self_seconds": 5.1073000000000004e-05,
+              "cumulative_seconds": 0.065795329
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/sparse_dot_mkl/_sparse_sparse.py",
+              "line": 109,
+              "function": "_sparse_dot_sparse",
+              "calls": 13,
+              "self_seconds": 0.00015686200000000002,
+              "cumulative_seconds": 0.065721716
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/sparse_dot_mkl/_sparse_sparse.py",
+              "line": 21,
+              "function": "_matmul_mkl",
+              "calls": 13,
+              "self_seconds": 0.059892981000000005,
+              "cumulative_seconds": 0.059901225
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_compressed.py",
+              "line": 29,
+              "function": "__init__",
+              "calls": 197,
+              "self_seconds": 0.000837894,
+              "cumulative_seconds": 0.026170973
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef/glqp/obj.py",
+              "line": 63,
+              "function": "__call__",
+              "calls": 26,
+              "self_seconds": 1.7129e-05,
+              "cumulative_seconds": 0.020793731000000003
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef/glqp/obj.py",
+              "line": 32,
+              "function": "f",
+              "calls": 26,
+              "self_seconds": 0.020441474,
+              "cumulative_seconds": 0.020776602
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_base.py",
+              "line": 549,
+              "function": "__add__",
+              "calls": 25,
+              "self_seconds": 4.6816e-05,
+              "cumulative_seconds": 0.019859150000000002
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_compressed.py",
+              "line": 385,
+              "function": "_add_sparse",
+              "calls": 25,
+              "self_seconds": 4.1587e-05,
+              "cumulative_seconds": 0.019712645
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_compressed.py",
+              "line": 1352,
+              "function": "_binopt",
+              "calls": 25,
+              "self_seconds": 0.000251771,
+              "cumulative_seconds": 0.019671058
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_base.py",
+              "line": 428,
+              "function": "asformat",
+              "calls": 102,
+              "self_seconds": 0.00010005300000000001,
+              "cumulative_seconds": 0.019380494
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_csr.py",
+              "line": 63,
+              "function": "tocsc",
+              "calls": 13,
+              "self_seconds": 0.00012541400000000002,
+              "cumulative_seconds": 0.011206791
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef/glqp/solver.py",
+              "line": 438,
+              "function": "merit_line",
+              "calls": 12,
+              "self_seconds": 0.00021779400000000002,
+              "cumulative_seconds": 0.010634493
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<built-in method scipy.sparse._sparsetools.csr_tocsc>",
+              "calls": 13,
+              "self_seconds": 0.009778775,
+              "cumulative_seconds": 0.009778775
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_base.py",
+              "line": 728,
+              "function": "__matmul__",
+              "calls": 157,
+              "self_seconds": 0.00013815,
+              "cumulative_seconds": 0.00934688
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_compressed.py",
+              "line": 391,
+              "function": "multiply",
+              "calls": 25,
+              "self_seconds": 0.004009522000000001,
+              "cumulative_seconds": 0.009333823
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_base.py",
+              "line": 597,
+              "function": "_matmul_dispatch",
+              "calls": 157,
+              "self_seconds": 0.00018825000000000002,
+              "cumulative_seconds": 0.008635989
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_compressed.py",
+              "line": 518,
+              "function": "_matmul_vector",
+              "calls": 157,
+              "self_seconds": 0.00047526400000000004,
+              "cumulative_seconds": 0.008374755000000001
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_coo.py",
+              "line": 314,
+              "function": "tocsc",
+              "calls": 25,
+              "self_seconds": 0.00016265300000000002,
+              "cumulative_seconds": 0.007510533000000001
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef/glqp/kkt.py",
+              "line": 30,
+              "function": "__init__",
+              "calls": 1,
+              "self_seconds": 1.1331e-05,
+              "cumulative_seconds": 0.0066426160000000005
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef/glqp/kkt.py",
+              "line": 42,
+              "function": "_build",
+              "calls": 1,
+              "self_seconds": 0.00045691600000000003,
+              "cumulative_seconds": 0.0063815750000000004
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef/glqp/kkt.py",
+              "line": 79,
+              "function": "assemble",
+              "calls": 12,
+              "self_seconds": 0.003821038,
+              "cumulative_seconds": 0.006024053000000001
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<built-in method scipy.sparse._sparsetools.csc_plus_csc>",
+              "calls": 25,
+              "self_seconds": 0.005947821000000001,
+              "cumulative_seconds": 0.005947821000000001
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<built-in method scipy.sparse._sparsetools.csc_matvec>",
+              "calls": 115,
+              "self_seconds": 0.005698962,
+              "cumulative_seconds": 0.005698962
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_coo.py",
+              "line": 381,
+              "function": "_coo_to_compressed",
+              "calls": 26,
+              "self_seconds": 0.00021430800000000002,
+              "cumulative_seconds": 0.005577757
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/numpy/_core/fromnumeric.py",
+              "line": 51,
+              "function": "_wrapfunc",
+              "calls": 29,
+              "self_seconds": 4.3303e-05,
+              "cumulative_seconds": 0.005268239
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_compressed.py",
+              "line": 1148,
+              "function": "tocoo",
+              "calls": 16,
+              "self_seconds": 0.000110277,
+              "cumulative_seconds": 0.004774022
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<built-in method scipy.sparse._sparsetools.coo_tocsr>",
+              "calls": 26,
+              "self_seconds": 0.00470727,
+              "cumulative_seconds": 0.00470727
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_coo.py",
+              "line": 30,
+              "function": "__init__",
+              "calls": 18,
+              "self_seconds": 0.000150366,
+              "cumulative_seconds": 0.004208372
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_compressed.py",
+              "line": 1225,
+              "function": "sum_duplicates",
+              "calls": 38,
+              "self_seconds": 2.1827000000000003e-05,
+              "cumulative_seconds": 0.003658166
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/sparse_dot_mkl/_mkl_interface/_common.py",
+              "line": 387,
+              "function": "_export_mkl",
+              "calls": 13,
+              "self_seconds": 0.000342444,
+              "cumulative_seconds": 0.0035886200000000003
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<built-in method numpy.array>",
+              "calls": 420,
+              "self_seconds": 0.0034836460000000004,
+              "cumulative_seconds": 0.0034836460000000004
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_base.py",
+              "line": 1356,
+              "function": "_get_index_dtype",
+              "calls": 209,
+              "self_seconds": 0.00043763200000000003,
+              "cumulative_seconds": 0.003337449
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<method 'reduce' of 'numpy.ufunc' objects>",
+              "calls": 748,
+              "self_seconds": 0.0032548200000000003,
+              "cumulative_seconds": 0.0032548200000000003
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef/glqp/kkt.py",
+              "line": 62,
+              "function": "slots",
+              "calls": 6,
+              "self_seconds": 0.000256405,
+              "cumulative_seconds": 0.003153798
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/numpy/_core/fromnumeric.py",
+              "line": 1447,
+              "function": "searchsorted",
+              "calls": 7,
+              "self_seconds": 6.302e-06,
+              "cumulative_seconds": 0.0029683780000000002
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<method 'searchsorted' of 'numpy.ndarray' objects>",
+              "calls": 7,
+              "self_seconds": 0.002952188,
+              "cumulative_seconds": 0.002952188
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_compressed.py",
+              "line": 1196,
+              "function": "has_canonical_format",
+              "calls": 54,
+              "self_seconds": 0.00011636800000000001,
+              "cumulative_seconds": 0.002936362
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef/glqp/obj.py",
+              "line": 40,
+              "function": "d1f",
+              "calls": 14,
+              "self_seconds": 0.002890694,
+              "cumulative_seconds": 0.0029065750000000002
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef/glqp/obj.py",
+              "line": 51,
+              "function": "d2f",
+              "calls": 13,
+              "self_seconds": 0.002818662,
+              "cumulative_seconds": 0.0028325010000000003
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_sputils.py",
+              "line": 264,
+              "function": "get_index_dtype",
+              "calls": 210,
+              "self_seconds": 0.0019191730000000001,
+              "cumulative_seconds": 0.0027153090000000004
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<built-in method scipy.sparse._sparsetools.csr_has_canonical_format>",
+              "calls": 53,
+              "self_seconds": 0.002700716,
+              "cumulative_seconds": 0.002700716
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/numpy/_core/fromnumeric.py",
+              "line": 69,
+              "function": "_wrapreduction",
+              "calls": 420,
+              "self_seconds": 0.000638841,
+              "cumulative_seconds": 0.002427864
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_compressed.py",
+              "line": 165,
+              "function": "check_format",
+              "calls": 198,
+              "self_seconds": 0.00066122,
+              "cumulative_seconds": 0.002309743
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/numpy/_core/fromnumeric.py",
+              "line": 3052,
+              "function": "max",
+              "calls": 327,
+              "self_seconds": 0.000292933,
+              "cumulative_seconds": 0.002097471
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/numpy/_core/fromnumeric.py",
+              "line": 109,
+              "function": "take",
+              "calls": 11,
+              "self_seconds": 1.5080000000000001e-05,
+              "cumulative_seconds": 0.0020459560000000003
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<method 'take' of 'numpy.ndarray' objects>",
+              "calls": 11,
+              "self_seconds": 0.002007113,
+              "cumulative_seconds": 0.002007113
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef/glqp/linear.py",
+              "line": 20,
+              "function": "_maxnorm",
+              "calls": 201,
+              "self_seconds": 0.0006929880000000001,
+              "cumulative_seconds": 0.0019173520000000002
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/numpy/_core/numeric.py",
+              "line": 2475,
+              "function": "array_equal",
+              "calls": 46,
+              "self_seconds": 0.001631524,
+              "cumulative_seconds": 0.0018974080000000002
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef/glqp/linear.py",
+              "line": 215,
+              "function": "result",
+              "calls": 12,
+              "self_seconds": 0.000187028,
+              "cumulative_seconds": 0.001854357
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef/glqp/util.py",
+              "line": 165,
+              "function": "to_dataframe",
+              "calls": 1,
+              "self_seconds": 8.799e-06,
+              "cumulative_seconds": 0.0016053690000000002
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/pandas/core/frame.py",
+              "line": 702,
+              "function": "__init__",
+              "calls": 1,
+              "self_seconds": 1.8046e-05,
+              "cumulative_seconds": 0.00159657
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_compressed.py",
+              "line": 1272,
+              "function": "sort_indices",
+              "calls": 13,
+              "self_seconds": 1.2818000000000002e-05,
+              "cumulative_seconds": 0.0015855880000000002
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_compressed.py",
+              "line": 1281,
+              "function": "prune",
+              "calls": 224,
+              "self_seconds": 0.0007003230000000001,
+              "cumulative_seconds": 0.0015675740000000002
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<built-in method scipy.sparse._sparsetools.csr_sort_indices>",
+              "calls": 1,
+              "self_seconds": 0.001560942,
+              "cumulative_seconds": 0.001560942
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/sparse_dot_mkl/_mkl_interface/_common.py",
+              "line": 245,
+              "function": "_create_mkl_sparse",
+              "calls": 26,
+              "self_seconds": 8.4696e-05,
+              "cumulative_seconds": 0.0015289910000000002
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef/glqp/linear.py",
+              "line": 51,
+              "function": "residual",
+              "calls": 15,
+              "self_seconds": 6.8701e-05,
+              "cumulative_seconds": 0.0015216840000000001
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef/glqp/linear.py",
+              "line": 24,
+              "function": "_relative_linear_error",
+              "calls": 27,
+              "self_seconds": 0.000557689,
+              "cumulative_seconds": 0.001520861
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef/glqp/kkt.py",
+              "line": 6,
+              "function": "_canonical",
+              "calls": 15,
+              "self_seconds": 2.8144e-05,
+              "cumulative_seconds": 0.001449519
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef/glqp/solver.py",
+              "line": 66,
+              "function": "__init__",
+              "calls": 1,
+              "self_seconds": 2.1186e-05,
+              "cumulative_seconds": 0.001379278
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_coo.py",
+              "line": 202,
+              "function": "_check",
+              "calls": 18,
+              "self_seconds": 0.00018575900000000002,
+              "cumulative_seconds": 0.0013329510000000002
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<built-in method scipy.sparse._sparsetools.csr_matvec>",
+              "calls": 42,
+              "self_seconds": 0.001250781,
+              "cumulative_seconds": 0.001250781
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/sparse_dot_mkl/_mkl_interface/_common.py",
+              "line": 296,
+              "function": "_pass_mkl_handle_csr_csc",
+              "calls": 26,
+              "self_seconds": 0.00044650200000000004,
+              "cumulative_seconds": 0.0012284610000000001
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef/glqp/solver.py",
+              "line": 212,
+              "function": "KKT_res",
+              "calls": 14,
+              "self_seconds": 0.000240909,
+              "cumulative_seconds": 0.001146543
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_sputils.py",
+              "line": 142,
+              "function": "getdata",
+              "calls": 18,
+              "self_seconds": 2.2894e-05,
+              "cumulative_seconds": 0.001132769
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef/glqp/util.py",
+              "line": 44,
+              "function": "maxnorm",
+              "calls": 137,
+              "self_seconds": 0.000407189,
+              "cumulative_seconds": 0.001108431
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/numpy/_core/fromnumeric.py",
+              "line": 89,
+              "function": "_wrapreduction_any_all",
+              "calls": 192,
+              "self_seconds": 0.000316638,
+              "cumulative_seconds": 0.001047139
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<built-in method builtins.isinstance>",
+              "calls": 3018,
+              "self_seconds": 0.000683336,
+              "cumulative_seconds": 0.001031517
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_base.py",
+              "line": 341,
+              "function": "nnz",
+              "calls": 1087,
+              "self_seconds": 0.00031270100000000003,
+              "cumulative_seconds": 0.001022937
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/numpy/_core/numeric.py",
+              "line": 1927,
+              "function": "isscalar",
+              "calls": 430,
+              "self_seconds": 0.000364472,
+              "cumulative_seconds": 0.000990756
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef/glqp/util.py",
+              "line": 56,
+              "function": "get_step_size",
+              "calls": 12,
+              "self_seconds": 0.0006676280000000001,
+              "cumulative_seconds": 0.0009584200000000001
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/optimization-reference-683f4ef/glqp/backends.py",
+              "line": 47,
+              "function": "matches",
+              "calls": 11,
+              "self_seconds": 3.0817e-05,
+              "cumulative_seconds": 0.0009373840000000001
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_coo.py",
+              "line": 60,
+              "function": "<genexpr>",
+              "calls": 54,
+              "self_seconds": 2.1294e-05,
+              "cumulative_seconds": 0.0009159420000000001
+            }
+          ],
+          "candidate": [
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/backends.py",
+              "line": 92,
+              "function": "solve",
+              "calls": 15,
+              "self_seconds": 0.010228599000000001,
+              "cumulative_seconds": 1.37351382
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/backends.py",
+              "line": 85,
+              "function": "update",
+              "calls": 11,
+              "self_seconds": 1.224891173,
+              "cumulative_seconds": 1.232277016
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/solver.py",
+              "line": 249,
+              "function": "solve_KKT",
+              "calls": 1,
+              "self_seconds": 5.1875e-05,
+              "cumulative_seconds": 0.14516097
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/linear.py",
+              "line": 225,
+              "function": "factor_and_solve",
+              "calls": 1,
+              "self_seconds": 6.4558e-05,
+              "cumulative_seconds": 0.143178317
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/linear.py",
+              "line": 101,
+              "function": "_gmres_refine",
+              "calls": 10,
+              "self_seconds": 0.000178736,
+              "cumulative_seconds": 0.13416935000000002
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/backends.py",
+              "line": 76,
+              "function": "__init__",
+              "calls": 1,
+              "self_seconds": 0.11935451400000001,
+              "cumulative_seconds": 0.119976128
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/solver.py",
+              "line": 291,
+              "function": "get_H",
+              "calls": 13,
+              "self_seconds": 3.2486e-05,
+              "cumulative_seconds": 0.09897369800000001
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/solver.py",
+              "line": 299,
+              "function": "_evaluate_glm_hessian",
+              "calls": 13,
+              "self_seconds": 0.000101643,
+              "cumulative_seconds": 0.08354354400000001
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/sparse_dot_mkl/sparse_dot.py",
+              "line": 18,
+              "function": "dot_product_mkl",
+              "calls": 13,
+              "self_seconds": 4.9054e-05,
+              "cumulative_seconds": 0.065535641
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/sparse_dot_mkl/_sparse_sparse.py",
+              "line": 109,
+              "function": "_sparse_dot_sparse",
+              "calls": 13,
+              "self_seconds": 0.00015855600000000002,
+              "cumulative_seconds": 0.065462431
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/sparse_dot_mkl/_sparse_sparse.py",
+              "line": 21,
+              "function": "_matmul_mkl",
+              "calls": 13,
+              "self_seconds": 0.059824646,
+              "cumulative_seconds": 0.05983270500000001
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_compressed.py",
+              "line": 29,
+              "function": "__init__",
+              "calls": 119,
+              "self_seconds": 0.000552555,
+              "cumulative_seconds": 0.022889551
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/obj.py",
+              "line": 63,
+              "function": "__call__",
+              "calls": 26,
+              "self_seconds": 2.038e-05,
+              "cumulative_seconds": 0.020751631000000003
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/obj.py",
+              "line": 32,
+              "function": "f",
+              "calls": 26,
+              "self_seconds": 0.020393931,
+              "cumulative_seconds": 0.020731251000000003
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_base.py",
+              "line": 428,
+              "function": "asformat",
+              "calls": 56,
+              "self_seconds": 6.5127e-05,
+              "cumulative_seconds": 0.017962356000000002
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_base.py",
+              "line": 549,
+              "function": "__add__",
+              "calls": 14,
+              "self_seconds": 2.8023000000000003e-05,
+              "cumulative_seconds": 0.015718139000000002
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_compressed.py",
+              "line": 385,
+              "function": "_add_sparse",
+              "calls": 14,
+              "self_seconds": 2.6461000000000003e-05,
+              "cumulative_seconds": 0.015631636
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_compressed.py",
+              "line": 1352,
+              "function": "_binopt",
+              "calls": 14,
+              "self_seconds": 0.000140395,
+              "cumulative_seconds": 0.015605175
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_csr.py",
+              "line": 63,
+              "function": "tocsc",
+              "calls": 13,
+              "self_seconds": 0.000127588,
+              "cumulative_seconds": 0.011155082
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/solver.py",
+              "line": 450,
+              "function": "merit_line",
+              "calls": 12,
+              "self_seconds": 0.00021927,
+              "cumulative_seconds": 0.010546168
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/linear.py",
+              "line": 58,
+              "function": "assemble",
+              "calls": 12,
+              "self_seconds": 0.003424498,
+              "cumulative_seconds": 0.010159852
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<built-in method scipy.sparse._sparsetools.csr_tocsc>",
+              "calls": 13,
+              "self_seconds": 0.009645891,
+              "cumulative_seconds": 0.009645891
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_base.py",
+              "line": 728,
+              "function": "__matmul__",
+              "calls": 152,
+              "self_seconds": 0.00012882800000000002,
+              "cumulative_seconds": 0.008889231000000001
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_compressed.py",
+              "line": 391,
+              "function": "multiply",
+              "calls": 13,
+              "self_seconds": 0.003918778,
+              "cumulative_seconds": 0.008572232
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/numpy/_core/fromnumeric.py",
+              "line": 51,
+              "function": "_wrapfunc",
+              "calls": 34,
+              "self_seconds": 4.7393000000000005e-05,
+              "cumulative_seconds": 0.008464982000000001
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_base.py",
+              "line": 597,
+              "function": "_matmul_dispatch",
+              "calls": 152,
+              "self_seconds": 0.000179327,
+              "cumulative_seconds": 0.008195199
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_compressed.py",
+              "line": 518,
+              "function": "_matmul_vector",
+              "calls": 152,
+              "self_seconds": 0.000464262,
+              "cumulative_seconds": 0.007945086
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/kkt.py",
+              "line": 30,
+              "function": "__init__",
+              "calls": 1,
+              "self_seconds": 1.1361e-05,
+              "cumulative_seconds": 0.006576307
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/kkt.py",
+              "line": 42,
+              "function": "_build",
+              "calls": 1,
+              "self_seconds": 0.000376378,
+              "cumulative_seconds": 0.006316925
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_coo.py",
+              "line": 314,
+              "function": "tocsc",
+              "calls": 14,
+              "self_seconds": 9.5228e-05,
+              "cumulative_seconds": 0.006225269
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/numpy/_core/fromnumeric.py",
+              "line": 1447,
+              "function": "searchsorted",
+              "calls": 9,
+              "self_seconds": 8.113e-06,
+              "cumulative_seconds": 0.006030157
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<method 'searchsorted' of 'numpy.ndarray' objects>",
+              "calls": 9,
+              "self_seconds": 0.006009873000000001,
+              "cumulative_seconds": 0.006009873000000001
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/kkt.py",
+              "line": 79,
+              "function": "assemble",
+              "calls": 12,
+              "self_seconds": 0.0038085270000000004,
+              "cumulative_seconds": 0.0059859710000000005
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<built-in method scipy.sparse._sparsetools.csc_matvec>",
+              "calls": 113,
+              "self_seconds": 0.005393778,
+              "cumulative_seconds": 0.005393778
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_coo.py",
+              "line": 381,
+              "function": "_coo_to_compressed",
+              "calls": 15,
+              "self_seconds": 0.00013602200000000002,
+              "cumulative_seconds": 0.005026329
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_compressed.py",
+              "line": 1148,
+              "function": "tocoo",
+              "calls": 16,
+              "self_seconds": 0.00011055900000000001,
+              "cumulative_seconds": 0.004793195
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<built-in method scipy.sparse._sparsetools.coo_tocsr>",
+              "calls": 15,
+              "self_seconds": 0.004531142,
+              "cumulative_seconds": 0.004531142
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/linear.py",
+              "line": 39,
+              "function": "_build",
+              "calls": 1,
+              "self_seconds": 1.3859e-05,
+              "cumulative_seconds": 0.004291447
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_coo.py",
+              "line": 30,
+              "function": "__init__",
+              "calls": 18,
+              "self_seconds": 0.00015100400000000002,
+              "cumulative_seconds": 0.004237748
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/numpy/_core/numeric.py",
+              "line": 2475,
+              "function": "array_equal",
+              "calls": 90,
+              "self_seconds": 0.0030626420000000004,
+              "cumulative_seconds": 0.0035082810000000002
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<built-in method numpy.array>",
+              "calls": 324,
+              "self_seconds": 0.003477183,
+              "cumulative_seconds": 0.003477183
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/sparse_dot_mkl/_mkl_interface/_common.py",
+              "line": 387,
+              "function": "_export_mkl",
+              "calls": 13,
+              "self_seconds": 0.000334428,
+              "cumulative_seconds": 0.0034334620000000004
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<method 'reduce' of 'numpy.ufunc' objects>",
+              "calls": 804,
+              "self_seconds": 0.0033649390000000004,
+              "cumulative_seconds": 0.0033649390000000004
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/kkt.py",
+              "line": 62,
+              "function": "slots",
+              "calls": 6,
+              "self_seconds": 0.000252042,
+              "cumulative_seconds": 0.0031685230000000003
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<built-in method scipy.sparse._sparsetools.csc_plus_csc>",
+              "calls": 14,
+              "self_seconds": 0.003051598,
+              "cumulative_seconds": 0.003051598
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/obj.py",
+              "line": 51,
+              "function": "d2f",
+              "calls": 13,
+              "self_seconds": 0.002863983,
+              "cumulative_seconds": 0.0028780370000000004
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/obj.py",
+              "line": 40,
+              "function": "d1f",
+              "calls": 13,
+              "self_seconds": 0.002716982,
+              "cumulative_seconds": 0.0027323770000000002
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_compressed.py",
+              "line": 1225,
+              "function": "sum_duplicates",
+              "calls": 27,
+              "self_seconds": 1.7847e-05,
+              "cumulative_seconds": 0.0026609900000000002
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_base.py",
+              "line": 1356,
+              "function": "_get_index_dtype",
+              "calls": 155,
+              "self_seconds": 0.000331726,
+              "cumulative_seconds": 0.002474004
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/numpy/_core/fromnumeric.py",
+              "line": 69,
+              "function": "_wrapreduction",
+              "calls": 420,
+              "self_seconds": 0.0006322410000000001,
+              "cumulative_seconds": 0.0024062790000000003
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/numpy/_core/fromnumeric.py",
+              "line": 3052,
+              "function": "max",
+              "calls": 327,
+              "self_seconds": 0.000293131,
+              "cumulative_seconds": 0.0020811410000000003
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_sputils.py",
+              "line": 264,
+              "function": "get_index_dtype",
+              "calls": 156,
+              "self_seconds": 0.001402952,
+              "cumulative_seconds": 0.002003814
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/numpy/_core/fromnumeric.py",
+              "line": 109,
+              "function": "take",
+              "calls": 11,
+              "self_seconds": 1.9766e-05,
+              "cumulative_seconds": 0.001998262
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_compressed.py",
+              "line": 1196,
+              "function": "has_canonical_format",
+              "calls": 67,
+              "self_seconds": 9.429800000000001e-05,
+              "cumulative_seconds": 0.0019863940000000003
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<method 'take' of 'numpy.ndarray' objects>",
+              "calls": 11,
+              "self_seconds": 0.001954235,
+              "cumulative_seconds": 0.001954235
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/linear.py",
+              "line": 77,
+              "function": "_maxnorm",
+              "calls": 201,
+              "self_seconds": 0.000673291,
+              "cumulative_seconds": 0.001884243
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/linear.py",
+              "line": 278,
+              "function": "result",
+              "calls": 12,
+              "self_seconds": 0.00018378600000000002,
+              "cumulative_seconds": 0.001859666
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<built-in method scipy.sparse._sparsetools.csr_has_canonical_format>",
+              "calls": 31,
+              "self_seconds": 0.00180207,
+              "cumulative_seconds": 0.00180207
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/linear.py",
+              "line": 108,
+              "function": "residual",
+              "calls": 15,
+              "self_seconds": 6.9282e-05,
+              "cumulative_seconds": 0.001577836
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_compressed.py",
+              "line": 1272,
+              "function": "sort_indices",
+              "calls": 13,
+              "self_seconds": 9.281e-06,
+              "cumulative_seconds": 0.001568011
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<built-in method scipy.sparse._sparsetools.csr_sort_indices>",
+              "calls": 1,
+              "self_seconds": 0.001548316,
+              "cumulative_seconds": 0.001548316
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/linear.py",
+              "line": 81,
+              "function": "_relative_linear_error",
+              "calls": 27,
+              "self_seconds": 0.0005597330000000001,
+              "cumulative_seconds": 0.0015348260000000002
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/sparse_dot_mkl/_mkl_interface/_common.py",
+              "line": 245,
+              "function": "_create_mkl_sparse",
+              "calls": 26,
+              "self_seconds": 8.9504e-05,
+              "cumulative_seconds": 0.0014760180000000002
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_compressed.py",
+              "line": 165,
+              "function": "check_format",
+              "calls": 120,
+              "self_seconds": 0.00042422,
+              "cumulative_seconds": 0.0014546790000000002
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/kkt.py",
+              "line": 6,
+              "function": "_canonical",
+              "calls": 15,
+              "self_seconds": 2.9248000000000002e-05,
+              "cumulative_seconds": 0.0014424910000000002
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/solver.py",
+              "line": 66,
+              "function": "__init__",
+              "calls": 1,
+              "self_seconds": 1.8969e-05,
+              "cumulative_seconds": 0.001425573
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/util.py",
+              "line": 165,
+              "function": "to_dataframe",
+              "calls": 1,
+              "self_seconds": 4.863000000000001e-06,
+              "cumulative_seconds": 0.001418963
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/pandas/core/frame.py",
+              "line": 702,
+              "function": "__init__",
+              "calls": 1,
+              "self_seconds": 1.8575e-05,
+              "cumulative_seconds": 0.0014141000000000002
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/backends.py",
+              "line": 47,
+              "function": "matches",
+              "calls": 11,
+              "self_seconds": 3.0997e-05,
+              "cumulative_seconds": 0.001360211
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_coo.py",
+              "line": 202,
+              "function": "_check",
+              "calls": 18,
+              "self_seconds": 0.00017962000000000002,
+              "cumulative_seconds": 0.0013077660000000001
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/linear.py",
+              "line": 32,
+              "function": "_matches",
+              "calls": 12,
+              "self_seconds": 5.5827000000000006e-05,
+              "cumulative_seconds": 0.001272879
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_sputils.py",
+              "line": 142,
+              "function": "getdata",
+              "calls": 18,
+              "self_seconds": 2.4452000000000002e-05,
+              "cumulative_seconds": 0.001177991
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/sparse_dot_mkl/_mkl_interface/_common.py",
+              "line": 296,
+              "function": "_pass_mkl_handle_csr_csc",
+              "calls": 26,
+              "self_seconds": 0.000419694,
+              "cumulative_seconds": 0.0011663840000000001
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<built-in method scipy.sparse._sparsetools.csr_matvec>",
+              "calls": 39,
+              "self_seconds": 0.001160557,
+              "cumulative_seconds": 0.001160557
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/util.py",
+              "line": 44,
+              "function": "maxnorm",
+              "calls": 137,
+              "self_seconds": 0.000403876,
+              "cumulative_seconds": 0.001104888
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<method 'fill' of 'numpy.ndarray' objects>",
+              "calls": 15,
+              "self_seconds": 0.0010996670000000001,
+              "cumulative_seconds": 0.0010996670000000001
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/numpy/_core/fromnumeric.py",
+              "line": 89,
+              "function": "_wrapreduction_any_all",
+              "calls": 204,
+              "self_seconds": 0.00031221,
+              "cumulative_seconds": 0.0010725790000000002
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/solver.py",
+              "line": 214,
+              "function": "KKT_res",
+              "calls": 12,
+              "self_seconds": 2.2233000000000002e-05,
+              "cumulative_seconds": 0.0009892710000000001
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/glqp/glqp/util.py",
+              "line": 56,
+              "function": "get_step_size",
+              "calls": 12,
+              "self_seconds": 0.000663825,
+              "cumulative_seconds": 0.000955381
+            },
+            {
+              "file": "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/lib/python3.12/site-packages/scipy/sparse/_compressed.py",
+              "line": 1281,
+              "function": "prune",
+              "calls": 135,
+              "self_seconds": 0.00041932000000000004,
+              "cumulative_seconds": 0.0009533170000000001
+            }
+          ]
+        }
+      },
+      {
+        "problem_id": "glm_poisson_large_sparse_affine_s123_v2",
+        "canonical_data_sha256": "31472c205def7088e8690939169092071f73d631e5d138e9370cf75942e7d7ae",
+        "dimensions": {
+          "observations": 32768,
+          "variables": 1025,
+          "design_nnz": 99877
+        },
+        "settings": {
+          "reference": {
+            "max_precenter": 100,
+            "max_iter": 1000,
+            "tol": 1e-07,
+            "boundary_frac": 0.99,
+            "gamma": 0.5,
+            "min_mu": 1e-12,
+            "tau_reg": 2e-08,
+            "max_linesearch_steps": 100,
+            "max_iterative_refinement": 10,
+            "max_time": 60,
+            "max_stagnation": 100,
+            "armijo_additive_eps": 1e-08,
+            "armijo_param": 0.005,
+            "let_newton_cook": 0.0,
+            "prox_reg": 2e-08,
+            "linear_solver_backend": "qdldl",
+            "linear_solver_options": null
+          },
+          "candidate": {
+            "max_precenter": 100,
+            "max_iter": 1000,
+            "tol": 1e-07,
+            "boundary_frac": 0.99,
+            "gamma": 0.5,
+            "min_mu": 1e-12,
+            "tau_reg": 2e-08,
+            "max_linesearch_steps": 100,
+            "max_iterative_refinement": 10,
+            "max_time": 60,
+            "max_stagnation": 100,
+            "armijo_additive_eps": 1e-08,
+            "armijo_param": 0.005,
+            "let_newton_cook": 0.0,
+            "prox_reg": 2e-08,
+            "linear_solver_backend": "qdldl",
+            "linear_solver_options": null
+          }
+        },
+        "timings": {
+          "reference": [
+            1.5004752719542012,
+            1.5080546350218356,
+            1.4378359820693731
+          ],
+          "candidate": [
+            1.4911928690271452,
+            1.4874792540213093,
+            1.5190843020100147
+          ]
+        },
+        "median_ratio": 0.993813691501249,
+        "statuses": {
+          "reference": "optimal",
+          "candidate": "optimal"
+        },
+        "iterations": {
+          "reference": 12,
+          "candidate": 12
+        },
+        "identical_non_time_history": true,
+        "identical_solution_arrays": {
+          "x": true,
+          "y": true,
+          "s": true,
+          "nu": true
+        },
+        "validation": {
+          "reference": {
+            "validation_version": "glm-kkt-v1",
+            "accepted": true,
+            "tolerance": 1e-06,
+            "failure_reasons": [],
+            "objective": 0.7480034903995644,
+            "dual_objective": 0.748003488351564,
+            "primal_residual_scaled": 0.0,
+            "stationarity_residual_scaled": 3.2111050794146043e-16,
+            "complementarity_residual_scaled": 2.0480002799911806e-09,
+            "dual_sign_violation_scaled": 0.0,
+            "relative_gap": 2.0480002799911806e-09
+          },
+          "candidate": {
+            "validation_version": "glm-kkt-v1",
+            "accepted": true,
+            "tolerance": 1e-06,
+            "failure_reasons": [],
+            "objective": 0.7480034903995644,
+            "dual_objective": 0.748003488351564,
+            "primal_residual_scaled": 0.0,
+            "stationarity_residual_scaled": 3.2111050794146043e-16,
+            "complementarity_residual_scaled": 2.0480002799911806e-09,
+            "dual_sign_violation_scaled": 0.0,
+            "relative_gap": 2.0480002799911806e-09
+          }
+        }
+      }
+    ]
+  },
+  "validation": "All 12 cases pass independent original-data KKT validation with bitwise-identical non-time histories and x/y/s/nu arrays. Unit regressions separately cover sparse-storage equality, zero crossings, noncanonical/dtype fallback, retry shifts, changed inputs, and whole-solve fallback equivalence.",
+  "raw_directories": {
+    "mixed_panel": "../.conda/iteration-work-round5-shift",
+    "large_glm_panel": "../.conda/iteration-work-round5-large-glm"
+  },
+  "limitations": [
+    "Warm alternating measurements on CPU11 and CPU12 while other cores ran independent work; these are profiling observations, not standardized campaign timing.",
+    "Reference683f4ef precedes round4 commit98250de, so measured speedups include both rounds."
+  ]
+}

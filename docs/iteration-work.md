@@ -91,3 +91,31 @@ retains the observations, source hashes, operation counts, and checks.
 `tools/profile_glm_work.py` accepts canonical GLM identifiers from a specified
 benchmark checkout, records full solutions and validations, and profiles a
 selected example. Its problem construction is outside the measured solve.
+
+The fifth round retains canonical CSC storage for the shifted factorization
+matrix. `ShiftedSystemWorkspace` compares the current matrix and shift patterns,
+then reads their coefficients afresh into their structural union. A numerical
+retry therefore uses the new shift and the original matrix values. Exact zero
+crossings produce the same compressed pattern as ordinary sparse addition;
+noncanonical and non-float64 inputs use the original addition path. Each solve
+starts with a new workspace, and refinement continues to verify fresh residuals
+against the unshifted requested system. The solver also constructs its fixed
+regularization shift in CSC once, avoiding a conversion per Newton step.
+
+For QPCBOEI2's 3,322 iterations, profiling now counts three COO-to-CSC conversions
+instead of 3,324, and two sparse additions instead of 3,323. Three alternating
+observations versus `683f4ef` give a median solve ratio of 0.855, including both
+round-four product reuse and round-five shifted storage. This comparison does
+not isolate either change. The other mixed-panel ratios range from 0.834 to
+1.000. Three larger sparse Gaussian, logistic, and Poisson examples each have
+32,768 observations and 1,025 variables; their ratios are 0.980, 1.011, and 0.994.
+Every case passes independent original-data KKT validation, with bitwise-identical
+non-time histories and all four solution arrays. Warm measurements on CPUs 11
+and 12 remain diagnostics, with campaign acceptance delegated to the consistent
+cold parallel-8 setup.
+
+[`experiments/iteration-work-round5.json`](experiments/iteration-work-round5.json)
+records source hashes, all observations, operation counts, settings, and checks.
+`tests/test_shifted_workspace.py` separately exercises repeated storage reuse,
+numerical and pattern changes, exact zeros, arithmetic fallbacks, retries, and
+whole-solve equality after changing problem data.

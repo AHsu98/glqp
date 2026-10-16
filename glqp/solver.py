@@ -11,7 +11,7 @@ from .util import (
     build_solution_summary,factor_and_solve,parse_problem
 )
 
-from .linear import LinearSolveError
+from .linear import LinearSolveError, ShiftedSystemWorkspace
 from .kkt import KKTWorkspace
 
 from dataclasses import dataclass
@@ -125,8 +125,9 @@ class GLQP():
         self.In = csc_array(eye_array(n))
         self.Ik = csc_array(eye_array(k))
         self.Ip = csc_array(eye_array(p))
-        self.reg_shift = block_diag([self.In,-self.Ik,-self.Ip])
+        self.reg_shift = block_diag([self.In,-self.Ik,-self.Ip], format='csc')
         self._kkt_workspace = None
+        self._shift_workspace = ShiftedSystemWorkspace()
         self._transpose_views = SparseTransposeCache()
 
     def initialize(self,x0=None,y0 = None,s0 = None,settings = None):
@@ -150,6 +151,7 @@ class GLQP():
         self._initial_linear_info = None
         # Problem matrices may have been replaced since the previous solve.
         self._kkt_workspace = None
+        self._shift_workspace = ShiftedSystemWorkspace()
         self._transpose_views.clear()
 
         if x0 is None:
@@ -271,6 +273,7 @@ class GLQP():
                              'equality': slice(self.n+self.k, None)},
             backend=self.settings.linear_solver_backend,
             backend_options=self.settings.linear_solver_options,
+            workspace=self._shift_workspace,
         )
         sol, num_refine, solver, linsolve_rel_error = linear_result
         self._linear_info = linear_result.info
