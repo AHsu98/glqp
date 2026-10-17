@@ -39,6 +39,11 @@ def validate_proximal_settings(settings):
         raise ValueError('proximal_corrector_limit must be None or strictly between zero and one')
     if settings.proximal_policy == 'legacy' and settings.prox_dual_reg is not None:
         raise ValueError('Independent dual regularization requires a nonlegacy proximal policy')
+    if (not isinstance(settings.proximal_reg_update, str)
+            or settings.proximal_reg_update not in ('residual', 'progress')):
+        raise ValueError("proximal_reg_update must be 'residual' or 'progress'")
+    if settings.proximal_reg_update == 'progress' and settings.proximal_policy != 'centered':
+        raise ValueError('Progress regularization updates require the centered proximal policy')
 
 
 def _center(value):
@@ -70,11 +75,19 @@ class FixedProximalModel:
 class ProximalState:
     """Persistent centers; replacing a center never mutates a frozen model."""
 
-    def __init__(self, x, y, nu, rx, rp, req):
+    def __init__(self, x, y, nu, rx, rp, req, *, rho_cap=np.inf, delta_cap=np.inf):
         self.x, self.y, self.nu = map(_center, (x, y, nu))
         self.stationarity = inf_norm(rx)
         self.feasibility = max(inf_norm(rp), inf_norm(req))
         self.generation = 0
+        self.rho_cap, self.delta_cap = float(rho_cap), float(delta_cap)
+        self.primal_progress_misses = self.dual_progress_misses = 0
+
+    def select_regularization(self, rho, delta):
+        """Apply persistent nonincreasing caps before freezing a new model."""
+        self.rho_cap = min(self.rho_cap, float(rho))
+        self.delta_cap = min(self.delta_cap, float(delta))
+        return self.rho_cap, self.delta_cap
 
     def freeze(self, rho, delta):
         return FixedProximalModel(self.x, self.y, self.nu, float(rho), float(delta), self.generation)
@@ -91,6 +104,12 @@ class ProximalState:
         dual_progress = (feasibility < self.feasibility and
                         feasibility <= settings.proximal_center_reduction*self.feasibility)
         move_x, move_dual = inner_converged or primal_progress, inner_converged or dual_progress
+        offsets = {key:inf_norm(value) for key,value in fixed.offsets(x,y,nu).items()}
+        regularization_update = None
+        if settings.proximal_reg_update == 'progress':
+            regularization_update = self._update_regularization(
+                fixed, offsets, stationarity, feasibility, primal_progress,
+                dual_progress, inner_converged, settings.tol)
         metrics = dict(generation=fixed.generation, rho=fixed.rho, delta=fixed.delta,
             center_stationarity_before=self.stationarity, center_feasibility_before=self.feasibility,
             original_stationarity_after=stationarity, original_feasibility_after=feasibility,
@@ -100,16 +119,61 @@ class ProximalState:
             dual_centers_updated=bool(move_dual),
             refresh_reason=('inner_accuracy' if inner_converged else
                             'original_block_progress' if move_x or move_dual else 'none'),
-            center_offset_inf={k:inf_norm(v) for k,v in fixed.offsets(x,y,nu).items()})
+            center_offset_inf=offsets)
+        if regularization_update is not None:
+            metrics['regularization_update'] = regularization_update
         if move_x:
             self.x = _center(x)
         if move_dual:
             self.y, self.nu = _center(y), _center(nu)
-        if move_x or move_dual:
+        parameters_changed = (regularization_update is not None
+                              and any(row['reduced'] for row in regularization_update.values()))
+        if move_x or move_dual or parameters_changed:
             self.generation += 1
         self.stationarity, self.feasibility = stationarity, feasibility
         metrics['next_generation'] = self.generation
         return metrics
+
+    def _update_regularization(self, fixed, offsets, stationarity, feasibility,
+                               primal_progress, dual_progress, inner_converged, tol):
+        """Schedule independent reductions after an accepted, finalized point.
+
+        Five missing progress gates alone are not evidence that regularization
+        is causing a stall. Require its center offset to account for at least
+        one tenth of the corresponding original residual, or complete the
+        current proximal subproblem. The next model uses the new coefficients;
+        the frozen model used by the accepted PC pair/search stays untouched.
+        """
+        rows = {}
+        blocks = (
+            ('primal', 'rho_cap', 'primal_progress_misses', fixed.rho,
+             stationarity, offsets['stationarity'], primal_progress),
+            ('dual', 'delta_cap', 'dual_progress_misses', fixed.delta,
+             feasibility, max(offsets['primal'], offsets['equality']), dual_progress),
+        )
+        for name, cap_name, counter_name, coefficient, residual, offset, progress in blocks:
+            old_cap = getattr(self, cap_name)
+            old_misses = getattr(self, counter_name)
+            misses = 0 if progress else old_misses+1
+            dominance_limit = .1*max(residual, tol)
+            offset_dominates = offset >= dominance_limit
+            stalled = misses >= 5
+            trigger = inner_converged or (stalled and offset_dominates)
+            new_cap = min(old_cap, .1*coefficient) if trigger else old_cap
+            rows[name] = dict(coefficient_before=float(coefficient), cap_before=old_cap,
+                cap_after=new_cap, progress=bool(progress), misses_before=old_misses,
+                misses_observed=misses, misses_after=0 if trigger else misses,
+                stall_limit=5, stalled=bool(stalled), center_offset_inf=offset,
+                original_residual_inf=residual, dominance_limit=dominance_limit,
+                offset_dominates=bool(offset_dominates), inner_converged=bool(inner_converged),
+                reduction_factor=.1, triggered=bool(trigger), reduced=bool(new_cap < old_cap),
+                reason=('inner_accuracy' if inner_converged else
+                        'stalled_proximal_offset' if trigger else
+                        'progress' if progress else
+                        'offset_below_gate' if stalled else 'waiting_for_progress'))
+            setattr(self, cap_name, new_cap)
+            setattr(self, counter_name, 0 if trigger else misses)
+        return rows
 
 
 def residual_vector(rx, rp, rc, req):

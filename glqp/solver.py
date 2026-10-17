@@ -64,6 +64,7 @@ class SolverSettings():
     proximal_center_reduction:float = .95
     proximal_inner_tolerance:float = .1
     proximal_corrector_limit:float|None = .5
+    proximal_reg_update:str = 'residual'
     linear_solver_backend:str = 'qdldl'
     linear_solver_options:dict|None = None
     # 'previous' gives the intended preceding-target reduction floor.
@@ -429,7 +430,10 @@ class GLQP():
         constant_hessian = self.dummy_A or getattr(self.f, 'hessian_is_constant', False)
         gradf = Qx if self.dummy_A else AT@self.f.d1f(z) + Qx
         rx,rp,rc,req = self.KKT_res(x,gradf,y,s,nu)
-        proximal_state = (ProximalState(x,y,nu,rx,rp,req)
+        proximal_state = (ProximalState(x,y,nu,rx,rp,req,
+                            rho_cap=settings.prox_reg,
+                            delta_cap=(settings.prox_reg if settings.prox_dual_reg is None
+                                       else settings.prox_dual_reg))
                           if settings.proximal_policy == 'centered' else None)
         kkt_res = maxnorm(np.hstack([rx,rp,rc,req]))
         cons_viol = np.maximum(maxnorm(rp),maxnorm(req))
@@ -495,6 +499,8 @@ class GLQP():
             if settings.proximal_policy != 'legacy':
                 dual_cap = settings.prox_reg if settings.prox_dual_reg is None else settings.prox_dual_reg
                 dual_reg = np.minimum(dual_cap, kkt_res*1e-3)
+                if proximal_state is not None and settings.proximal_reg_update == 'progress':
+                    prox_reg, dual_reg = proximal_state.select_regularization(prox_reg, dual_reg)
                 linear_options = dict(dual_reg=dual_reg, complementarity_reg=0.)
             proximal_model = None if proximal_state is None else proximal_state.freeze(prox_reg, dual_reg)
             linear_rx, linear_rp, linear_req = ((rx,rp,req) if proximal_model is None else
