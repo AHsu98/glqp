@@ -18,6 +18,9 @@ from .barrier import (
     initial_barrier_target, describe_initial_target,
 )
 from .outer_policy import validate_repair_and_fallback_settings, guarded_slack_repair
+from .predictor_corrector import (
+    validate_step_strategy, compute_predictor_corrector, describe_held_target,
+)
 from .diagnostics import (
     observe_iteration, point_diagnostics, direction_diagnostics,
     start_iteration_diagnostics, start_line_search_diagnostics, reject_trial,
@@ -64,11 +67,13 @@ class SolverSettings():
     slack_repair:str = 'legacy'
     repair_growth_limit:float = 1.1
     newton_fallback_policy:str = 'finite'
+    step_strategy:str = 'newton'
     iteration_diagnostics:bool = False
 
     def __post_init__(self):
         validate_barrier_settings(self)
         validate_repair_and_fallback_settings(self)
+        validate_step_strategy(self)
 
 @dataclass
 class SolverResults():
@@ -177,6 +182,7 @@ class GLQP():
         self.settings = settings
         validate_barrier_settings(settings)
         validate_repair_and_fallback_settings(settings)
+        validate_step_strategy(settings)
         self._initial_linear_info = None
         # Problem matrices may have been replaced since the previous solve.
         self._kkt_workspace = None
@@ -316,6 +322,13 @@ class GLQP():
 
         return dx,ds,dy,dnu,solver,num_refine,linsolve_rel_error
 
+    def solve_predictor_corrector(self, x, y, s, H, rx, rp, req, kkt_res, *,
+                                  prox_reg, solver=None, target_override=None):
+        """Two verified RHS solves at one frozen, regularized Newton matrix."""
+        return compute_predictor_corrector(
+            self, x, y, s, H, rx, rp, req, kkt_res,
+            prox_reg=prox_reg, solver=solver, target_override=target_override)
+
     
     def get_H(self,z):
         """Combine the fixed quadratic Hessian with optional GLM curvature.
@@ -360,6 +373,8 @@ class GLQP():
 
         termination_tag = 'not_optimal'
         x,y,s,nu,settings = self.initialize(x0,y0,s0,settings)
+        use_predictor_corrector = (settings.step_strategy == 'predictor_corrector'
+                                   and not self.dummy_ineq and self.k > 0)
         diagnostics_enabled = settings.iteration_diagnostics
         diagnostics = (dict(schema_version=1, initial=None, iterations=[],
                             policies=policy_diagnostics(settings), initial_target=None)
@@ -379,7 +394,10 @@ class GLQP():
             )
 
         start = time.time()
-        mu = initial_barrier_target(s, y, self.dummy_ineq, mu0, settings)
+        # PC chooses its first target only after the affine solve. Until then
+        # the initial observation carries a clearly labeled placeholder.
+        mu = (settings.min_mu if use_predictor_corrector and mu0 is None else
+              initial_barrier_target(s, y, self.dummy_ineq, mu0, settings))
         
 
         z = np.zeros(self.m) if self.dummy_A else self.A@x
@@ -401,8 +419,17 @@ class GLQP():
             initial_point = point_diagnostics(
                 self, x, y, s, primal, mu, kkt_res, rx, rp, rc, req)
             diagnostics['initial'] = initial_point
-            diagnostics['initial_target'] = describe_initial_target(
-                s, y, self.dummy_ineq, mu0, mu, settings)
+            if use_predictor_corrector:
+                diagnostics['initial_target'] = dict(
+                    policy='predictor_corrector',
+                    source='explicit_initial' if mu0 is not None else 'awaiting_predictor',
+                    scale=None, mu_bar=float(np.dot(s, y)/self.k),
+                    scaled_complementarity=None, min_mu=float(settings.min_mu),
+                    target=float(mu), used_for_first_direction=mu0 is not None,
+                    selection_timing='predictor_before_direction')
+            else:
+                diagnostics['initial_target'] = describe_initial_target(
+                    s, y, self.dummy_ineq, mu0, mu, settings)
         if iteration_callback is not None:
             observe_iteration(iteration_callback, self, 0, 'initial',
                               x, y, s, nu, primal, mu, kkt_res, initial_point)
@@ -444,25 +471,37 @@ class GLQP():
                 termination_tag = "stagnated"
                 break
             prox_reg = np.minimum(settings.prox_reg,kkt_res*1e-3)
-            # Only the experimental progress policy asks for this norm. rc
-            # already contains y*s-mu, and the target stays fixed in line search.
-            perturbed_kkt_before = (maxnorm(np.hstack([rx, rp, rc, req]))
-                                    if settings.newton_fallback_policy == 'progress' else None)
             if diagnostics_enabled:
                 iteration_diag = start_iteration_diagnostics(iteration_number+1, prox_reg)
 
             self._linear_info = None
+            pc_step = None
             try:
                 #Solve KKT
-                dx,ds,dy,dnu,solver,num_refine,linsolve_rel_error = self.solve_KKT(
-                    x,y,s,
-                    H,
-                    rx,rp,rc,req,
-                    mu,
-                    tau_reg = self.settings.tau_reg,
-                    prox_reg = prox_reg,
-                    solver = solver
-                    )
+                if use_predictor_corrector:
+                    pc_step = self.solve_predictor_corrector(
+                        x, y, s, H, rx, rp, req, kkt_res, prox_reg=prox_reg,
+                        solver=solver, target_override=mu0 if iteration_number == 0 else None)
+                    dx, ds, dy, dnu = pc_step.dx, pc_step.ds, pc_step.dy, pc_step.dnu
+                    solver = pc_step.factorization
+                    num_refine = pc_step.refinements
+                    self._linear_info = pc_step.combined_info
+                    linsolve_rel_error = pc_step.combined_info.relative_error
+                    # Both merit and residual progress tests use this same target.
+                    mu = pc_step.target
+                    rc = y*s - mu
+                    if diagnostics_enabled:
+                        iteration_diag['predictor_corrector'] = pc_step.decision
+                else:
+                    dx,ds,dy,dnu,solver,num_refine,linsolve_rel_error = self.solve_KKT(
+                        x,y,s,
+                        H,
+                        rx,rp,rc,req,
+                        mu,
+                        tau_reg = self.settings.tau_reg,
+                        prox_reg = prox_reg,
+                        solver = solver
+                        )
             except LinearSolveError as ex:
                 termination_tag = "failed_linear_solve"
                 exception = ex
@@ -472,6 +511,9 @@ class GLQP():
                     diagnostics['iterations'].append(iteration_diag)
                 break
 
+            # Select the target first, including in predictor-corrector mode.
+            perturbed_kkt_before = (maxnorm(np.hstack([rx, rp, rc, req]))
+                                    if settings.newton_fallback_policy == 'progress' else None)
             if diagnostics_enabled:
                 old_ds, old_dy = ds.copy(), dy.copy()
                 iteration_diag['linear_solve'] = (None if self._linear_info is None
@@ -489,7 +531,8 @@ class GLQP():
             if diagnostics_enabled:
                 iteration_diag['direction'] = direction_diagnostics(
                     self, H, dx, ds, dy, dnu, old_ds, old_dy,
-                    y, s, rx, rp, rc, req, prox_reg, thresh)
+                    y, s, rx, rp, rc, req, prox_reg, thresh,
+                    complementarity_correction=None if pc_step is None else pc_step.correction)
             
             boundary_frac = settings.boundary_frac
             tmax = get_step_size(s,ds,y,dy,frac = boundary_frac)
@@ -685,8 +728,13 @@ class GLQP():
             else:
                 mu_est = np.dot(s,y)/self.k
                 xi = np.min(s*y)/mu_est
-                raw_mu = (np.minimum((1.02-xi),1)**3)*mu_est
-                mu = select_barrier_target(previous_mu, raw_mu, pre_repair_kkt, settings)
+                if use_predictor_corrector:
+                    # Keep the predictor target fixed through this accepted step.
+                    # A fresh predictor selects the next target at the next point.
+                    raw_mu = mu
+                else:
+                    raw_mu = (np.minimum((1.02-xi),1)**3)*mu_est
+                    mu = select_barrier_target(previous_mu, raw_mu, pre_repair_kkt, settings)
 
                 fix_threshold = 0.1
                 if tmax<1e-4 and np.min(s*y)/mu_est<fix_threshold:
@@ -732,9 +780,11 @@ class GLQP():
             if diagnostics_enabled:
                 accepted_point = point_diagnostics(
                     self, x, y, s, primal, mu, kkt_res, rx, rp, rc, req)
-                iteration_diag['barrier'] = describe_barrier_update(
-                    previous_mu, raw_mu, mu, mu_est, xi, pre_repair_kkt, settings,
-                    dummy=self.dummy_ineq)
+                iteration_diag['barrier'] = (describe_held_target(
+                    mu, mu_est, xi, pre_repair_kkt, settings) if use_predictor_corrector else
+                    describe_barrier_update(
+                        previous_mu, raw_mu, mu, mu_est, xi, pre_repair_kkt, settings,
+                        dummy=self.dummy_ineq))
                 iteration_diag['repair'] = slack_repair_diagnostics(
                     repair_triggered, pre_repair_s, s, pre_repair_rp, rp,
                     pre_repair_rc, rc, pre_repair_point, accepted_point)
@@ -768,6 +818,14 @@ class GLQP():
                 **({'lin_rel_res': linsolve_rel_error} if self._linear_info is None
                    else self._linear_info.history_fields()),
                 **(history_diagnostics(iteration_diag) if diagnostics_enabled else {}),
+                **({} if pc_step is None else dict(
+                    pc_affine_step=pc_step.decision['affine_step'],
+                    pc_sigma=pc_step.decision['sigma'], pc_target=pc_step.target,
+                    pc_affine_refinements=pc_step.affine_info.refinements,
+                    pc_combined_refinements=pc_step.combined_info.refinements,
+                    pc_affine_status=pc_step.affine_info.status,
+                    pc_combined_status=pc_step.combined_info.status,
+                    pc_factorization_attempts=pc_step.decision['factorization_attempts'])),
             )
 
         #TODO: Maybe merge build_solution_summary and SolverResults together

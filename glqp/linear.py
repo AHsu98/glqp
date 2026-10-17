@@ -324,3 +324,164 @@ def factor_and_solve(
             solver = None
             tau *= 10.
     raise AssertionError("Unreachable linear-solve retry state")
+
+
+class VerifiedLinearSystem:
+    """Factor once, then verify additional RHSs against one requested matrix.
+
+    Use this as a synchronous context manager. It borrows ``G`` and
+    ``reg_shift`` without copying sparse coefficients, temporarily making
+    their CSC storage read-only. The matrices and any storage aliases must
+    not be mutated or replaced until the context closes. In particular, a
+    KKT workspace may overwrite its RHS, but must not reassemble its matrix.
+    Attempts to replace storage are checked before each solve; deliberately
+    bypassing NumPy write protection through an alias violates the contract.
+
+    The first nonzero RHS uses ``factor_and_solve`` unchanged, including its
+    bounded numerical-failure retries. Further RHSs use the same factor,
+    projection and bounded right-GMRES verification, with no factor update or
+    retry. Their ``info.attempts`` is zero. A zero RHS never establishes that
+    an inherited factor belongs to this matrix. Numerical reuse failures
+    propagate; finite inaccurate directions retain their explicit status.
+
+    ``factorization`` remains available after normal context exit for the
+    next outer iteration's numeric update. The caller must not update or
+    close that factor while this context is active. Closing this context
+    releases matrix protection, not the factor's native resources.
+    """
+
+    def __init__(self, G, reg_shift, init_tau_reg, solver=None, target_atol=1e-10,
+                 max_solve_attempts=20, max_refinement_steps=10, *, target_rtol=1e-6,
+                 residual_blocks=None, backend='qdldl', backend_options=None,
+                 workspace=None):
+        from copy import deepcopy
+
+        self._G = G if type(G) is csc_array else csc_array(G)
+        self._shift = reg_shift if type(reg_shift) is csc_array else csc_array(reg_shift)
+        self._factorization = solver
+        self._initial_tau = init_tau_reg
+        self._tau = None
+        self._atol, self._rtol = target_atol, target_rtol
+        self._max_attempts, self._max_steps = max_solve_attempts, max_refinement_steps
+        self._blocks = deepcopy(residual_blocks) if residual_blocks is not None else {}
+        self._backend, self._options = backend, deepcopy(backend_options)
+        self._workspace = workspace
+        self._state = 'new'
+        self._factor_ready = False
+        self._matrices = []
+        self._protected = []
+
+    @property
+    def factorization(self):
+        """Retain this factor for reuse after the current matrix context ends."""
+        return self._factorization
+
+    def __enter__(self):
+        if self._state != 'new':
+            raise RuntimeError('A verified linear system can be entered only once')
+        seen = set()
+        try:
+            for matrix in (self._G, self._shift):
+                storage = (matrix.data, matrix.indices, matrix.indptr)
+                self._matrices.append((matrix, matrix.shape, storage))
+                for array in storage:
+                    if id(array) in seen:
+                        continue
+                    seen.add(id(array))
+                    self._protected.append((array, array.flags.writeable))
+                    array.flags.writeable = False
+        except Exception:
+            self.close()
+            raise
+        self._state = 'active'
+        return self
+
+    def __exit__(self, exc_type, exc, traceback):
+        self.close()
+        return False
+
+    def close(self):
+        """Restore matrix writeability; never close a successfully reused factor."""
+        if self._state == 'closed':
+            return
+        for array, writeable in reversed(self._protected):
+            array.flags.writeable = writeable
+        self._protected.clear()
+        self._state = 'closed'
+
+    def _check_lifetime(self):
+        if self._state != 'active':
+            raise RuntimeError('solve_verified requires an active matrix context')
+        for matrix, shape, storage in self._matrices:
+            current = (matrix.data, matrix.indices, matrix.indptr)
+            if (matrix.shape != shape or any(a is not b for a, b in zip(current, storage))
+                    or any(array.flags.writeable for array in current)):
+                raise RuntimeError('Borrowed linear-system matrix storage changed during reuse')
+
+    def _result(self, x, residual, rhs, tau, refinements, reason):
+        # Match factor_and_solve's result arithmetic, including its OR accuracy
+        # criterion and block scales. Reuse performs zero factorization attempts.
+        absolute = _maxnorm(residual)
+        relative = _relative_linear_error(residual, rhs)
+        accurate = absolute <= self._atol or relative <= self._rtol
+        if accurate and reason == 'refinement_limit':
+            reason = 'tolerance'
+        errors = {name: {'absolute': _maxnorm(residual[part]),
+                         'rhs_scaled': _maxnorm(residual[part]) / max(1., _maxnorm(rhs[part]))}
+                  for name, part in self._blocks.items()}
+        info = LinearSolveInfo('accurate' if accurate else 'inaccurate', reason,
+                               absolute, relative, self._atol, self._rtol,
+                               tau, 0, refinements, errors, self._backend)
+        return LinearSolveResult(x, self._factorization, info)
+
+    def solve_verified(self, rhs):
+        """Solve another RHS without changing a ready numerical factorization."""
+        self._check_lifetime()
+        rhs = np.asarray(rhs, dtype=float)
+        if rhs.ndim != 1 or self._G.shape != (rhs.size, rhs.size):
+            raise ValueError('Linear matrix and right-hand side shapes must agree')
+        if not np.all(np.isfinite(rhs)):
+            raise ValueError('Linear right-hand side must be finite')
+
+        if not self._factor_ready:
+            try:
+                result = factor_and_solve(
+                    self._G, rhs, self._shift, self._initial_tau, self._factorization,
+                    target_atol=self._atol, max_solve_attempts=self._max_attempts,
+                    max_refinement_steps=self._max_steps, target_rtol=self._rtol,
+                    residual_blocks=self._blocks, backend=self._backend,
+                    backend_options=self._options, workspace=self._workspace)
+            except LinearSolveError:
+                # factor_and_solve owns cleanup of failed numerical factors.
+                # Never expose an inherited factor as safe after such a failure.
+                self._factorization = None
+                self._state = 'failed'
+                raise
+            self._factorization = result.factorization
+            if result.info.attempts:
+                self._factor_ready = True
+                self._tau = result.info.tau_reg
+            return result
+
+        if not np.any(rhs):
+            return self._result(np.zeros_like(rhs), np.zeros_like(rhs), rhs,
+                                0., 0, 'zero_rhs')
+        try:
+            x = self._factorization.solve(rhs)
+            if not np.all(np.isfinite(x)):
+                raise _FactorizationError('Backend returned a nonfinite linear solution')
+            x = x * _projection_scale(rhs, self._G @ x)
+            if not np.all(np.isfinite(x)):
+                raise _FactorizationError('Nonfinite projected linear solution or residual')
+            x, residual, refinements, reason = _gmres_refine(
+                self._G, rhs, x, self._factorization.solve,
+                self._max_steps, self._atol, self._rtol)
+            return self._result(x, residual, rhs, self._tau, refinements, reason)
+        except LinearSolveError:
+            # Do not silently change a predictor's factor for a corrector RHS.
+            release = getattr(self._factorization, 'close', None)
+            if release is not None:
+                release()
+            self._factorization = None
+            self._state = 'failed'
+            raise

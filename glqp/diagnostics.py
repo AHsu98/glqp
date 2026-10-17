@@ -117,7 +117,8 @@ def original_newton_blocks(model, H, x_direction, s_direction, y_direction,
 
 
 def direction_diagnostics(model, H, dx, ds, dy, dnu, old_ds, old_dy,
-                          y, s, rx, rp, rc, req, rho, threshold):
+                          y, s, rx, rp, rc, req, rho, threshold, *,
+                          complementarity_correction=None):
     """Measure before/after editing and the defect induced by the edits alone."""
     before = original_newton_blocks(model, H, dx, old_ds, old_dy, dnu,
                                      y, s, rx, rp, rc, req)
@@ -125,6 +126,12 @@ def direction_diagnostics(model, H, dx, ds, dy, dnu, old_ds, old_dy,
                                     y, s, rx, rp, rc, req)
     regularization = dict(stationarity=-rho*dx, primal=rho*old_dy,
                           equality=rho*dnu, complementarity=-rho*old_ds)
+    requested = {key: before[key]-regularization[key] for key in before}
+    # The combined corrector intentionally changes the original Newton RHS.
+    # Keep that change visible in original defects, but exclude it from the
+    # residual of the system we actually requested from the linear solver.
+    if complementarity_correction is not None:
+        requested['complementarity'] += complementarity_correction
     delta_ds, delta_dy = ds-old_ds, dy-old_dy
     induced = dict(stationarity=model.C.T@delta_dy, primal=delta_ds,
                    equality=np.zeros_like(req), complementarity=y*delta_ds+s*delta_dy)
@@ -139,8 +146,9 @@ def direction_diagnostics(model, H, dx, ds, dy, dnu, old_ds, old_dy,
         original_newton_before_inf=_block_norms(before),
         original_newton_after_inf=_block_norms(after),
         regularization_defect_inf=_block_norms(regularization),
-        requested_regularized_before_inf=_block_norms(
-            {key: before[key]-regularization[key] for key in before}),
+        requested_regularized_before_inf=_block_norms(requested),
+        **({} if complementarity_correction is None else dict(
+            corrector_complementarity_defect_inf=_inf(complementarity_correction))),
         edit_induced_defect_inf=_block_norms(induced),
         observed_defect_change_inf=_block_norms(
             {key: after[key]-before[key] for key in before}))
@@ -155,7 +163,7 @@ def start_iteration_diagnostics(iteration, rho):
 def policy_diagnostics(settings):
     names = ('initial_mu_policy', 'initial_mu_scale', 'barrier_update_guard',
              'barrier_reduction_limit', 'barrier_kkt_floor', 'slack_repair',
-             'repair_growth_limit', 'newton_fallback_policy')
+             'repair_growth_limit', 'newton_fallback_policy', 'step_strategy')
     return {name: getattr(settings, name) for name in names}
 
 

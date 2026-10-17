@@ -97,9 +97,19 @@ class KKTWorkspace:
         data[self._ineq_diag] = -(s + prox_reg*y + prox_reg**2)
         data[self._eq_diag] = -prox_reg
 
+        self.assemble_rhs(rx, rp, rc, req)
+        return self.matrix, self.rhs, self.w
+
+    def assemble_rhs(self, rx, rp, rc, req):
+        """Replace only the RHS using the weights from the current matrix.
+
+        Call after ``assemble``. This permits sequential predictor/corrector
+        solves without rebuilding or changing the borrowed matrix or weights.
+        The returned RHS is borrowed until the next RHS or matrix assembly.
+        """
         n, k = self.n, self.k
         self.rhs[:n] = -rx
         # Preserve the original arithmetic order in the scaled RHS.
         self.rhs[n:n+k] = (1/self.w)*rc - self.w*rp
         self.rhs[n+k:] = -req
-        return self.matrix, self.rhs, self.w
+        return self.rhs
