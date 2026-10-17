@@ -177,9 +177,11 @@ Honor an explicit user `mu0` as the **first combined target**, then use (5)
 on later iterations. Report this first-step override distinctly from sigma
 selection. Without explicit `mu0`, fixed/complementarity initialization of
 the old target is Newton-only and has no algorithmic role in this strategy;
-mark it inactive in diagnostics and documentation. An initialized-point
-callback before the affine solve must not imply that an unused initial
-target governed a computed direction. The first combined override and its
+mark it inactive in diagnostics and documentation. The implementation uses
+`min_mu` as an initialized-point observation placeholder, labels its source
+`awaiting_predictor`, and does not evaluate the inactive initialization
+policy. That placeholder never determines the first direction. An explicit
+`mu0` instead remains authoritative for the first combined target. The first combined override and its
 input validation should be tested explicitly.
 
 The dummy/empty-inequality path retains its existing solve and target rules;
