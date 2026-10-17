@@ -6,8 +6,6 @@ coordinates. Likelihood constants independent of the predictors are omitted.
 """
 
 import numpy as np
-from scipy.special import expit
-from numpy import logaddexp
 
 
 def _pad_derivative(values, size):
@@ -17,6 +15,23 @@ def _pad_derivative(values, size):
     result = np.zeros(size)
     result[:len(values)] = values
     return result
+
+
+def _weighted_logistic_tail(z, weights):
+    """Return exp(-abs(z)) and its weighted value without premature underflow.
+
+    Ordinary predictors use direct multiplication. A positive large weight can
+    rescue a subnormal unweighted tail; only that rare case uses logarithms.
+    """
+    magnitude = np.abs(z)
+    tail = np.exp(-magnitude)
+    weighted = weights * tail
+    rescued = ((tail < np.finfo(float).tiny) & (weights > 0)
+               & np.isfinite(weights) & np.isfinite(magnitude))
+    if np.any(rescued):
+        selected_weights = np.broadcast_to(weights, tail.shape)[rescued]
+        weighted[rescued] = np.exp(np.log(selected_weights) - magnitude[rescued])
+    return tail, weighted
 
 
 class LogisticNLL:
@@ -35,7 +50,14 @@ class LogisticNLL:
             sum_i w_i [ log(1 + exp(z_i)) - y_i * z_i ]
         """
         z = np.asarray(z[:self.m], dtype=float)
-        return np.sum(self.w * (logaddexp(0, z) - self.y * z))
+        tail, weighted_tail = _weighted_logistic_tail(z, self.w)
+        # Separate the small softplus tail before the label-dependent linear
+        # term. logaddexp(0, z) - z loses that tail for large positive z.
+        weighted_softplus = self.w * np.log1p(tail)
+        subnormal = tail < np.finfo(float).tiny
+        weighted_softplus[subnormal] = weighted_tail[subnormal]
+        linear = np.where(z >= 0, (1-self.y)*z, -self.y*z)
+        return np.sum(weighted_softplus + self.w*linear)
 
     def d1f(self, z):
         """
@@ -44,20 +66,24 @@ class LogisticNLL:
         """
         tot_z = len(z)
         z = np.asarray(z[:self.m], dtype=float)
-        sig_z = expit(z)
-        grad = self.w * (sig_z - self.y)
+        tail, weighted_tail = _weighted_logistic_tail(z, self.w)
+        weighted_probability = weighted_tail / (1+tail)
+        # These forms also preserve the existing algebra for nonbinary labels.
+        grad = np.where(z >= 0, self.w*(1-self.y)-weighted_probability,
+                        weighted_probability-self.w*self.y)
         return _pad_derivative(grad, tot_z)
 
     def d2f(self, z):
         """
         Computes the second derivative (Hessian diagonal) w.r.t. z:
             w_i * sigma(z_i) * (1 - sigma(z_i))
-        Using expit(z) for numerical stability.
+        Evaluate through the small sigmoid tail to avoid 1 - expit(z)
+        rounding to zero for moderately large positive predictors.
         """
         tot_z = len(z)
         z = np.asarray(z[:self.m], dtype=float)
-        sig_z = expit(z)
-        hess_diag = self.w * sig_z * (1.0 - sig_z)
+        tail, weighted_tail = _weighted_logistic_tail(z, self.w)
+        hess_diag = weighted_tail / (1+tail)**2
         return _pad_derivative(hess_diag, tot_z)
 
     def __call__(self, z):
@@ -133,13 +159,21 @@ class PoissonNLL:
         self.w = np.array(w, dtype=float)
         self.m = len(self.y)
 
+    def _observations(self, z):
+        """Zero-weight observations contribute exactly zero, even at large z."""
+        z = np.asarray(z[:self.m], dtype=float)
+        active = self.w != 0
+        return z, None if np.all(active) else active
+
     def f(self, z):
         """
         Computes the negative weighted Poisson log-likelihood:
             sum_i w_i * (exp(z_i) - y_i * z_i)
         Omits the constant sum_i w_i * log(y_i!).
         """
-        z = np.asarray(z[:self.m], dtype=float)
+        z, active = self._observations(z)
+        if active is not None:
+            return np.dot(self.w[active], np.exp(z[active])-self.y[active]*z[active])
         u = np.exp(z)
         return np.dot(self.w,u - self.y*z)
 
@@ -148,7 +182,11 @@ class PoissonNLL:
         Computes the first derivative (gradient) w.r.t. z:
         """
         tot_z = len(z)
-        z = np.asarray(z[:self.m], dtype=float)
+        z, active = self._observations(z)
+        if active is not None:
+            grad = np.zeros(self.m)
+            grad[active] = self.w[active]*(np.exp(z[active])-self.y[active])
+            return _pad_derivative(grad, tot_z)
         u = np.exp(z)
         grad = self.w*(u - self.y)
         return _pad_derivative(grad, tot_z)
@@ -158,7 +196,11 @@ class PoissonNLL:
         Computes the second derivative (Hessian diagonal) w.r.t. z:
         """
         tot_z = len(z)
-        z = np.asarray(z[:self.m], dtype=float)
+        z, active = self._observations(z)
+        if active is not None:
+            hessian = np.zeros(self.m)
+            hessian[active] = self.w[active]*np.exp(z[active])
+            return _pad_derivative(hessian, tot_z)
         u = np.exp(z)
         return _pad_derivative(self.w*u, tot_z)
 
