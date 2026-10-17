@@ -31,6 +31,21 @@ QDLDL is the default KKT factorization. The [backend guide](docs/linear-backends
 describes optional SuperLU, FERAL, and PARDISO alternatives with explicit
 ordering/scaling options and shared verified float64 GMRES refinement.
 
+#### Current algorithm and experiment history
+
+The [accepted algorithm reference](docs/accepted-algorithm.md) documents the
+implemented Newton equations, regularization, float64 GMRES, barrier update,
+clipping, line search, repair, and stopping tests. It also distinguishes public
+defaults from the QP and GLM benchmark profiles.
+
+The [experiment ledger](docs/experiments/README.md) records what we tried,
+the measured outcomes, and unresolved issues. Accepted defaults remain legacy
+Newton, QDLDL, ten-step float64 right-GMRES, and presolve disabled. Predictor–
+corrector and centered proximal methods remain experimental. The latest full
+138-problem Maros–Mészáros comparison validates 129 cases with accepted Newton
+and 127 with centered adaptive Newton; the latter is slower on the separately
+audited timing subset. Its selected large gains do not justify promotion.
+
 #### Numerical experiments
 
 - [Standalone C++ QP presolve](docs/presolve.md): optional structural reductions,

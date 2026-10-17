@@ -1,9 +1,11 @@
-# Centered proximal equations and predictor–corrector
+# Centered proximal equations with Newton and predictor–corrector
 
 This is an experimental option. Keep `proximal_policy="legacy"` and accepted
-Newton defaults unchanged. Final numerical source `1f5ac45` passes all 39
-GLMs with the centered method, but only 7/8 selected difficult QPs versus
-existing PC's 8/8. QPCBOEI2 improves sharply; QSHELL slows and LISWET1 fails.
+Newton defaults unchanged. Numerical source `1f5ac45` supports centered Newton
+and centered predictor–corrector (PC). Both pass all 39 GLMs and 7/8 selected
+difficult QPs. The later full centered-Newton run validates 127/138 MM problems
+versus accepted Newton's 129/138; it is slower on the clean timing subset.
+See the [experiment ledger](README.md) for the development sequence and decisions.
 
 ```python
 settings = SolverSettings(
@@ -15,6 +17,10 @@ settings = SolverSettings(
     prox_dual_reg=None,
 )
 ```
+
+Set `step_strategy="newton"` to test the same centered formulation and
+coefficient continuation without PC. That path requests one algorithmic RHS
+per iteration and does not use PC's cross-term bound or centering rescue.
 
 The physical residuals include `rho*(x-x_center)` in stationarity and
 `-delta*(multiplier-multiplier_center)` in feasibility. Complementarity
@@ -45,7 +51,9 @@ offset is at least 10% of the original block residual (with a tolerance
 floor). Changes apply only to the next frozen model. These are experimental
 heuristics; no global convergence theorem is claimed.
 
-Final parallel-8 measurements use native tolerance `1e-7`, original-data
+## Predictor–corrector screen
+
+The parallel-8 PC measurements use native tolerance `1e-7`, original-data
 certificate `1e-6`, 60 seconds, and the established QP benchmark stagnation
 window of 5000. Adaptive centered PC uses 173 rather than 3241 iterations
 on QPCBOEI2, 320 rather than 534 on YAO, and 596 rather than 71 on QSHELL.
@@ -63,8 +71,48 @@ correctly fails despite a small stored scalar KKT norm. Future work should
 couple continuation to requested/original-coordinate direction accuracy,
 rather than weaken globalization or stopping tests.
 
-The full [benchmark checkpoint](../../../glqp-bench/benchmarks/progression/proximal-consistency-20261017/README.md)
+The [PC benchmark checkpoint](../../../glqp-bench/benchmarks/progression/proximal-consistency-20261017/README.md)
 contains clean QP profiles, all observations, rejected probes, and raw archive
 hashes. The [design review](../research/proximal-consistency-design-20261017.md)
 gives the residual/Jacobian derivation and literature context. The sibling
 benchmark link assumes the standard workspace layout.
+
+## Newton screen and full MM check
+
+The [matched Newton screen](../../../glqp-bench/benchmarks/progression/proximal-newton-20261017/README.md)
+holds PC off while comparing accepted legacy Newton, centered residual-based
+regularization, and centered adaptive regularization. Adaptive centered Newton
+reduces QPCBOEI2 from 3322 to 111 iterations and YAO from 2555 to 328. The
+centered residual-update controls require 2282 and 3703 respectively, supporting
+coefficient continuation as a source of these gains independently of PC.
+QSHELL worsens from 397 to 725, and LISWET1 fails after 488 accepted iterations.
+All 39 GLMs validate: total iterations are 421 for accepted Newton, 420 for
+centered Newton, and 275 for centered PC. These GLM comparisons explicitly use
+`max_stagnation=1000`; their times remain excluded after isolation failures.
+
+The subsequent [full Newton checkpoint](../../../glqp-bench/benchmarks/progression/proximal-newton-full-20261017/README.md)
+compares all 138 MM problems at the same tolerances and budgets. Accepted Newton
+validates 129 and adaptive centered Newton 127. BOYD1 and QPILOTNO are gains;
+LISWET1/6/7/10 are losses. On 125 shared successes, the geometric iteration ratio
+is .949863 and the median ratio is 1. The audited timing subset contains 122
+problems and 113 common successes: geometric wall time is 19.6% higher with
+centered Newton, and solver time is 20.7% higher. Sixteen problems remain
+excluded from timing after host activity flags; these are not full-suite timing
+estimates. Native status and independent acceptance remain separate, including
+three accepted centered solutions that terminate with line-search failure.
+
+The exact LISWET1 trace establishes an inaccurate, already non-descent Newton
+direction after a dual-cap reduction. The other three LISWET losses fail the
+original complementarity certificate, but their ordinary records do not
+establish the same mechanism. Their failing states need separate diagnostics.
+The source still permits finite inaccurate linear directions to reach the
+outer search, and coefficient continuation does not yet account for that risk.
+
+There is also an unresolved centered-Newton edge case: for `.5*x^2` subject to
+`x<=1`, the start `x=-1, s=2, y=1, mu0=2` exactly solves the current barrier
+subproblem. The strict residual search rejects the zero slope before advancing
+the target, although the original problem is unsolved. Accepted legacy Newton
+advances its target and solves in seven steps. Changing only `mu0` to 1.9 lets
+centered Newton solve in seven steps too. This model-advancement defect is
+distinct from the LISWET1 linear-accuracy failure and remains documented for a
+separate algorithm experiment.
