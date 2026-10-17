@@ -17,6 +17,15 @@ on the 113 common successes. This supersedes any inference of a general gain
 from its earlier eight-problem screen; the screen itself remains valid evidence.
 See the [full Newton checkpoint][newton-full].
 
+The subsequent [GLM stress checkpoint][glm-stress] expands the catalog from 39
+to 81 without changing prior problem definitions. Accepted source `850a6f5`
+repairs weighted logistic tails and zero-weight Poisson evaluation. Both old
+and corrected sources pass 76/81 under the repaired independent validator,
+with identical counts on every case. Three severe Poisson cases fail their
+initial line search; two weak-ridge cases fail only the external gap bound.
+These results motivate separate globalization and certification experiments,
+not a universal replacement of sparse-MKL Gram formation.
+
 ## Measurement scopes
 
 | Evidence family | Machine and execution | Scope and interpretation |
@@ -171,3 +180,4 @@ measurements, and source snapshots are preserved rather than silently relabeled.
 [attribution]: ../../../glqp-bench/benchmarks/progression/speed-attribution-20261016/README.md
 [slope]: ../../../glqp-bench/benchmarks/progression/predictor-corrector-20261016/slope-capture/README.md
 [ideas]: ../research/algorithm-improvement-proposals-20261016.md
+[glm-stress]: ../../../glqp-bench/benchmarks/progression/glm-stress-20261017/README.md

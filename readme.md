@@ -58,8 +58,14 @@ audited timing subset. Its selected large gains do not justify promotion.
   fresh-residual accuracy checks.
 
 The sibling `glqp-bench` repository contains committed-source comparison
-campaigns, explicit per-variant presolve/backend settings, and 39 GLM examples,
-including large sparse and weighted real-data problems.
+campaigns, explicit per-variant presolve/backend settings, and 81 GLM examples,
+including large sparse and weighted real-data problems. The latest
+[GLM stress checkpoint](../glqp-bench/benchmarks/progression/glm-stress-20261017/README.md)
+adds 42 compact cases targeting numerical difficulty: all 30 initial additions
+pass, as do 7 of 12 deliberately severe cases. The original 39 also pass.
+The [numerical review](docs/research/glm-numerics-review-20261017.md) covers stable
+scalar losses, weighted Gram formation, original-operator diagnostics, and
+alternatives to the current fast Hessian path.
 Routine tests use eight independent one-thread workers; serial and multithreaded
 per-problem profiles are explicit alternatives. The 2026-10-16 checkpoint
 retains 169/178 QP successes with byte-identical accepted primal/dual vectors

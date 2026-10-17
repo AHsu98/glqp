@@ -12,6 +12,14 @@ exact-parity checks and regression tests are recorded in the
 The [experiment ledger](experiments/README.md) records the evidence behind these
 choices and the alternatives that remain experimental.
 
+The GLM scalar-arithmetic correction at `850a6f5` is also accepted: logistic
+loss, gradient, and curvature retain representable weighted tails, and exactly
+zero-weight Poisson observations are omitted before exponentiation. Newton
+equations, Hessian assembly, regularization, and outer policies are unchanged.
+The [GLM numerical review](research/glm-numerics-review-20261017.md) and
+[81-case checkpoint](../../glqp-bench/benchmarks/progression/glm-stress-20261017/README.md)
+record the reproducer, independent validation correction, and remaining limits.
+
 The authoritative entry points are [`SolverSettings` and `GLQP`](../glqp/solver.py).
 Benchmark settings are a separate layer in the sibling repository's
 [`adapters.py`](../../glqp-bench/src/glqp_bench/adapters.py). Those sibling links

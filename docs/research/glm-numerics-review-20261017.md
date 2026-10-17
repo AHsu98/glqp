@@ -8,8 +8,9 @@ and tiny untimed CPU-5/one-thread probes. It makes no performance claim.
 **The most concrete correctness problem was scalar logistic arithmetic, including
 a shared blind spot in independent validation.** A bounded scalar fix and tests
 were authorized during the review. The Hessian, KKT equations, regularization,
-globalization, and defaults were not changed. The separate forthcoming suite
-comparison must identify the scalar-fix revision explicitly.
+globalization, and defaults were not changed. The completed comparison identifies
+the scalar-fix revision as `850a6f5`; its final 81-case outcome and independent
+accuracy checks are recorded below.
 
 Forming `A.T @ D @ A` is mathematically the exact GLM Newton Hessian contribution.
 It is a reasonable fast default for tall, moderately sized, well-scaled designs
@@ -252,7 +253,105 @@ can distinguish conservatism from real suboptimality. For logistic/Poisson,
 use an independently verified conic/dual reference or rigorous domain bounds.
 Retain existing acceptance thresholds and original problem definitions.
 
+## Completed 81-case comparison and reference checks
+
+The final `ab81` comparison used baseline `6617a0c` and scalar-fix `850a6f5`,
+the unchanged `glm-v2` profile, native tolerance `1e-7`, independent
+`glm-kkt-v2` tolerance `1e-6`, and `parallel-8`. The catalog contains the prior
+39 cases, 30 compact stress cases, and 12 separately declared severe cases;
+existing case definitions were preserved. Both revisions validate **76/81**,
+with the same five failures and no changed iteration counts among the 76 common
+passes. The final isolation monitor reports clean. The earlier 69-case timing
+attempt was flagged and is excluded from timing conclusions; the bounded
+references below make no timing claims.
+([Campaign report](../../../glqp-bench/runs/glm-stress-20261017/ab81/reports/report.md),
+[isolation record](../../../glqp-bench/runs/glm-stress-20261017/ab81-isolation-01/summary.json).)
+
+All three severe Poisson-range constraint variants terminate at
+`initial_failed_line_search`. The two remaining failures are
+`glm_stress_hard_gaussian_conditioned_free_v1` and
+`glm_stress_hard_logistic_separation_free_v1`: both report native `optimal`,
+pass original-model stationarity, and fail only the ridge-based relative-gap
+certificate. Both have ridge `1e-12` and zero linear objective term. Native
+`optimal` is insufficient for this existing benchmark certificate; all five
+campaign failures remain failures.
+
+The two gap-only cases were investigated separately on CPU 5 with one native
+thread. Exact saved inputs and solutions were loaded from the campaign, and
+the frozen scalar-fix source was used for tolerance controls. Gaussian weighted
+ridge least squares was solved with pivoted QR of
+`[sqrt(w)*X; diag(sqrt(ridge))]`, without forming its Gram matrix. Its augmented
+design condition number is approximately `1.93e6`. The logistic reference starts
+from zero, uses independent stable scalar formulas, and factors the same
+augmented weighted design by QR for each Newton direction, with an Armijo search.
+It reaches a gradient tolerance of `1e-14` in 39 steps. These references pass the
+unchanged independent validator. Additional long-double evaluations agree with
+the double-precision objective comparisons; these are numerical checks, not
+interval-arithmetic proofs.
+
+| Severe free case | Saved objective | Saved objective excess over QR reference | Saved ridge-gap bound | QR-reference ridge-gap bound |
+|---|---:|---:|---:|---:|
+| Gaussian conditioned | 5.10083277e-5 | 1.33716e-8 | 6.95986e-5 | 1.60e-15 |
+| Logistic separation | 8.25809309e-7 | 5.49007e-7 | 1.77451e-3 | 1.97e-20 |
+
+For Gaussian, the independently computed quadratic error energy
+`.5*||sqrt(w)*X*(x-x_ref)||^2 + .5*||sqrt(ridge)*(x-x_ref)||^2`
+matches the objective difference; the reference-gradient cross term is below
+`1e-18`. For logistic, there is also a simple global bound: every likelihood and
+ridge term is nonnegative and `q=0`, so `F*>=0` and the saved point's objective
+error is at most `8.25810e-7`. Its actual error relative to the much tighter
+reference is approximately `5.49e-7`. Thus both saved points have objective
+errors below `1e-6` on the benchmark's `max(1,abs(F))` scale, although neither
+satisfies its chosen residual/ridge certificate. This diagnoses conservatism of
+that certificate for these points, without reclassifying their benchmark status.
+Coefficient accuracy is a different question: maximum coordinate differences
+from the references are approximately `49.6` and `69.4`, respectively, reflecting
+the very weak curvature.
+
+Two explicitly separate controls changed **only native `tol`**, keeping every
+other recorded `glm-v2` setting unchanged. At `tol=1e-9`, Gaussian passes the
+existing certificate in 2 steps instead of 1; logistic passes in 27 instead of
+23. At `tol=1e-11`, they pass in 3 and 44 steps. The controls retain their raw
+solutions and are not replacements for the original campaign records. They show
+that the current Gram/Newton path can meet this stricter certificate on these
+two cases with tighter stopping. These failures alone do not establish a need
+to replace Gram formation. A useful next isolated experiment is to align native
+termination with the desired original-model objective certificate, while
+preserving valid global bounds and measuring its extra iterations.
+([Severe reference methods and results](../../../glqp-bench/runs/glm-stress-20261017/references/severe/README.md),
+[raw numerical evidence](../../../glqp-bench/runs/glm-stress-20261017/references/severe/summary.json).)
+
+A separate, preselected six-case Clarabel/CVXPY panel of the 30 compact cases
+validated all six saved GLQP solutions but only four Clarabel references. The
+four Gaussian/logistic reference objectives agree within `1.75e-8` on the same
+scale. Poisson range/free returned `optimal_inaccurate`, and Poisson
+zeros/monotone returned `optimal` but failed independent original-model checks.
+Both references fail stationarity as well as the gap gate, so these are not
+gap-only certificate failures. The zeros/monotone objective still agrees within
+`2.14e-9`; objective agreement alone is insufficient evidence of a valid reference.
+All six attempts and both reference failures are retained, without retries or
+tolerance changes.
+([Compact reference panel](../../../glqp-bench/runs/glm-stress-20261017/references/compact30/README.md).)
+
 ## Alternatives worth isolating
+
+The completed [stress checkpoint](../../../glqp-bench/benchmarks/progression/glm-stress-20261017/README.md)
+also contains selected original-operator/QR audits and exact first-search
+traces. Severe Poisson first accepts on trials 109 (box/affine) and 124 (free),
+beyond the profile's 100-trial cap. Cap 200 permits native convergence but leaves
+gap-certificate failures; cap 200 plus native tolerance `1e-9` certifies all
+three. Tightening native tolerance also tightens the linear absolute target,
+so it is not an isolated outer-stopping experiment. These controls do not
+reclassify the original 76/81 result or change defaults.
+
+For severe correlated Gaussian, the sampled production primal direction
+differs from requested-system QR by 0.34%. A dense solve of the same assembled
+matrix agrees with QR to `4.5e-9` absolute, versus production's `6.2e-4` error.
+This particular discrepancy is dominated by permitted solve error under
+conditioning. Both accurate requested directions still fail the same gap
+certificate, with remaining gradient approximately `-rho*x`. The result
+supports investigating stopping and regularization together; it does not
+establish a failure caused by Gram assembly.
 
 | Approach | What it addresses | Cost and limits |
 |---|---|---|
@@ -299,16 +398,16 @@ replacement by itself.
 
 ## Priority and discriminating experiments
 
-1. **Complete scalar correctness and independent validation first.** Preserve
-   the old source and raw results; compare the bounded fixes on old39 and new
-   compact cases. Record any changed coverage/iterations. Tests already isolate
-   the tail defect, so no broad parameter tuning is needed to justify that fix.
-2. **Add untimed derivative/operator audits to a few failures.** Record predictor
+1. **Preserve the scalar correction and independent validation evidence.** The
+   bounded fix has independent tail tests and the completed 81-case comparison;
+   coverage is unchanged. Keep the old source and raw failures visible. No broad
+   parameter tuning is needed to justify the independently reproduced tail fix.
+2. **Extend the completed selected derivative/operator audits.** Record predictor
    range, weights, D range/zeros, ridge and rho scales, Hessian skew, fresh versus
    carried predictor, and assembled versus factorized Hessian action on the
    actual Newton direction. Separate scaled linear residual, original block
    defect, clipping change, and original certificate components.
-3. **Use compact controlled conditioning probes.** Vary column correlation and
+3. **Extend compact controlled conditioning probes.** Vary column correlation and
    scale independently of ridge; compare the same requested direction with dense
    QR/SVD or higher-precision scalar/matrix references. Include zero-curvature
    rows and near-dependent equality constraints. Keep Gaussian's one-Hessian
