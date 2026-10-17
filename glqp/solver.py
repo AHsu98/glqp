@@ -21,6 +21,10 @@ from .outer_policy import validate_repair_and_fallback_settings, guarded_slack_r
 from .predictor_corrector import (
     validate_step_strategy, compute_predictor_corrector, describe_held_target,
 )
+from .proximal import (
+    validate_proximal_settings, ProximalState, search_proximal_step,
+    guard_proximal_repair,
+)
 from .diagnostics import (
     observe_iteration, point_diagnostics, direction_diagnostics,
     start_iteration_diagnostics, start_line_search_diagnostics, reject_trial,
@@ -55,6 +59,10 @@ class SolverSettings():
     armijo_param:float = 0.005
     let_newton_cook:float = 0.
     prox_reg:float = 2e-8
+    proximal_policy:str = 'legacy'
+    prox_dual_reg:float|None = None
+    proximal_center_reduction:float = .95
+    proximal_inner_tolerance:float = .1
     linear_solver_backend:str = 'qdldl'
     linear_solver_options:dict|None = None
     # 'previous' gives the intended preceding-target reduction floor.
@@ -74,6 +82,7 @@ class SolverSettings():
         validate_barrier_settings(self)
         validate_repair_and_fallback_settings(self)
         validate_step_strategy(self)
+        validate_proximal_settings(self)
 
 @dataclass
 class SolverResults():
@@ -183,6 +192,7 @@ class GLQP():
         validate_barrier_settings(settings)
         validate_repair_and_fallback_settings(settings)
         validate_step_strategy(settings)
+        validate_proximal_settings(settings)
         self._initial_linear_info = None
         # Problem matrices may have been replaced since the previous solve.
         self._kkt_workspace = None
@@ -285,7 +295,7 @@ class GLQP():
         self,
         x,y,s,H,rx,rp,rc,req,mu,
         tau_reg=None,prox_reg = 1e-7,
-        solver = None):
+        solver = None, *, dual_reg=None, complementarity_reg=None):
         #mu,x unused for now
 
         if tau_reg is None:
@@ -293,7 +303,9 @@ class GLQP():
 
         if self._kkt_workspace is None:
             self._kkt_workspace = KKTWorkspace(H, self.C, self.E)
-        G, rhs, w = self._kkt_workspace.assemble(H, y, s, rx, rp, rc, req, prox_reg)
+        options = ({} if dual_reg is None and complementarity_reg is None else
+                   dict(dual_reg=dual_reg, complementarity_reg=complementarity_reg))
+        G, rhs, w = self._kkt_workspace.assemble(H, y, s, rx, rp, rc, req, prox_reg, **options)
 
         linear_result = factor_and_solve(
             G,rhs,
@@ -317,17 +329,21 @@ class GLQP():
                 
         dx = sol[:self.n]
         dy = w*sol[self.n:self.n+self.k]
-        ds =  - rp - self.C@dx + prox_reg*dy
+        ds =  - rp - self.C@dx + (prox_reg if dual_reg is None else dual_reg)*dy
         dnu = sol[self.n+self.k:]
 
         return dx,ds,dy,dnu,solver,num_refine,linsolve_rel_error
 
     def solve_predictor_corrector(self, x, y, s, H, rx, rp, req, kkt_res, *,
-                                  prox_reg, solver=None, target_override=None):
+                                  prox_reg, solver=None, target_override=None,
+                                  dual_reg=None, complementarity_reg=None,
+                                  residual_safeguard=False, center_offsets=None):
         """Two verified RHS solves at one frozen, regularized Newton matrix."""
         return compute_predictor_corrector(
             self, x, y, s, H, rx, rp, req, kkt_res,
-            prox_reg=prox_reg, solver=solver, target_override=target_override)
+            prox_reg=prox_reg, solver=solver, target_override=target_override,
+            dual_reg=dual_reg, complementarity_reg=complementarity_reg,
+            residual_safeguard=residual_safeguard, center_offsets=center_offsets)
 
     
     def get_H(self,z):
@@ -412,6 +428,8 @@ class GLQP():
         constant_hessian = self.dummy_A or getattr(self.f, 'hessian_is_constant', False)
         gradf = Qx if self.dummy_A else AT@self.f.d1f(z) + Qx
         rx,rp,rc,req = self.KKT_res(x,gradf,y,s,nu)
+        proximal_state = (ProximalState(x,y,nu,rx,rp,req)
+                          if settings.proximal_policy == 'centered' else None)
         kkt_res = maxnorm(np.hstack([rx,rp,rc,req]))
         cons_viol = np.maximum(maxnorm(rp),maxnorm(req))
         initial_point = None
@@ -471,8 +489,22 @@ class GLQP():
                 termination_tag = "stagnated"
                 break
             prox_reg = np.minimum(settings.prox_reg,kkt_res*1e-3)
+            linear_options = {}
+            dual_reg = prox_reg
+            if settings.proximal_policy != 'legacy':
+                dual_cap = settings.prox_reg if settings.prox_dual_reg is None else settings.prox_dual_reg
+                dual_reg = np.minimum(dual_cap, kkt_res*1e-3)
+                linear_options = dict(dual_reg=dual_reg, complementarity_reg=0.)
+            proximal_model = None if proximal_state is None else proximal_state.freeze(prox_reg, dual_reg)
+            linear_rx, linear_rp, linear_req = ((rx,rp,req) if proximal_model is None else
+                proximal_model.residuals(x,y,nu,rx,rp,req))
             if diagnostics_enabled:
                 iteration_diag = start_iteration_diagnostics(iteration_number+1, prox_reg)
+                if proximal_model is not None:
+                    iteration_diag['proximal'] = dict(
+                        generation=proximal_model.generation, rho=float(prox_reg), delta=float(dual_reg),
+                        center_offset_before_inf={key:maxnorm(value) for key,value
+                            in proximal_model.offsets(x,y,nu).items()})
 
             self._linear_info = None
             pc_step = None
@@ -480,8 +512,11 @@ class GLQP():
                 #Solve KKT
                 if use_predictor_corrector:
                     pc_step = self.solve_predictor_corrector(
-                        x, y, s, H, rx, rp, req, kkt_res, prox_reg=prox_reg,
-                        solver=solver, target_override=mu0 if iteration_number == 0 else None)
+                        x, y, s, H, linear_rx, linear_rp, linear_req, kkt_res, prox_reg=prox_reg,
+                        solver=solver, target_override=mu0 if iteration_number == 0 else None,
+                        **linear_options,
+                        **({} if proximal_model is None else dict(residual_safeguard=True,
+                            center_offsets=proximal_model.offsets(x,y,nu))))
                     dx, ds, dy, dnu = pc_step.dx, pc_step.ds, pc_step.dy, pc_step.dnu
                     solver = pc_step.factorization
                     num_refine = pc_step.refinements
@@ -496,11 +531,12 @@ class GLQP():
                     dx,ds,dy,dnu,solver,num_refine,linsolve_rel_error = self.solve_KKT(
                         x,y,s,
                         H,
-                        rx,rp,rc,req,
+                        linear_rx,linear_rp,rc,linear_req,
                         mu,
                         tau_reg = self.settings.tau_reg,
                         prox_reg = prox_reg,
-                        solver = solver
+                        solver = solver,
+                        **linear_options,
                         )
             except LinearSolveError as ex:
                 termination_tag = "failed_linear_solve"
@@ -532,149 +568,168 @@ class GLQP():
                 iteration_diag['direction'] = direction_diagnostics(
                     self, H, dx, ds, dy, dnu, old_ds, old_dy,
                     y, s, rx, rp, rc, req, prox_reg, thresh,
-                    complementarity_correction=None if pc_step is None else pc_step.correction)
+                    complementarity_correction=None if pc_step is None else pc_step.correction,
+                    **linear_options,
+                    **({} if proximal_model is None else dict(
+                        center_offsets=proximal_model.offsets(x,y,nu))))
             
             boundary_frac = settings.boundary_frac
             tmax = get_step_size(s,ds,y,dy,frac = boundary_frac)
             #Perform a linesearch so we converge on the nonlinear part
 
-            # Accepted-iterate values were evaluated together below (or at
-            # initialization). Only the barrier changes when mu is updated.
-            barrier = -mu*np.sum(np.log(s))
-            merit0 = primal + barrier
-
-            gx = gradf - self.b
-            gs = -mu/s
-
-            dx_gx = np.dot(dx,gx)
-            ds_gs = np.dot(ds,gs)
-            merit_slope = dx_gx + ds_gs
-            if diagnostics_enabled:
-                search_diag = start_line_search_diagnostics(
-                    tmax, merit_slope, fallback_policy=settings.newton_fallback_policy,
-                    perturbed_kkt_before=perturbed_kkt_before)
-                iteration_diag['line_search'] = search_diag
-
-            t = tmax
-            dz = z if self.dummy_A else self.A@dx
-            Qdx = self.Q@dx
-            xQx = np.dot(x,Qx)
-            xQdx = np.dot(x,Qdx)
-            dxQdx = np.dot(dx,Qdx)
-            #Enter line search
-
-            #OK with a small additive error in line search
-            def merit_line(t, trial_x, trial_s, trial_z):
-                primal = (
-                    self.f(trial_z)
-                    + (1/2) * (xQx + 2*t*xQdx + t*t*dxQdx)
-                        - np.dot(trial_x,self.b)
-                )
-                barrier = -mu*np.sum(np.log(trial_s))
-                return primal + barrier
-            
-            successful = False
-            for linesearch_step in range(settings.max_linesearch_steps):
+            if proximal_model is not None:
+                proximal_trial, search_diag = search_proximal_step(
+                    self, proximal_model, x=x, y=y, s=s, nu=nu, z=z, Qx=Qx,
+                    primal=primal, H=H, residuals=(rx,rp,y*s,req),
+                    direction=(dx,ds,dy,dnu), target=mu, tmax=tmax,
+                    slope_hint=None if pc_step is None else pc_step.decision['residual_merit_slope'])
+                successful = proximal_trial is not None
+                if successful:
+                    t = proximal_trial.step
+                    trial_x, trial_s, trial_y = proximal_trial.x, proximal_trial.s, proximal_trial.y
+                    trial_z = proximal_trial.z
+                    trial_products = proximal_trial.products
+                    trial_glm_gradient = proximal_trial.glm_gradient
                 if diagnostics_enabled:
-                    search_diag['trial_count'] += 1
-                if not np.isfinite(t) or t <= 0:
-                    if diagnostics_enabled:
-                        reject_trial(search_diag, 'invalid_step')
-                    break
-                trial_x = x + t*dx
-                trial_s, trial_y = s + t*ds, y + t*dy
-                # Products from a rejected trial belong only to that point.
-                trial_products = trial_glm_gradient = None
-                if (not np.all(np.isfinite(trial_x))
-                        or not np.all(np.isfinite(trial_s))
-                        or not np.all(np.isfinite(trial_y))
-                        or np.any(trial_s <= 0) or np.any(trial_y <= 0)):
-                    if diagnostics_enabled:
-                        reject_trial(search_diag, 'nonfinite_or_nonpositive_trial')
-                    t = 0.9*t
-                    continue
-                #Check armijo
-                trial_z = z if self.dummy_A else z + t*dz
-                with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
-                    new_merit = merit_line(t, trial_x, trial_s, trial_z)
-                if not np.isfinite(new_merit):
-                    if diagnostics_enabled:
-                        reject_trial(search_diag, 'nonfinite_merit')
-                    t = 0.9*t
-                    continue
-                armijo_satisfied = (
-                    new_merit<(
-                        merit0 + 
-                        settings.armijo_param * t * merit_slope +
-                        settings.armijo_additive_eps)
-                )
-                if armijo_satisfied:
-                    successful = True
-                    if diagnostics_enabled:
-                        search_diag['acceptance_reason'] = 'armijo'
-                    break
+                    iteration_diag['line_search'] = search_diag
+            else:
+                # Accepted-iterate values were evaluated together below (or at
+                # initialization). Only the barrier changes when mu is updated.
+                barrier = -mu*np.sum(np.log(s))
+                merit0 = primal + barrier
 
+                gx = gradf - self.b
+                gs = -mu/s
+
+                dx_gx = np.dot(dx,gx)
+                ds_gs = np.dot(ds,gs)
+                merit_slope = dx_gx + ds_gs
                 if diagnostics_enabled:
-                    search_diag['armijo_failure_count'] += 1
+                    search_diag = start_line_search_diagnostics(
+                        tmax, merit_slope, fallback_policy=settings.newton_fallback_policy,
+                        perturbed_kkt_before=perturbed_kkt_before)
+                    iteration_diag['line_search'] = search_diag
 
-                # A rejected nonlinear descent trial can use its KKT norm
-                # only once the explicitly enabled Newton fallback applies.
-                # Skip derivatives and constraint products otherwise.
-                residual_acceptance = self.QP_mode or merit_slope >= 0
-                newton_fallback = (settings.newton_fallback_policy != 'off'
-                                   and t < settings.let_newton_cook*tmax)
-                if not (residual_acceptance or newton_fallback):
+                t = tmax
+                dz = z if self.dummy_A else self.A@dx
+                Qdx = self.Q@dx
+                xQx = np.dot(x,Qx)
+                xQdx = np.dot(x,Qdx)
+                dxQdx = np.dot(dx,Qdx)
+                #Enter line search
+
+                #OK with a small additive error in line search
+                def merit_line(t, trial_x, trial_s, trial_z):
+                    primal = (
+                        self.f(trial_z)
+                        + (1/2) * (xQx + 2*t*xQdx + t*t*dxQdx)
+                            - np.dot(trial_x,self.b)
+                    )
+                    barrier = -mu*np.sum(np.log(trial_s))
+                    return primal + barrier
+
+                successful = False
+                for linesearch_step in range(settings.max_linesearch_steps):
+                    if diagnostics_enabled:
+                        search_diag['trial_count'] += 1
+                    if not np.isfinite(t) or t <= 0:
+                        if diagnostics_enabled:
+                            reject_trial(search_diag, 'invalid_step')
+                        break
+                    trial_x = x + t*dx
+                    trial_s, trial_y = s + t*ds, y + t*dy
+                    # Products from a rejected trial belong only to that point.
+                    trial_products = trial_glm_gradient = None
+                    if (not np.all(np.isfinite(trial_x))
+                            or not np.all(np.isfinite(trial_s))
+                            or not np.all(np.isfinite(trial_y))
+                            or np.any(trial_s <= 0) or np.any(trial_y <= 0)):
+                        if diagnostics_enabled:
+                            reject_trial(search_diag, 'nonfinite_or_nonpositive_trial')
+                        t = 0.9*t
+                        continue
+                    #Check armijo
+                    trial_z = z if self.dummy_A else z + t*dz
+                    with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
+                        new_merit = merit_line(t, trial_x, trial_s, trial_z)
+                    if not np.isfinite(new_merit):
+                        if diagnostics_enabled:
+                            reject_trial(search_diag, 'nonfinite_merit')
+                        t = 0.9*t
+                        continue
+                    armijo_satisfied = (
+                        new_merit<(
+                            merit0 +
+                            settings.armijo_param * t * merit_slope +
+                            settings.armijo_additive_eps)
+                    )
+                    if armijo_satisfied:
+                        successful = True
+                        if diagnostics_enabled:
+                            search_diag['acceptance_reason'] = 'armijo'
+                        break
+
+                    if diagnostics_enabled:
+                        search_diag['armijo_failure_count'] += 1
+
+                    # A rejected nonlinear descent trial can use its KKT norm
+                    # only once the explicitly enabled Newton fallback applies.
+                    # Skip derivatives and constraint products otherwise.
+                    residual_acceptance = self.QP_mode or merit_slope >= 0
+                    newton_fallback = (settings.newton_fallback_policy != 'off'
+                                       and t < settings.let_newton_cook*tmax)
+                    if not (residual_acceptance or newton_fallback):
+                        if diagnostics_enabled:
+                            reject_trial(search_diag, 'acceptance_tests_failed')
+                        t = 0.9*t
+                        continue
+                
+                    #Check KKT residual
+                    if diagnostics_enabled:
+                        search_diag['residual_check_count'] += 1
+                    trial_glm_gradient = 0. if self.dummy_A else AT@self.f.d1f(trial_z)
+                    ls_gradf = trial_glm_gradient + Qx + t*Qdx
+                    trial_products = self._constraint_products(trial_x, trial_y, nu+t*dnu)
+                    ls_blocks = self._kkt_residuals(ls_gradf, trial_y, trial_s, trial_products)
+                    ls_kkt_res = maxnorm(np.hstack(ls_blocks))
+                    # Preserve residual acceptance for QPs, including restoration
+                    # from an inconsistent positive slack warm start. For nonlinear
+                    # GLMs, alternating merit decreases and residual-only steps can
+                    # cycle: descent directions must pass the merit test there.
+                    if residual_acceptance and np.isfinite(ls_kkt_res) and (
+                        ls_kkt_res<(1-settings.armijo_param*t)*kkt_res
+                        or ls_kkt_res<settings.tol
+                    ):
+                        successful = True
+                        if diagnostics_enabled:
+                            search_diag['acceptance_reason'] = 'residual'
+                        break
+                    # Preserve the explicitly configured Newton fallback, but
+                    # never use it to accept nonfinite or non-interior trials.
+                    if np.isfinite(ls_kkt_res) and newton_fallback:
+                        if settings.newton_fallback_policy == 'progress':
+                            ls_rx, ls_rp, ls_rc, ls_req = ls_blocks
+                            trial_perturbed_kkt = maxnorm(np.hstack(
+                                [ls_rx, ls_rp, ls_rc-mu, ls_req]))
+                            contraction_limit = (1-settings.armijo_param*t)*perturbed_kkt_before
+                            progress = bool(np.isfinite(trial_perturbed_kkt) and (
+                                trial_perturbed_kkt < contraction_limit
+                                or trial_perturbed_kkt < settings.tol))
+                            if diagnostics_enabled:
+                                record_fallback_progress(search_diag, t, perturbed_kkt_before,
+                                                         trial_perturbed_kkt, contraction_limit, progress)
+                            if not progress:
+                                if diagnostics_enabled:
+                                    reject_trial(search_diag, 'fallback_no_progress')
+                                t = 0.9*t
+                                continue
+                        successful = True
+                        if diagnostics_enabled:
+                            search_diag['acceptance_reason'] = 'newton_fallback'
+                        break
                     if diagnostics_enabled:
                         reject_trial(search_diag, 'acceptance_tests_failed')
                     t = 0.9*t
-                    continue
-                
-                #Check KKT residual
-                if diagnostics_enabled:
-                    search_diag['residual_check_count'] += 1
-                trial_glm_gradient = 0. if self.dummy_A else AT@self.f.d1f(trial_z)
-                ls_gradf = trial_glm_gradient + Qx + t*Qdx
-                trial_products = self._constraint_products(trial_x, trial_y, nu+t*dnu)
-                ls_blocks = self._kkt_residuals(ls_gradf, trial_y, trial_s, trial_products)
-                ls_kkt_res = maxnorm(np.hstack(ls_blocks))
-                # Preserve residual acceptance for QPs, including restoration
-                # from an inconsistent positive slack warm start. For nonlinear
-                # GLMs, alternating merit decreases and residual-only steps can
-                # cycle: descent directions must pass the merit test there.
-                if residual_acceptance and np.isfinite(ls_kkt_res) and (
-                    ls_kkt_res<(1-settings.armijo_param*t)*kkt_res
-                    or ls_kkt_res<settings.tol
-                ):
-                    successful = True
-                    if diagnostics_enabled:
-                        search_diag['acceptance_reason'] = 'residual'
-                    break
-                # Preserve the explicitly configured Newton fallback, but
-                # never use it to accept nonfinite or non-interior trials.
-                if np.isfinite(ls_kkt_res) and newton_fallback:
-                    if settings.newton_fallback_policy == 'progress':
-                        ls_rx, ls_rp, ls_rc, ls_req = ls_blocks
-                        trial_perturbed_kkt = maxnorm(np.hstack(
-                            [ls_rx, ls_rp, ls_rc-mu, ls_req]))
-                        contraction_limit = (1-settings.armijo_param*t)*perturbed_kkt_before
-                        progress = bool(np.isfinite(trial_perturbed_kkt) and (
-                            trial_perturbed_kkt < contraction_limit
-                            or trial_perturbed_kkt < settings.tol))
-                        if diagnostics_enabled:
-                            record_fallback_progress(search_diag, t, perturbed_kkt_before,
-                                                     trial_perturbed_kkt, contraction_limit, progress)
-                        if not progress:
-                            if diagnostics_enabled:
-                                reject_trial(search_diag, 'fallback_no_progress')
-                            t = 0.9*t
-                            continue
-                    successful = True
-                    if diagnostics_enabled:
-                        search_diag['acceptance_reason'] = 'newton_fallback'
-                    break
-                if diagnostics_enabled:
-                    reject_trial(search_diag, 'acceptance_tests_failed')
-                t = 0.9*t
 
             if not successful:
                 termination_tag = "failed_line_search"
@@ -745,7 +800,7 @@ class GLQP():
                             repair_policy_diag.update(decision='disabled', rejection_reason='disabled')
                     else:
                         args_to_fix = (s*y)/mu_est<=fix_threshold
-                        if settings.slack_repair == 'legacy':
+                        if settings.slack_repair == 'legacy' and proximal_model is None:
                             print("Adjusted")
                             s[args_to_fix] = fix_threshold*mu_est/(y[args_to_fix])
                             # Preserve the accepted legacy update and residual
@@ -768,6 +823,14 @@ class GLQP():
                             proposal = guarded_slack_repair(
                                 self.C, self.c, x, y, s, rx, rp, req, pre_repair_kkt,
                                 mu_est, args_to_fix, fix_threshold, settings.repair_growth_limit, settings.tol)
+                            if proximal_model is not None and proposal.accepted:
+                                allowed, metrics = guard_proximal_repair(
+                                    proximal_model,x,y,nu,rx,rp,rc,req,proposal.rp,proposal.rc,
+                                    search_diag['target'],search_diag)
+                                proposal.accepted = allowed
+                                proposal.metrics.update(metrics, applied=allowed, rejected=not allowed,
+                                    rejection_reason=None if allowed else 'proximal_merit_growth',
+                                    rejection_reasons=() if allowed else ('proximal_merit_growth',))
                             if proposal.accepted:
                                 s, rp, rc, kkt_res = (proposal.s, proposal.rp, proposal.rc,
                                                      proposal.kkt_residual)
@@ -775,6 +838,15 @@ class GLQP():
                                 repair_policy_diag.update(proposal.metrics)
                                 repair_policy_diag['decision'] = ('guarded_applied' if proposal.accepted
                                                                   else 'guarded_rejected')
+                                if proximal_model is not None:
+                                    repair_policy_diag['policy'] = 'proximal_merit_guarded'
+
+            proximal_update = None
+            if proximal_model is not None:
+                proximal_update = proximal_state.update(
+                    proximal_model,x,y,nu,rx,rp,rc,req,search_diag['target'],settings)
+                if diagnostics_enabled:
+                    iteration_diag['proximal'].update(proximal_update)
 
             accepted_point = None
             if diagnostics_enabled:
@@ -826,6 +898,15 @@ class GLQP():
                     pc_affine_status=pc_step.affine_info.status,
                     pc_combined_status=pc_step.combined_info.status,
                     pc_factorization_attempts=pc_step.decision['factorization_attempts'])),
+                **({} if proximal_update is None else dict(
+                    prox_generation=proximal_update['generation'],
+                    prox_primal_center_updated=proximal_update['primal_center_updated'],
+                    prox_dual_centers_updated=proximal_update['dual_centers_updated'],
+                    prox_inner_converged=proximal_update['inner_converged'],
+                    prox_fixed_target_residual=proximal_update['fixed_target_proximal_residual_inf'],
+                    prox_merit_before=search_diag['merit_before'],
+                    prox_merit_after=search_diag['merit_after'],
+                    prox_line_search_trials=search_diag['trial_count'])),
             )
 
         #TODO: Maybe merge build_solution_summary and SolverResults together

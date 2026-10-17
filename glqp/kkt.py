@@ -76,7 +76,41 @@ class KKTWorkspace:
         self._h_indptr = H.indptr.copy()
         self._h_indices = H.indices.copy()
 
-    def assemble(self, H, y, s, rx, rp, rc, req, prox_reg):
+    def assemble(self, H, y, s, rx, rp, rc, req, prox_reg, *,
+                 dual_reg=None, complementarity_reg=None):
+        """Assemble the symmetric elimination of the four Newton blocks.
+
+        ``prox_reg`` shifts the primal Hessian. ``dual_reg`` shifts both
+        constraint equations, and ``complementarity_reg`` shifts the slack
+        derivative of complementarity. Each optional shift inherits
+        ``prox_reg`` when omitted, preserving the original scalar model.
+
+        For primal, dual, and complementarity shifts ``rho_x, rho_y, rho_s``,
+        the uneliminated equations are::
+
+            (H + rho_x I) dx + C.T dy + E.T dnu = -rx
+            C dx + ds - rho_y dy = -rp
+            (Y + rho_s I) ds + S dy = -rc
+            E dx - rho_y dnu = -req
+
+        Proximal centers, when used, belong in the supplied residuals. Standard
+        complementarity uses ``complementarity_reg=0``. The returned scaled
+        dual direction must be multiplied by ``w``; recover the slack direction
+        with ``ds = -rp - C @ dx + rho_y * dy``.
+        """
+        scalar_model = dual_reg is None and complementarity_reg is None
+        rho_y = prox_reg if dual_reg is None else dual_reg
+        rho_s = prox_reg if complementarity_reg is None else complementarity_reg
+        if not scalar_model:
+            for name, value in (("prox_reg", prox_reg), ("dual_reg", rho_y),
+                                ("complementarity_reg", rho_s)):
+                try:
+                    valid = (np.ndim(value) == 0 and np.isreal(value)
+                             and np.isfinite(value) and value >= 0)
+                except (TypeError, ValueError):
+                    valid = False
+                if not valid:
+                    raise ValueError(f"{name} must be a finite nonnegative scalar")
         H = _canonical(H)
         if H.shape != (self.n, self.n):
             raise ValueError("Hessian dimensions changed during a solve")
@@ -89,13 +123,17 @@ class KKTWorkspace:
         data[self._primal_diag] = 0.
         data[self._h_slots] = H.data
         data[self._primal_diag] += prox_reg
-        np.add(y, prox_reg, out=self.w)
+        np.add(y, rho_s, out=self.w)
         np.sqrt(self.w, out=self.w)
         np.multiply(self.C.data, self.w[self.C.indices], out=self._scaled_C)
         data[self._c_lower] = self._scaled_C
         data[self._c_upper] = self._scaled_C
-        data[self._ineq_diag] = -(s + prox_reg*y + prox_reg**2)
-        data[self._eq_diag] = -prox_reg
+        if scalar_model:
+            # Keep the accepted scalar model's floating-point arithmetic exact.
+            data[self._ineq_diag] = -(s + prox_reg*y + prox_reg**2)
+        else:
+            data[self._ineq_diag] = -(s + rho_y*y + rho_y*rho_s)
+        data[self._eq_diag] = -rho_y
 
         self.assemble_rhs(rx, rp, rc, req)
         return self.matrix, self.rhs, self.w

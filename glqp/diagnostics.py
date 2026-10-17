@@ -118,15 +118,21 @@ def original_newton_blocks(model, H, x_direction, s_direction, y_direction,
 
 def direction_diagnostics(model, H, dx, ds, dy, dnu, old_ds, old_dy,
                           y, s, rx, rp, rc, req, rho, threshold, *,
-                          complementarity_correction=None):
+                          complementarity_correction=None, dual_reg=None,
+                          complementarity_reg=None, center_offsets=None):
     """Measure before/after editing and the defect induced by the edits alone."""
     before = original_newton_blocks(model, H, dx, old_ds, old_dy, dnu,
                                      y, s, rx, rp, rc, req)
     after = original_newton_blocks(model, H, dx, ds, dy, dnu,
                                     y, s, rx, rp, rc, req)
-    regularization = dict(stationarity=-rho*dx, primal=rho*old_dy,
-                          equality=rho*dnu, complementarity=-rho*old_ds)
+    delta = rho if dual_reg is None else dual_reg
+    slack_shift = rho if complementarity_reg is None else complementarity_reg
+    regularization = dict(stationarity=-rho*dx, primal=delta*old_dy,
+                          equality=delta*dnu, complementarity=-slack_shift*old_ds)
     requested = {key: before[key]-regularization[key] for key in before}
+    if center_offsets is not None:
+        for key, value in center_offsets.items():
+            requested[key] += value
     # The combined corrector intentionally changes the original Newton RHS.
     # Keep that change visible in original defects, but exclude it from the
     # residual of the system we actually requested from the linear solver.
@@ -146,6 +152,8 @@ def direction_diagnostics(model, H, dx, ds, dy, dnu, old_ds, old_dy,
         original_newton_before_inf=_block_norms(before),
         original_newton_after_inf=_block_norms(after),
         regularization_defect_inf=_block_norms(regularization),
+        **({} if center_offsets is None else dict(
+            center_residual_offset_inf=_block_norms(center_offsets))),
         requested_regularized_before_inf=_block_norms(requested),
         **({} if complementarity_correction is None else dict(
             corrector_complementarity_defect_inf=_inf(complementarity_correction))),
@@ -163,7 +171,9 @@ def start_iteration_diagnostics(iteration, rho):
 def policy_diagnostics(settings):
     names = ('initial_mu_policy', 'initial_mu_scale', 'barrier_update_guard',
              'barrier_reduction_limit', 'barrier_kkt_floor', 'slack_repair',
-             'repair_growth_limit', 'newton_fallback_policy', 'step_strategy')
+             'repair_growth_limit', 'newton_fallback_policy', 'step_strategy',
+             'proximal_policy', 'prox_dual_reg', 'proximal_center_reduction',
+             'proximal_inner_tolerance')
     return {name: getattr(settings, name) for name in names}
 
 
