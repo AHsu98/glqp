@@ -500,3 +500,168 @@ tuning dimension.
 The next measurements must still establish acceptance on the screening
 panel before broadening. The derivation of (15) is local and does not claim
 that the experiment will recover the six failed cases.
+
+## Progress-based physical parameter continuation
+
+Numerical revision `1f5ac45` adds the opt-in
+`proximal_reg_update="progress"` for the centered policy. The default
+`"residual"` retains the earlier coefficient rule. The progress option
+maintains separate nonincreasing caps for rho and delta. Before freezing an
+iteration, each actual coefficient is the minimum of its persistent cap,
+its user cap, and `.001*original_KKT`. The accepted affine/combined/search
+model is never changed retroactively.
+
+After the accepted point and any guarded repair, consider the two blocks
+independently:
+
+| Coefficient | Original residual norm | Physical center-offset norm |
+| --- | --- | --- |
+| rho | `norm_inf(rd)` | `norm_inf(rho*(x-xbar))` |
+| delta | `max(norm_inf(rp), norm_inf(re))` | `max(norm_inf(delta*(y-ybar)), norm_inf(delta*(nu-nubar)))` |
+
+A block's consecutive-miss counter resets when its original residual
+satisfies the existing 5% improvement gate; otherwise it increments.
+Schedule that block's next cap to be
+`min(previous_cap, .1*actual_coefficient)` when either:
+
+1. The current fixed subproblem meets the inner-accuracy criterion (13), or
+2. The block has missed its progress gate for at least five accepted steps
+   **and** its center-offset norm is at least
+   `.1*max(original_block_residual, tol)`.
+
+Reset the corresponding miss counter on this trigger. A changed parameter
+also advances the recorded model generation. The usual center updates remain
+independent: original-residual progress can refresh one center group, and
+inner convergence refreshes all centers. Merely reducing a cap because of
+the offset gate does not force a center refresh. The next iteration
+recomputes residuals and matrix with the new coefficient.
+
+The offset gate matters. Five small accepted steps alone do not establish
+that a proximal term causes the slow progress. On early QSHELL iterates,
+original feasibility is around `5.4e4` while the dual center-offset term is
+only around `1e-3`; automatically deleting delta in response to those steps
+would not follow the observed residual balance. Conversely, near QPCBOEI2's
+late fixed subproblem, original feasibility `8.48e-4` is almost entirely
+`delta*(y-ybar)`, while the fixed-target proximal residual is only about
+`6.9e-7`. Reducing delta strengthens the corresponding augmented penalty
+and is directly relevant to the remaining original error.
+
+This policy is a declared continuation heuristic motivated by residual
+accounting. The factors `.1`, five misses, and the offset threshold are
+experimental choices, not a theorem or a reproduced PIQP parameter policy.
+No global convergence guarantee is claimed for the combination with
+changing barrier targets, clipped directions, and inexact PC subproblems.
+Each resulting numerical outcome must still pass the original-data
+certificate. Numerical source `1f5ac45` is the experiment identity; later
+documentation edits do not change its equations.
+
+### Stronger primal regularization was not a useful QSHELL fix
+
+The initial short development probe stopped QSHELL after 43 iterations
+because its stagnation window was only 20. With the longer declared window,
+the bounded-correction centered control already reaches native optimal and
+passes the independent certificate in **596 iterations**. Thus the short
+probe did not establish that this configuration cannot solve QSHELL.
+
+Two additional untimed probes kept the dual cap at `2e-8`, correction bound
+at `.5`, and stagnation window at 1000 while increasing the primal cap:
+
+| Primal cap | QSHELL outcome within 1000 iterations |
+| --- | --- |
+| `2e-8` | Optimal and accepted, 596 iterations |
+| `.01` | Optimal and accepted, 781 iterations |
+| `1` | Iteration limit, independent certificate failed |
+
+Larger primal curvature was therefore a rejected experiment on this case.
+The separate `physical_scale_probe.py` and raw
+`strong-primal001-qshell.json` / `strong-primal1-qshell.json` are retained in
+`glqp-bench/runs/proximal-consistency-20261017/probes`. These probes ran on
+CPU 5, one at a time, and are correctness/iteration evidence only; their
+elapsed times must not enter performance profiles. The controlled follow-up
+and three exact diagnostic reproductions are recorded below.
+
+## Final QP screen and reproduced failure mechanism
+
+The clean `screen-v4/screen` campaign uses the declared eight-QP development
+panel. Existing regularized PC passes **8/8**; centered PC with residual-only
+coefficient caps passes **6/8**; the progress-based coefficient policy passes
+**7/8**. Removing the barrier target floor from that progress variant also
+passes **7/8**. Both progress variants lose LISWET1: the retained-floor
+variant accepts 482 steps before failing the next direction/search, while
+the floor-free variant accepts 239. This is a useful opt-in physical model,
+not an accepted replacement for the existing solver defaults or a broad
+coverage result.
+
+Three untimed diagnostics use the final campaign's frozen `glqp_current`
+source/settings on CPU 1. Every replay preserves the plain run's solution
+arrays and accepted-iteration counts exactly:
+
+| Problem | Accepted iterations | First common certificate | Native outcome |
+| --- | ---: | ---: | --- |
+| QPCBOEI2 | 173 | 173 | Optimal |
+| QSHELL | 596 | 592 | Optimal |
+| LISWET1 | 482 | Never | Failed line search on attempt 483 |
+
+The raw traces are under
+`glqp-bench/runs/proximal-consistency-20261017/diagnostics/`, in
+`qpcboei2-adaptive-v4`, `qshell-adaptive-v4`, and `liswet1-adaptive-v4`.
+Their diagnostic elapsed times are excluded from timing comparisons.
+
+QPCBOEI2 uses 173 factors and 346 verified RHS solves, all labelled accurate,
+without a centering rescue. It accepts every step through the declared
+proximal Armijo test. Its progress policy reduces the primal cap twice and
+the dual cap three times through the stalled-offset rule, then reduces both
+once through inner accuracy. The last used coefficients are approximately
+`rho=2e-11` and `delta=2e-12`. Original feasibility ends near `6.09e-9`, and
+true-slack aggregate complementarity passes the independent certificate.
+
+QSHELL uses 596 factors and 1192 accurate RHS solves, also without a rescue.
+The stalled-offset rule never reduces its parameters; both reductions come
+from inner accuracy near the end. All 596 accepted steps satisfy proximal
+Armijo. It first passes the common certificate at iteration 592 and reaches
+native optimal at 596. This confirms that its early small-step phase needs
+to be distinguished from QPCBOEI2's proximal-offset-limited late progress.
+
+### LISWET1: loss of original-coordinate linear accuracy
+
+LISWET1's final failure does **not** exhaust backtracking. At attempt 483,
+the affine, combined, and centering-rescue solves each hit the ten-step
+GMRES refinement limit. The rescue's scaled requested-system residual is
+`5.70e-8`, above its `5e-9` absolute target, with relative residual about
+`.0157`. The solve is correctly labelled `inaccurate`.
+
+Recovered original-coordinate complementarity has a requested-equation
+defect of `9.78e-7`, compared with a current proximal residual infinity norm
+of `8.13e-8`. The rescue has zero corrector term, and no direction clipping
+occurs on this final attempt, so neither deliberate PC correction nor
+clipping explains that defect. Its actual residual-merit slope is positive,
+`9.85e-13`. The line search correctly rejects this direction before any
+trial evaluation; accepting it merely because its components are finite
+would violate the declared globalization rule.
+
+Across the replay there are 483 affine/combined attempts, 14 inaccurate
+affine solves, 14 inaccurate final combined/rescue solves, and three
+centering rescues, for 969 total verified RHS solves. Direction clipping
+occurs on 442 earlier attempts. Nine guarded repairs alter 14,794 slack
+entries, with maximum primal-residual change only about `8.5e-12`; none
+increases the accepted fixed-model merit.
+
+The parameter/accuracy chronology identifies a concrete interaction. The
+only stalled-offset reductions of delta occur after accepted steps 22 and
+470. The very next affine attempts, 23 and 471, are inaccurate; attempts
+471 through 483 all remain inaccurate. The final physical coefficients are
+`rho=8.22e-11` and `delta=1.05e-12`, while factor-only `tau_reg` remains
+`2e-8`. This association is not a proof of causality, but it motivates
+checking verified linear accuracy when continuing the physical parameters
+and examining factor-shift/refinement behavior before further merit tuning.
+QPCBOEI2 successfully uses comparably small coefficients, so a universal
+coefficient floor is not established by this one failure.
+
+The final accepted LISWET1 point illustrates why original-data stopping
+must remain authoritative. Its ordinary KKT infinity norm is `8.22e-8`,
+below the native scalar tolerance, and stored-slack complementarity sums
+to only `1.26e-4`. However, true-slack aggregate complementarity is `.4073`,
+or approximately `1.63e-4` after objective scaling. The independent checker
+therefore rejects it, and the existing aggregate native stopping test also
+withholds success. No failure was converted to success by loosening that
+test or by reporting only the regularized residual.

@@ -1,5 +1,9 @@
 # Experimental predictor–corrector
 
+The later [proximal-consistency experiment](proximal-consistency.md) adds
+persistent centers and a matching nonlinear residual merit as separate opt-in
+options. The legacy PC path described here remains available unchanged.
+
 The default remains `step_strategy="newton"`. Select
 `SolverSettings(step_strategy="predictor_corrector")` for the experimental
 two-RHS strategy. It applies only to real inequalities; equality-only and
