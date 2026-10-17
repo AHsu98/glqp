@@ -13,6 +13,13 @@ import numpy as np
 from .diagnostics import start_line_search_diagnostics, reject_trial
 
 
+# Fixed choices in the centered experiments, separate from SolverSettings.
+_REGULARIZATION_STALL_LIMIT = 5
+_REGULARIZATION_REDUCTION = .1
+_REGULARIZATION_OFFSET_FRACTION = .1
+_BACKTRACKING_FACTOR = .5
+
+
 def inf_norm(value):
     return float(np.max(np.abs(value), initial=0.))
 
@@ -54,6 +61,14 @@ def _center(value):
 
 @dataclass(frozen=True)
 class FixedProximalModel:
+    """One residual map shared by a Newton/PC direction and its line search.
+
+    Centers are immutable arrays owned by ``ProximalState``. Updating that
+    state replaces its arrays, so an already frozen model remains unchanged.
+    ``rho`` shifts stationarity; ``delta`` shifts both feasibility blocks.
+    Complementarity remains ``s*y - target`` and has no proximal slack term.
+    """
+
     x_center: np.ndarray
     y_center: np.ndarray
     nu_center: np.ndarray
@@ -73,7 +88,7 @@ class FixedProximalModel:
 
 
 class ProximalState:
-    """Persistent centers; replacing a center never mutates a frozen model."""
+    """Accepted-point state: centers, regularization caps, and progress gates."""
 
     def __init__(self, x, y, nu, rx, rp, req, *, rho_cap=np.inf, delta_cap=np.inf):
         self.x, self.y, self.nu = map(_center, (x, y, nu))
@@ -90,9 +105,16 @@ class ProximalState:
         return self.rho_cap, self.delta_cap
 
     def freeze(self, rho, delta):
-        return FixedProximalModel(self.x, self.y, self.nu, float(rho), float(delta), self.generation)
+        return FixedProximalModel(
+            self.x, self.y, self.nu, float(rho), float(delta), self.generation)
 
     def update(self, fixed, x, y, nu, rx, rp, rc, req, target, settings):
+        """Advance state only after finalizing the accepted point and repair.
+
+        Residuals are from the original problem and ``rc`` is ``s*y``. Inner
+        accuracy is measured with the old frozen model and the search target,
+        before replacing any centers or selecting the next coefficients.
+        """
         rd, rpi, re = fixed.residuals(x, y, nu, rx, rp, req)
         proximal_norm = max(inf_norm(rd), inf_norm(rpi), inf_norm(rc-target), inf_norm(re))
         inner_limit = settings.proximal_inner_tolerance*max(target, settings.tol)
@@ -102,24 +124,39 @@ class ProximalState:
         primal_progress = (stationarity < self.stationarity and
                            stationarity <= settings.proximal_center_reduction*self.stationarity)
         dual_progress = (feasibility < self.feasibility and
-                        feasibility <= settings.proximal_center_reduction*self.feasibility)
-        move_x, move_dual = inner_converged or primal_progress, inner_converged or dual_progress
-        offsets = {key:inf_norm(value) for key,value in fixed.offsets(x,y,nu).items()}
+                         feasibility <= settings.proximal_center_reduction*self.feasibility)
+        move_x = inner_converged or primal_progress
+        move_dual = inner_converged or dual_progress
+        offsets = {key: inf_norm(value) for key, value in fixed.offsets(x, y, nu).items()}
         regularization_update = None
         if settings.proximal_reg_update == 'progress':
             regularization_update = self._update_regularization(
                 fixed, offsets, stationarity, feasibility, primal_progress,
                 dual_progress, inner_converged, settings.tol)
-        metrics = dict(generation=fixed.generation, rho=fixed.rho, delta=fixed.delta,
-            center_stationarity_before=self.stationarity, center_feasibility_before=self.feasibility,
-            original_stationarity_after=stationarity, original_feasibility_after=feasibility,
-            fixed_target_proximal_residual_inf=proximal_norm, inner_limit=inner_limit,
-            inner_converged=bool(inner_converged), primal_progress=bool(primal_progress),
-            dual_progress=bool(dual_progress), primal_center_updated=bool(move_x),
+        if inner_converged:
+            refresh_reason = 'inner_accuracy'
+        elif move_x or move_dual:
+            refresh_reason = 'original_block_progress'
+        else:
+            refresh_reason = 'none'
+        metrics = dict(
+            generation=fixed.generation,
+            rho=fixed.rho,
+            delta=fixed.delta,
+            center_stationarity_before=self.stationarity,
+            center_feasibility_before=self.feasibility,
+            original_stationarity_after=stationarity,
+            original_feasibility_after=feasibility,
+            fixed_target_proximal_residual_inf=proximal_norm,
+            inner_limit=inner_limit,
+            inner_converged=bool(inner_converged),
+            primal_progress=bool(primal_progress),
+            dual_progress=bool(dual_progress),
+            primal_center_updated=bool(move_x),
             dual_centers_updated=bool(move_dual),
-            refresh_reason=('inner_accuracy' if inner_converged else
-                            'original_block_progress' if move_x or move_dual else 'none'),
-            center_offset_inf=offsets)
+            refresh_reason=refresh_reason,
+            center_offset_inf=offsets,
+        )
         if regularization_update is not None:
             metrics['regularization_update'] = regularization_update
         if move_x:
@@ -155,33 +192,58 @@ class ProximalState:
             old_cap = getattr(self, cap_name)
             old_misses = getattr(self, counter_name)
             misses = 0 if progress else old_misses+1
-            dominance_limit = .1*max(residual, tol)
+            dominance_limit = _REGULARIZATION_OFFSET_FRACTION*max(residual, tol)
             offset_dominates = offset >= dominance_limit
-            stalled = misses >= 5
+            stalled = misses >= _REGULARIZATION_STALL_LIMIT
             trigger = inner_converged or (stalled and offset_dominates)
-            new_cap = min(old_cap, .1*coefficient) if trigger else old_cap
-            rows[name] = dict(coefficient_before=float(coefficient), cap_before=old_cap,
-                cap_after=new_cap, progress=bool(progress), misses_before=old_misses,
-                misses_observed=misses, misses_after=0 if trigger else misses,
-                stall_limit=5, stalled=bool(stalled), center_offset_inf=offset,
-                original_residual_inf=residual, dominance_limit=dominance_limit,
-                offset_dominates=bool(offset_dominates), inner_converged=bool(inner_converged),
-                reduction_factor=.1, triggered=bool(trigger), reduced=bool(new_cap < old_cap),
-                reason=('inner_accuracy' if inner_converged else
-                        'stalled_proximal_offset' if trigger else
-                        'progress' if progress else
-                        'offset_below_gate' if stalled else 'waiting_for_progress'))
+            new_cap = min(old_cap, _REGULARIZATION_REDUCTION*coefficient) if trigger else old_cap
+            if inner_converged:
+                reason = 'inner_accuracy'
+            elif trigger:
+                reason = 'stalled_proximal_offset'
+            elif progress:
+                reason = 'progress'
+            elif stalled:
+                reason = 'offset_below_gate'
+            else:
+                reason = 'waiting_for_progress'
+            rows[name] = dict(
+                coefficient_before=float(coefficient),
+                cap_before=old_cap,
+                cap_after=new_cap,
+                progress=bool(progress),
+                misses_before=old_misses,
+                misses_observed=misses,
+                misses_after=0 if trigger else misses,
+                stall_limit=_REGULARIZATION_STALL_LIMIT,
+                stalled=bool(stalled),
+                center_offset_inf=offset,
+                original_residual_inf=residual,
+                dominance_limit=dominance_limit,
+                offset_dominates=bool(offset_dominates),
+                inner_converged=bool(inner_converged),
+                reduction_factor=_REGULARIZATION_REDUCTION,
+                triggered=bool(trigger),
+                reduced=bool(new_cap < old_cap),
+                reason=reason,
+            )
             setattr(self, cap_name, new_cap)
             setattr(self, counter_name, 0 if trigger else misses)
         return rows
 
 
 def residual_vector(rx, rp, rc, req):
+    """Keep one block order for the merit and its directional derivative."""
     return np.concatenate((rx, rp, rc, req))
 
 
 def residual_slope(model, H, dx, ds, dy, dnu, y, s, rx, rp, rc, req, rho, delta):
-    """Actual derivative after clipping, scaled by the fixed initial residual."""
+    """Derivative for the supplied direction and fixed starting residual.
+
+    Callers pass the direction after any clipping. This uses actual Jacobian
+    products rather than assuming the linear solve supplied an exact Newton
+    direction; a result marked inaccurate can still reach this calculation.
+    """
     residual = residual_vector(rx, rp, rc, req)
     scale = max(1., inf_norm(residual))
     jacobian_direction = residual_vector(
@@ -232,14 +294,14 @@ def search_proximal_step(model, fixed, *, x, y, s, nu, z, Qx, primal, H,
     diag.update(merit_kind='fixed_center_squared_kkt', residual_scale=scale,
                 merit_before=merit0, merit_after=None, target=float(target),
                 center_generation=fixed.generation, effective_armijo_additive_eps=0.)
-    # A non-descent direction cannot satisfy the declared globalization rule.
+    # This policy requires descent before attempting the Armijo search.
     if not np.isfinite(slope) or slope >= 0:
         reject_trial(diag, 'non_descent_proximal_direction')
         return None, diag
     dz = z if model.dummy_A else model.A@dx
     Qdx = model.Q@dx
     AT = model._transpose_views.get('A', model.A)
-    xQx, xQdx, dxQdx = np.dot(x,Qx), np.dot(x,Qdx), np.dot(dx,Qdx)
+    xQx, xQdx, dxQdx = np.dot(x, Qx), np.dot(x, Qdx), np.dot(dx, Qdx)
     t = tmax
     for _ in range(settings.max_linesearch_steps):
         diag['trial_count'] += 1
@@ -250,7 +312,7 @@ def search_proximal_step(model, fixed, *, x, y, s, nu, z, Qx, primal, H,
         if (not all(np.all(np.isfinite(v)) for v in (tx, ts, ty, tn))
                 or np.any(ts <= 0) or np.any(ty <= 0)):
             reject_trial(diag, 'nonfinite_or_nonpositive_trial')
-            t *= .5
+            t *= _BACKTRACKING_FACTOR
             continue
         tz = z if model.dummy_A else z+t*dz
         with np.errstate(over='ignore', invalid='ignore', divide='ignore'):
@@ -266,11 +328,11 @@ def search_proximal_step(model, fixed, *, x, y, s, nu, z, Qx, primal, H,
                 and value <= merit0+settings.armijo_param*t*slope):
             diag.update(acceptance_reason='proximal_armijo', accepted_step=float(t),
                         accepted_fraction=float(t/tmax), merit_after=value)
-            return ProximalTrial(t,tx,ts,ty,tn,tz,products,glm_gradient), diag
+            return ProximalTrial(t, tx, ts, ty, tn, tz, products, glm_gradient), diag
         diag['armijo_failure_count'] += 1
         reject_trial(diag, 'nonfinite_proximal_trial' if not np.isfinite(value) or not np.isfinite(objective)
                      else 'proximal_armijo_failed')
-        t *= .5
+        t *= _BACKTRACKING_FACTOR
     return None, diag
 
 

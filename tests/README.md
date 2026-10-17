@@ -40,3 +40,28 @@ standard Poisson likelihood scale, ignores extreme padded coordinates, and
 compares constrained Gaussian and Poisson solves with independent dense KKT and
 scalar reference solutions. Those solve tests verify original KKT conditions and
 reported objective values, including the quadratic and linear terms.
+
+## Exact parity for implementation cleanup
+
+[`tools/check_solver_parity.py`](../tools/check_solver_parity.py) compares two
+frozen source trees in separate processes. It checks returned array bytes,
+every non-time history field, final summaries, effective settings, linear
+reports, and optional full diagnostics. The small suite covers QPs and all
+three GLM losses, constraints, inconsistent slack warm starts, implicit versus
+explicit public defaults, and six Newton/PC/proximal policy combinations.
+
+```sh
+python tools/check_solver_parity.py \
+  --reference /path/to/frozen-reference --candidate /path/to/frozen-candidate \
+  --output /path/to/new-parity-results --cpu 4 --suite small --diagnostics both
+```
+
+Each source root must contain `glqp/__init__.py`. Select an available CPU and
+use a fresh output directory. The tool forces one native thread and verifies
+source hashes before and after the run. `--suite mm --benchmark-root ../glqp-bench`
+adds seven selected long or failure trajectories using the bundled MM data;
+`--suite all` includes both suites. This is a numerical parity check, with a
+generous time cap to avoid cutoff effects; its times are not benchmark evidence.
+Identical native optimization failures can establish parity, but exceptions
+and time-limit terminations are inconclusive. Use the benchmark campaigns for
+original-data certificates, broad coverage, and performance comparisons.

@@ -1,3 +1,10 @@
+"""Primal-dual Newton driver and explicit experimental policy selection.
+
+The accepted algorithm is documented in docs/accepted-algorithm.md. Numerical
+linear solves, barrier policies, centered residuals, and observations live in
+their own modules; this driver controls when each policy sees an iterate.
+"""
+from dataclasses import dataclass
 import time
 import numpy as np
 import pandas as pd
@@ -17,7 +24,10 @@ from .barrier import (
     validate_barrier_settings, select_barrier_target, describe_barrier_update,
     initial_barrier_target, describe_initial_target,
 )
-from .outer_policy import validate_repair_and_fallback_settings, guarded_slack_repair
+from .outer_policy import (
+    DIRECTION_CLIP_THRESHOLD, clip_tiny_directions,
+    validate_repair_and_fallback_settings, guarded_slack_repair,
+)
 from .predictor_corrector import (
     validate_step_strategy, compute_predictor_corrector, describe_held_target,
 )
@@ -30,9 +40,16 @@ from .diagnostics import (
     start_iteration_diagnostics, start_line_search_diagnostics, reject_trial,
     slack_repair_diagnostics, history_diagnostics,
     policy_diagnostics, start_repair_diagnostics, record_fallback_progress,
+    proximal_history_fields,
 )
 
-from dataclasses import dataclass
+
+def _validate_policy_settings(settings):
+    """Validate both new settings and mutable settings reused for another solve."""
+    validate_barrier_settings(settings)
+    validate_repair_and_fallback_settings(settings)
+    validate_step_strategy(settings)
+    validate_proximal_settings(settings)
 
 
 def _no_glm_hessian(z):
@@ -42,6 +59,11 @@ def _no_glm_hessian(z):
 
 @dataclass
 class SolverSettings():
+    """Public defaults retain accepted Newton; experimental policies are opt-in.
+
+    Benchmark profiles override budgets and some globalization settings. See
+    docs/accepted-algorithm.md before treating a profile as the public defaults.
+    """
     max_precenter:int = 100
     max_iter:int = 200
     # Absolute max-norm KKT tolerance and relative aggregate complementarity.
@@ -81,10 +103,7 @@ class SolverSettings():
     iteration_diagnostics:bool = False
 
     def __post_init__(self):
-        validate_barrier_settings(self)
-        validate_repair_and_fallback_settings(self)
-        validate_step_strategy(self)
-        validate_proximal_settings(self)
+        _validate_policy_settings(self)
 
 @dataclass
 class SolverResults():
@@ -191,10 +210,7 @@ class GLQP():
             else:
                 settings = SolverSettings()
         self.settings = settings
-        validate_barrier_settings(settings)
-        validate_repair_and_fallback_settings(settings)
-        validate_step_strategy(settings)
-        validate_proximal_settings(settings)
+        _validate_policy_settings(settings)
         self._initial_linear_info = None
         # Problem matrices may have been replaced since the previous solve.
         self._kkt_workspace = None
@@ -298,7 +314,7 @@ class GLQP():
         x,y,s,H,rx,rp,rc,req,mu,
         tau_reg=None,prox_reg = 1e-7,
         solver = None, *, dual_reg=None, complementarity_reg=None):
-        #mu,x unused for now
+        # x and mu remain in the public signature for caller compatibility.
 
         if tau_reg is None:
             tau_reg = self.settings.tau_reg
@@ -340,7 +356,7 @@ class GLQP():
                                   prox_reg, solver=None, target_override=None,
                                   dual_reg=None, complementarity_reg=None,
                                   residual_safeguard=False, center_offsets=None):
-        """Two verified RHS solves at one frozen, regularized Newton matrix."""
+        """Affine/combined RHS solves, with an optional centered-policy rescue."""
         return compute_predictor_corrector(
             self, x, y, s, H, rx, rp, req, kkt_res,
             prox_reg=prox_reg, solver=solver, target_override=target_override,
@@ -554,7 +570,8 @@ class GLQP():
                     diagnostics['iterations'].append(iteration_diag)
                 break
 
-            # Select the target first, including in predictor-corrector mode.
+            # PC has now selected its target; Newton retains its incoming target.
+            # Observe progress against that target before any direction edits.
             perturbed_kkt_before = (maxnorm(np.hstack([rx, rp, rc, req]))
                                     if settings.newton_fallback_policy == 'progress' else None)
             if diagnostics_enabled:
@@ -562,19 +579,12 @@ class GLQP():
                 iteration_diag['linear_solve'] = (None if self._linear_info is None
                                                   else self._linear_info.history_fields())
 
-            #Stop step directions from going too much closer to boundary
-            #Freeze as if active set if step points towards boundary,
-            #and s or y are already very tiny
-            thresh = 1e-14
-            #Prevent from stopping others from stepping
-            s0_ind = s<=thresh
-            y0_ind = y<=thresh
-            ds[s0_ind] = np.maximum(-s[s0_ind],ds[s0_ind])
-            dy[y0_ind] = np.maximum(-y[y0_ind],dy[y0_ind])
+            # Tiny boundary components must not block the other components.
+            clip_tiny_directions(s, y, ds, dy)
             if diagnostics_enabled:
                 iteration_diag['direction'] = direction_diagnostics(
                     self, H, dx, ds, dy, dnu, old_ds, old_dy,
-                    y, s, rx, rp, rc, req, prox_reg, thresh,
+                    y, s, rx, rp, rc, req, prox_reg, DIRECTION_CLIP_THRESHOLD,
                     complementarity_correction=None if pc_step is None else pc_step.correction,
                     **linear_options,
                     **({} if proximal_model is None else dict(
@@ -808,7 +818,8 @@ class GLQP():
                     else:
                         args_to_fix = (s*y)/mu_est<=fix_threshold
                         if settings.slack_repair == 'legacy' and proximal_model is None:
-                            print("Adjusted")
+                            if verbose is True:
+                                print("Adjusted")
                             s[args_to_fix] = fix_threshold*mu_est/(y[args_to_fix])
                             # Preserve the accepted legacy update and residual
                             # arithmetic. Its barrier was chosen before repair.
@@ -897,27 +908,11 @@ class GLQP():
                 **({'lin_rel_res': linsolve_rel_error} if self._linear_info is None
                    else self._linear_info.history_fields()),
                 **(history_diagnostics(iteration_diag) if diagnostics_enabled else {}),
-                **({} if pc_step is None else dict(
-                    pc_affine_step=pc_step.decision['affine_step'],
-                    pc_sigma=pc_step.decision['sigma'], pc_target=pc_step.target,
-                    pc_affine_refinements=pc_step.affine_info.refinements,
-                    pc_combined_refinements=pc_step.combined_info.refinements,
-                    pc_affine_status=pc_step.affine_info.status,
-                    pc_combined_status=pc_step.combined_info.status,
-                    pc_factorization_attempts=pc_step.decision['factorization_attempts'])),
-                **({} if proximal_update is None else dict(
-                    prox_generation=proximal_update['generation'],
-                    prox_primal_center_updated=proximal_update['primal_center_updated'],
-                    prox_dual_centers_updated=proximal_update['dual_centers_updated'],
-                    prox_inner_converged=proximal_update['inner_converged'],
-                    prox_fixed_target_residual=proximal_update['fixed_target_proximal_residual_inf'],
-                    prox_merit_before=search_diag['merit_before'],
-                    prox_merit_after=search_diag['merit_after'],
-                    prox_line_search_trials=search_diag['trial_count'])),
+                **({} if pc_step is None else pc_step.history_fields()),
+                **({} if proximal_update is None else
+                   proximal_history_fields(proximal_update, search_diag)),
             )
 
-        #TODO: Maybe merge build_solution_summary and SolverResults together
-        #into a finish_opt function.
         termination_tag,message = build_solution_summary(
             solved,
             near_solved,

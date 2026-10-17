@@ -1,8 +1,24 @@
-"""Opt-in outer-policy experiments, separate from the accepted legacy path."""
+"""Shared direction clipping and opt-in repair/fallback policies."""
 from dataclasses import dataclass
 import numbers
 
 import numpy as np
+
+
+DIRECTION_CLIP_THRESHOLD = 1e-14
+
+
+def clip_tiny_directions(s, y, ds, dy):
+    """Clamp directions of tiny slack/multiplier components in place.
+
+    Newton applies this before the fraction-to-boundary step. The centered PC
+    safeguard applies the same operation to copies when checking the direction
+    that the caller will use. Keep this distinct from accepted-point slack repair.
+    """
+    tiny_s = s <= DIRECTION_CLIP_THRESHOLD
+    tiny_y = y <= DIRECTION_CLIP_THRESHOLD
+    ds[tiny_s] = np.maximum(-s[tiny_s], ds[tiny_s])
+    dy[tiny_y] = np.maximum(-y[tiny_y], dy[tiny_y])
 
 
 def validate_repair_and_fallback_settings(settings):

@@ -238,3 +238,16 @@ def history_diagnostics(iteration):
                 diag_repair_rejected=repair['rejected'],
                 diag_fallback_progress_checks=search['fallback_progress_check_count'],
                 diag_true_slack_comp_scaled=point['true_slack_complementarity_scaled'])
+
+
+def proximal_history_fields(update, search):
+    """Compact centered-policy history from already computed decisions."""
+    return dict(
+        prox_generation=update['generation'],
+        prox_primal_center_updated=update['primal_center_updated'],
+        prox_dual_centers_updated=update['dual_centers_updated'],
+        prox_inner_converged=update['inner_converged'],
+        prox_fixed_target_residual=update['fixed_target_proximal_residual_inf'],
+        prox_merit_before=search['merit_before'],
+        prox_merit_after=search['merit_after'],
+        prox_line_search_trials=search['trial_count'])
