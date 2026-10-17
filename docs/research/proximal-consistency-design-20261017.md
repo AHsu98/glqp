@@ -1,9 +1,11 @@
 # A consistent proximal model for predictor–corrector
 
-Design review, 2026-10-17. This note separates a physical proximal
-subproblem from a diagonal perturbation of a Newton matrix. It proposes an
-opt-in implementation and controlled experiments; it reports no new timing
-or convergence result. The accepted Newton path should remain unchanged.
+Design review, 2026-10-17, with the first implementation's diagnostic failure
+analysis appended below. This note separates a physical proximal subproblem
+from a diagonal perturbation of a Newton matrix. It proposes an opt-in
+implementation and controlled experiments; it does not establish a broad
+performance or convergence improvement. The accepted Newton path should
+remain unchanged.
 
 ## Why the distinction matters here
 
@@ -386,3 +388,115 @@ cases with difficult startup backtracking. Preserve common tolerances and
 original-data validation. Use parallel-8 for controlled campaigns, stop all
 other agent work during timing, retain failed variants and whole-wave audit
 evidence, and report numerical acceptance separately from auditable timings.
+
+## First screen: negative slope alone is insufficient
+
+The first centered implementation, solver revision `e013f5d`, passed only
+2 of the 8 screening QPs; six attempts ended in failed line search. The
+QPCBOEI2 diagnostic is retained under
+`glqp-bench/runs/proximal-consistency-20261017/diagnostics/qpc-centered-v1`.
+It reproduces the ordinary attempt's solution arrays and iteration count.
+The following observations describe that failed attempt, not an improvement.
+
+QPCBOEI2 accepted four steps and then exhausted all 40 trials on step five.
+Both requested linear solves were accurate at every iteration, no direction
+clipping occurred, and no proximal center had yet moved. Center-offset
+contributions stayed below approximately `4.8e-7`. Thus persistent-center
+algebra is not the immediate cause of this early failure.
+
+The first PC cross product had infinity norm `1.40e8`. It generated a dual
+direction of infinity norm `4.71e9` and a positivity-limited step of only
+`3.10e-10`. Its residual-merit slope was strongly negative, about `-87.2`,
+so a sign-only descent safeguard did not detect this poor direction. A
+large negative derivative does not imply useful progress when the allowable
+step is extremely small.
+
+On step five, the applied cross product had infinity norm `1.907e6`, while
+the current residual infinity norm was `9.884e4`. The scaled merit was
+`.5254` and its slope was `-.04303`. An exact centering Newton direction
+would have slope `-2*merit`, approximately `-1.0508`: the PC direction
+retained only 4.1% of that decrease. Its slope was still negative, so the
+sign-only rescue again did not trigger. With initial step `.01656` and
+backtracking factor `.9`, the smallest of 40 tested steps was approximately
+`2.72e-4`; this budget need not reach the local descent region.
+
+These observations motivate two distinct safeguards: bound the correction
+before constructing the combined direction, and demand sufficient actual
+descent after clipping. A faster backtracking contraction expands the
+searched step range without weakening the acceptance rule.
+
+### A bounded complementarity correction
+
+At the selected target, let R denote the exact fixed-center residual (2),
+and let q denote the raw affine cross product. For a declared
+\(0<\eta<1\), use
+
+\[
+\beta=\begin{cases}
+1,&\|q\|_2=0,\\
+\min\left(1,\eta\,\frac{\|R\|_2}{\|q\|_2}\right),&\|q\|_2>0,
+\end{cases}\qquad
+q_{\rm applied}=\beta q.
+\tag{14}
+\]
+
+The combined RHS uses `sy-target+q_applied`. Its matrix, target, centers,
+and physical proximal equations remain unchanged. This is a declared
+damped-PC policy, distinct from the original full affine cross correction.
+Record raw and applied norms and beta; the direction diagnostics must
+subtract the **applied** correction when assessing linear accuracy.
+
+Write the merit's uniform residual scale as a scalar a. For an exact,
+unclipped combined direction,
+
+\[
+\begin{aligned}
+\Psi'(d)
+&=-\|R/a\|_2^2-\langle R_c/a,\beta q/a\rangle\\
+&\le-\|R/a\|_2^2+\|R_c/a\|_2\,\|\beta q/a\|_2\\
+&\le-(1-\eta)\|R/a\|_2^2.
+\end{aligned}
+\tag{15}
+\]
+
+Thus the bound controls the correction as an inexact-Newton residual and
+guarantees a definite fraction of the centering direction's residual-merit
+descent in the exact, unclipped model. Uniform scaling cancels from the
+ratio in (14), allowing stable norm calculations on scaled vectors. Do not
+form squared norms of unscaled extreme residuals.
+
+The proposed first bound is `eta=.5`, exposed as
+`proximal_corrector_limit=.5`; `None` disables it for an explicit control.
+This can restrict a direction even when its unbounded correction happens
+to make the slope more negative, addressing the first-iteration tiny-step
+failure above. It is not sufficient by itself to guarantee a large
+positivity-limited step or global convergence.
+
+### Actual sufficient descent and backtracking
+
+After applying the solver's direction edits, require the actual slope to
+be finite and satisfy
+
+\[
+\Psi'(d)\le-\gamma\|R/a\|_2^2,
+\qquad \gamma=0.1\quad\text{for the first experiment}.
+\tag{16}
+\]
+
+If it fails, use the same-target centering rescue and assess its actual
+clipped slope too. This accounts for clipping and requested-system errors
+that are absent from (15). Merely substituting the predicted slope from
+(15) would not test the direction eventually searched.
+
+For the centered strategy, try backtracking factor `.5` in place of `.9`.
+At most 40 trials then span a factor `2^-39`, rather than `.9^39`, while
+retaining the identical exact-residual Armijo condition. This is a separate
+globalization change; report it together with the bounded-correction and
+sufficient-descent controls rather than attributing all gains to a new
+proximal model. Keep the existing barrier floor fixed initially: it
+dominated all five QPCBOEI2 predictors in this trace and is another distinct
+tuning dimension.
+
+The next measurements must still establish acceptance on the screening
+panel before broadening. The derivation of (15) is local and does not claim
+that the experiment will recover the six failed cases.

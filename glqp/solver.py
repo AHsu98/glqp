@@ -63,6 +63,7 @@ class SolverSettings():
     prox_dual_reg:float|None = None
     proximal_center_reduction:float = .95
     proximal_inner_tolerance:float = .1
+    proximal_corrector_limit:float|None = .5
     linear_solver_backend:str = 'qdldl'
     linear_solver_options:dict|None = None
     # 'previous' gives the intended preceding-target reduction floor.

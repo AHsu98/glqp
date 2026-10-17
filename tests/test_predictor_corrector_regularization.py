@@ -7,7 +7,9 @@ import pytest
 from scipy.sparse import csc_array
 
 from glqp import GLQP, SolverSettings
-from glqp.predictor_corrector import compute_predictor_corrector, VerifiedLinearSystem
+from glqp.predictor_corrector import (
+    compute_predictor_corrector, VerifiedLinearSystem, _bounded_correction,
+)
 
 
 def four_blocks(h, c, e, s, y, rho, delta, slack_shift):
@@ -54,6 +56,8 @@ def test_both_rhs_directions_match_independent_unequal_four_blocks(shifts, equal
 def scalar_case(*, h=.001, c=.1, s=1., y=1.):
     model = GLQP(Q=csc_array([[h]]), C=csc_array([[c]]), c=np.ones(1))
     model.initialize(settings=SolverSettings(step_strategy='predictor_corrector', tol=1e-10))
+    # Rescue tests deliberately exercise the unbounded corrector ablation.
+    model.settings.proximal_corrector_limit = None
     args = (model, np.zeros(1), np.array([y]), np.array([s]), model.Q,
             np.ones(1), np.zeros(1), np.zeros(0), 1.)
     options = dict(prox_reg=.002, dual_reg=.003, complementarity_reg=0., target_override=.1)
@@ -184,3 +188,58 @@ def test_affine_diagnostics_separate_original_residuals_and_center_offsets():
         assert diagnostic['original_newton_before_inf'][key] == pytest.approx(expected, abs=1e-9)
     assert diagnostic['center_residual_offset_inf'] == dict(stationarity=.2, primal=.3, equality=0.)
     assert max(diagnostic['requested_regularized_before_inf'].values()) < 1e-9
+
+
+def test_bounded_corrector_enforces_inexact_newton_residual_and_descent_bounds():
+    model, args, options = scalar_case()
+    unbounded = compute_predictor_corrector(*args, **options)
+    model.settings.proximal_corrector_limit = .5
+    bounded = compute_predictor_corrector(*args, **options, residual_safeguard=True)
+    residual = np.array([1., 0., .9])
+    matrix = four_blocks(model.Q.toarray(), model.C.toarray(), np.zeros((0, 1)),
+                         np.ones(1), np.ones(1), .002, .003, 0.)
+    direction = np.r_[bounded.dx, bounded.ds, bounded.dy]
+    correction = np.r_[0., 0., bounded.correction]
+    jacobian_direction = matrix @ direction
+    assert np.linalg.norm(correction) <= .5*np.linalg.norm(residual)*(1+1e-14)
+    assert_allclose(jacobian_direction, -residual-correction, atol=1e-9, rtol=1e-9)
+    assert residual @ jacobian_direction <= -.5*np.dot(residual, residual)+1e-9
+    assert np.linalg.norm(jacobian_direction) <= 1.5*np.linalg.norm(residual)+1e-9
+    assert bounded.decision['verified_rhs_solves'] == 2
+    assert not bounded.decision['rescue']['applied']
+    bound = bounded.decision['corrector_bound']
+    assert bound['raw_norm'] == pytest.approx(np.linalg.norm(unbounded.correction))
+    assert bound['applied_norm'] == pytest.approx(np.linalg.norm(bounded.correction))
+    assert bound['weight'] < 1.
+    assert_allclose(bounded.correction, bound['weight']*unbounded.correction)
+    assert bound['sufficient_descent_limit'] == pytest.approx(-.1*np.dot(residual, residual))
+
+
+def test_negative_but_insufficient_slope_triggers_centering_rescue(monkeypatch):
+    from glqp import proximal
+
+    _, args, options = scalar_case()
+    slopes = iter((-.01, -2.))
+    monkeypatch.setattr(proximal, 'residual_slope', lambda *args: next(slopes))
+    result = compute_predictor_corrector(*args, **options, residual_safeguard=True)
+    assert result.decision['verified_rhs_solves'] == 3
+    assert result.decision['rescue']['reason'] == 'insufficient_descent'
+    assert result.decision['residual_merit_slope'] == -2.
+
+
+@pytest.mark.parametrize("scale", [1e-200, 1., 1e200])
+def test_corrector_bound_avoids_overflow_and_is_homogeneous(scale):
+    correction, decision = _bounded_correction(
+        scale*np.array([6., 8.]), scale*np.array([3., 4.]), .5)
+    assert_allclose(correction/scale, np.array([1.5, 2.]), atol=1e-15, rtol=1e-15)
+    assert decision['weight'] == pytest.approx(.25)
+    assert np.isfinite(decision['raw_norm'])
+    assert np.isfinite(decision['applied_norm'])
+
+
+@pytest.mark.parametrize("limit", [None, 0., .5])
+def test_zero_corrector_remains_zero_without_invalid_norm_ratios(limit):
+    correction, decision = _bounded_correction(np.zeros(2), np.zeros(3), limit)
+    assert_array_equal(correction, np.zeros(2))
+    assert decision['weight'] == 1.
+    assert decision['raw_norm'] == decision['applied_norm'] == 0.

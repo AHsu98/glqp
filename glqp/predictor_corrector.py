@@ -22,6 +22,42 @@ def validate_step_strategy(settings):
         raise ValueError("step_strategy must be 'newton' or 'predictor_corrector'")
 
 
+def _bounded_correction(correction, residual, limit):
+    """Bound the corrector as an inexact-Newton residual perturbation.
+
+    If ``||q|| <= eta ||R||`` and ``J d = -R-q``, then
+    ``R.T J d <= -(1-eta) ||R||**2``. Separate max-norm scaling avoids
+    squaring large values merely to choose the correction weight.
+    """
+    residual_max = float(np.max(np.abs(residual), initial=0.))
+    correction_max = float(np.max(np.abs(correction), initial=0.))
+    residual_unit_norm = (float(np.linalg.norm(residual/residual_max))
+                          if residual_max else 0.)
+    correction_unit_norm = (float(np.linalg.norm(correction/correction_max))
+                            if correction_max else 0.)
+    weight = 1.
+    if limit is not None and correction_max:
+        if not limit or not residual_max:
+            weight = 0.
+        else:
+            with np.errstate(over='ignore', under='ignore', invalid='ignore'):
+                weight = float(min(1., limit*(residual_max/correction_max)
+                                   *(residual_unit_norm/correction_unit_norm)))
+    applied = correction*weight
+    scale = max(1., residual_max)
+    normalized = residual/scale
+    norm_squared = float(np.dot(normalized, normalized))
+    with np.errstate(over='ignore', invalid='ignore'):
+        raw_norm = float(np.float64(correction_max)*correction_unit_norm)
+        applied_norm = float(np.float64(correction_max*weight)*correction_unit_norm)
+        residual_norm = float(np.float64(residual_max)*residual_unit_norm)
+    decision = dict(limit=limit, weight=weight, raw_norm=raw_norm,
+                    applied_norm=applied_norm, residual_norm=residual_norm,
+                    residual_scale=scale, scaled_residual_norm_squared=norm_squared,
+                    sufficient_descent_limit=-.1*norm_squared)
+    return applied, decision
+
+
 @dataclass
 class PredictorCorrectorResult:
     dx: np.ndarray
@@ -54,10 +90,11 @@ def compute_predictor_corrector(model, x, y, s, H, rx, rp, req, kkt_res, *,
     not apply to this strategy. No GLM third derivative is assumed.
 
     Explicit block shifts follow ``KKTWorkspace.assemble``. With standard
-    complementarity, ``residual_safeguard`` replaces a non-descent combined
-    direction with a same-target centering direction, using a third RHS and
-    the existing factorization. The safeguard tests the direction after the
-    caller's tiny-component clipping without applying those edits here.
+    complementarity, ``residual_safeguard`` bounds the corrector perturbation
+    and replaces an insufficient-descent combined direction with a same-target
+    centering direction, using a third RHS and the existing factorization.
+    The safeguard tests the direction after the caller's tiny-component
+    clipping without applying those edits here.
     """
     if model.dummy_ineq or not len(s):
         raise ValueError('Predictor-corrector requires real inequalities')
@@ -137,6 +174,11 @@ def compute_predictor_corrector(model, x, y, s, H, rx, rp, req, kkt_res, *,
                 or not np.isfinite(affine_mean) or not np.isfinite(target)
                 or not np.all(np.isfinite(correction))):
             raise LinearSolveError('Nonfinite predictor-corrector target or correction')
+        if residual_safeguard:
+            centered_rc = products - target
+            correction, bound = _bounded_correction(
+                correction, np.concatenate((rx, rp, centered_rc, req)),
+                settings.proximal_corrector_limit)
         # Positive residual convention: KKT RHS contains minus this residual.
         with np.errstate(over='ignore', invalid='ignore', divide='ignore'):
             combined_rc = products + correction - target
@@ -146,12 +188,12 @@ def compute_predictor_corrector(model, x, y, s, H, rx, rp, req, kkt_res, *,
         combined = system.solve_verified(rhs)
         dx, ds, dy, dnu = recover(combined.solution)
         if residual_safeguard:
-            centered_rc = products - target
             slope = clipped_residual_slope((dx, ds, dy, dnu), centered_rc)
             rescue = dict(applied=False, corrector_residual_slope=float(slope))
             safeguard_decision = dict(direction_choice='predictor_corrector', rescue=rescue,
-                                      residual_merit_slope=float(slope))
-            if not np.isfinite(slope) or slope >= 0:
+                                      residual_merit_slope=float(slope), corrector_bound=bound)
+            if (not np.isfinite(slope) or slope >= 0
+                    or slope > bound['sufficient_descent_limit']):
                 # The corrector cross term is not part of the nonlinear
                 # residual map. A verified Newton step for that same map and
                 # target provides a coherent alternative without refactoring.
@@ -166,7 +208,8 @@ def compute_predictor_corrector(model, x, y, s, H, rx, rp, req, kkt_res, *,
                 rhs_solves += 1
                 centering_slope = clipped_residual_slope((dx, ds, dy, dnu), centered_rc)
                 rescue.update(applied=True,
-                    reason='nonfinite_slope' if not np.isfinite(slope) else 'non_descent',
+                    reason=('nonfinite_slope' if not np.isfinite(slope) else
+                            'non_descent' if slope >= 0 else 'insufficient_descent'),
                     centering_residual_slope=float(centering_slope),
                     discarded_corrector_linear_solve=discarded.info.history_fields(),
                     discarded_corrector_refinements=discarded.info.refinements,

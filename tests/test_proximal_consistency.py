@@ -217,6 +217,8 @@ def test_poisson_search_uses_true_trial_gradient_and_fixed_hessian_and_centers()
     ('prox_dual_reg', -1.), ('prox_dual_reg', True), ('prox_dual_reg', np.inf),
     ('proximal_center_reduction', 0.), ('proximal_center_reduction', 1.),
     ('proximal_inner_tolerance', 0.), ('proximal_inner_tolerance', np.nan),
+    ('proximal_corrector_limit', 0.), ('proximal_corrector_limit', 1.),
+    ('proximal_corrector_limit', np.nan), ('proximal_corrector_limit', True),
 ])
 @pytest.mark.parametrize('mutated', [False, True])
 def test_invalid_proximal_settings_are_rejected_at_construction_and_initialization(field, value, mutated):

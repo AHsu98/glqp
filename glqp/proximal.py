@@ -33,6 +33,10 @@ def validate_proximal_settings(settings):
         if (isinstance(value, (bool, np.bool_)) or not isinstance(value, numbers.Real)
                 or not np.isfinite(value) or not 0 < value < 1):
             raise ValueError(f'{name} must be strictly between zero and one')
+    limit = settings.proximal_corrector_limit
+    if limit is not None and (isinstance(limit, (bool, np.bool_))
+            or not isinstance(limit, numbers.Real) or not np.isfinite(limit) or not 0 < limit < 1):
+        raise ValueError('proximal_corrector_limit must be None or strictly between zero and one')
     if settings.proximal_policy == 'legacy' and settings.prox_dual_reg is not None:
         raise ValueError('Independent dual regularization requires a nonlegacy proximal policy')
 
@@ -182,7 +186,7 @@ def search_proximal_step(model, fixed, *, x, y, s, nu, z, Qx, primal, H,
         if (not all(np.all(np.isfinite(v)) for v in (tx, ts, ty, tn))
                 or np.any(ts <= 0) or np.any(ty <= 0)):
             reject_trial(diag, 'nonfinite_or_nonpositive_trial')
-            t *= .9
+            t *= .5
             continue
         tz = z if model.dummy_A else z+t*dz
         with np.errstate(over='ignore', invalid='ignore', divide='ignore'):
@@ -202,7 +206,7 @@ def search_proximal_step(model, fixed, *, x, y, s, nu, z, Qx, primal, H,
         diag['armijo_failure_count'] += 1
         reject_trial(diag, 'nonfinite_proximal_trial' if not np.isfinite(value) or not np.isfinite(objective)
                      else 'proximal_armijo_failed')
-        t *= .9
+        t *= .5
     return None, diag
 
 
