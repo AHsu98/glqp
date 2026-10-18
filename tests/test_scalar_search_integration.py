@@ -1,4 +1,4 @@
-"""Solver-level contracts for the optional cached scalar GLM search."""
+"""Solver-level contracts for the default cached scalar GLM descent search."""
 import numpy as np
 from numpy.testing import assert_allclose, assert_array_equal
 import pytest
@@ -22,7 +22,7 @@ class CountingMatrix(csc_array):
 def scalar_poisson(**options):
     problem = GLQP(f=PoissonNLL([1e6], [1e-6]), A=csc_array([[1.]]),
                    Q=csc_array([[1e-12]]))
-    settings = SolverSettings(glm_linesearch='scalar', max_iter=100,
+    settings = SolverSettings(max_iter=100,
                               max_linesearch_steps=30, tol=1e-9, **options)
     return problem, settings
 

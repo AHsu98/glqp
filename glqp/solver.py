@@ -79,7 +79,7 @@ class SolverSettings():
     max_linesearch_steps:int = 50
     # Scalar search applies to nonlinear descent with the legacy merit and no
     # Newton fallback. Other globalization paths retain their own contracts.
-    glm_linesearch:str = 'backtracking'
+    glm_linesearch:str = 'scalar'
     # Maximum inner steps in one right-preconditioned GMRES correction cycle.
     max_iterative_refinement:int = 10
     max_time:float = 600.

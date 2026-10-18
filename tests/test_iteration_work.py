@@ -97,7 +97,8 @@ def test_rejected_nonlinear_descent_trials_do_not_evaluate_unused_residuals(monk
     with pytest.warns(UserWarning, match="Maximum Iterations"):
         x, result = problem.solve(x0=np.ones(1), verbose=False,
             settings=SolverSettings(max_iter=1, max_linesearch_steps=20,
-                                    let_newton_cook=0., armijo_additive_eps=0.))
+                                    let_newton_cook=0., armijo_additive_eps=0.,
+                                    glm_linesearch='backtracking'))
     # Several finite merit rejections precede one accepted step. Their KKT
     # norms cannot authorize a nonlinear descent step with fallback disabled.
     assert objective.values > 4

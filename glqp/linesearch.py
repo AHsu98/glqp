@@ -47,6 +47,11 @@ class CachedGLMRay:
     intermediates across value/derivative requests; subclasses and custom losses
     retain their public callbacks. No derivative is needed for an accepted full
     step. Accepted derivatives are deliberately not a solver reuse contract.
+
+    Replacing methods on a built-in class itself is unsupported: use a subclass
+    or custom loss to change its mathematics. Observational class wrappers are
+    harmless only if they preserve values; their callback counts omit fused ray
+    evaluations. Use the ray's evaluation counters when instrumenting searches.
     """
 
     def __init__(self, loss, z, dz, s, ds, mu, xQx, xQdx, dxQdx, bx, bdx):
@@ -151,6 +156,8 @@ class CachedGLMRay:
         confused with another trial. Nonfinite objective values never trigger
         custom derivative callbacks. A nonfinite derivative merely disables its
         proposal; it cannot invalidate a previously accepted finite trial.
+        Numerical/domain exceptions inside custom derivative callbacks have the
+        same fallback. Conversion, shape, and programming errors remain visible.
         """
         if trial is not self._last_trial:
             raise ValueError('Derivatives require the latest scalar trial')
@@ -179,8 +186,21 @@ class CachedGLMRay:
                 gradient, curvature = w*(rate-y), w*rate
             else:
                 dz = self.dz
-                gradient = np.asarray(self.loss.d1f(trial.predictor))
-                curvature = np.asarray(self.loss.d2f(trial.predictor))
+                # A finite boundary value need not have finite derivatives,
+                # e.g. -sqrt(z) at z=0. These derivatives only propose a step;
+                # an undefined proposal must not prevent ordinary contraction.
+                # Catch only callback invocations so malformed return values
+                # and errors in our own arithmetic cannot be silently hidden.
+                try:
+                    gradient_value = self.loss.d1f(trial.predictor)
+                    curvature_value = self.loss.d2f(trial.predictor)
+                except (ArithmeticError, ValueError):
+                    self._last_derivatives = np.nan, np.nan
+                    return self._last_derivatives
+                gradient = np.asarray(gradient_value)
+                curvature = np.asarray(curvature_value)
+                if gradient.shape != dz.shape or curvature.shape != dz.shape:
+                    raise ValueError('Custom loss derivatives must match the predictor shape')
             barrier_slope = barrier_curvature = 0.
             if self.mu:
                 ratio = self.ds/trial.slack

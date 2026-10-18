@@ -229,6 +229,81 @@ def test_nonfinite_derivatives_fall_back_to_contraction():
     assert result.counters['contraction_steps'] == result.counters['trial_count']-1
 
 
+@pytest.mark.parametrize('exception', [ArithmeticError, FloatingPointError,
+                                       OverflowError, ZeroDivisionError, ValueError])
+@pytest.mark.parametrize('callback', ['d1f', 'd2f'])
+def test_finite_boundary_value_with_undefined_derivative_contracts(exception, callback):
+    class NegativeSquareRoot:
+        def __call__(self, z):
+            return -np.sqrt(z[0])
+
+        def d1f(self, z):
+            if z[0] == 0 and callback == 'd1f':
+                raise exception('derivative undefined at boundary')
+            return np.array([-.5/np.sqrt(z[0])]) if z[0] else np.array([-np.inf])
+
+        def d2f(self, z):
+            if z[0] == 0:
+                raise exception('curvature undefined at boundary')
+            return np.array([.25/z[0]**1.5])
+
+    # phi(t)=-sqrt(1-t)+.75*(1-t). The full step has a finite value
+    # but fails Armijo; the half step is strictly interior and passes.
+    ray = make_ray(NegativeSquareRoot(), [1.], [-1.], bx=-.75, bdx=.75)
+    result = search(ray, merit0=-.25, slope0=-.25)
+    assert result.status == 'armijo' and result.trial.step == .5
+    assert result.counters['trial_count'] == 2
+    assert result.counters['contraction_steps'] == 1
+    assert result.trial.merit < -.25+.005*.5*(-.25)+1e-8
+
+
+def test_failed_custom_derivative_is_cached_as_unusable_proposal():
+    class DomainDerivative(CountingQuadratic):
+        def d1f(self, z):
+            self.calls['gradient'] += 1
+            raise ValueError('outside derivative domain')
+
+    loss = DomainDerivative()
+    ray = make_ray(loss, [1.], [-4.])
+    point = ray.evaluate(1.)
+    assert np.isnan(ray.derivatives(point)).all()
+    assert np.isnan(ray.derivatives(point)).all()
+    assert loss.calls['gradient'] == ray.derivative_evaluations == 1
+
+
+@pytest.mark.parametrize('exception', [RuntimeError, TypeError])
+@pytest.mark.parametrize('callback', ['d1f', 'd2f'])
+def test_custom_derivative_programming_errors_remain_visible(exception, callback):
+    loss = CountingQuadratic()
+
+    def broken(z):
+        raise exception('programming error')
+
+    setattr(loss, callback, broken)
+    with pytest.raises(exception, match='programming error'):
+        search(make_ray(loss, [1.], [-4.]), merit0=.5, slope0=-4.)
+
+
+@pytest.mark.parametrize('callback', ['d1f', 'd2f'])
+@pytest.mark.parametrize('bad_shape', [(), (2,), (1, 1)])
+def test_custom_derivative_shape_errors_are_outside_domain_recovery(callback, bad_shape):
+    loss = CountingQuadratic()
+    setattr(loss, callback, lambda z: np.zeros(bad_shape))
+    with pytest.raises(ValueError, match='predictor shape'):
+        search(make_ray(loss, [1.], [-4.]), merit0=.5, slope0=-4.)
+
+
+def test_custom_derivative_array_conversion_error_is_not_caught():
+    class BadArray:
+        def __array__(self, *args, **kwargs):
+            raise ValueError('broken derivative array conversion')
+
+    loss = CountingQuadratic()
+    loss.d1f = lambda z: BadArray()
+    with pytest.raises(ValueError, match='array conversion'):
+        search(make_ray(loss, [1.], [-4.]), merit0=.5, slope0=-4.)
+
+
 @pytest.mark.parametrize('weights,quadratic', [([-1.], 10.), ([1.], -1.)])
 def test_known_negative_curvature_uses_safe_contraction(weights, quadratic):
     dz = [1.] if weights[0] < 0 else [-3.]
