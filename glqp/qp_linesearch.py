@@ -7,6 +7,8 @@ not from the physically regularized Newton matrix. No matrices are stored here.
 """
 import numpy as np
 
+from .step_proposal import safeguarded_step
+
 
 class QPScalarProposer:
     """Quadratic-plus-barrier ray model with a fixed direction and target.
@@ -72,17 +74,7 @@ class QPScalarProposer:
                 barrier_curvature = np.dot(scaled, scaled)
             slope = self.xQdx+step*self.dxQdx-self.bdx+barrier_slope
             curvature = self.dxQdx+barrier_curvature
-            if not np.isfinite(slope) or not np.isfinite(curvature) or curvature <= 0:
-                return self._result(.5*step, 'contraction')
-            candidate = step-np.divide(slope, curvature)
-            if candidate > 0 and .1*step <= candidate <= .5*step:
-                return self._result(candidate, 'newton')
-
-            denominator = (merit-self.merit0)/step-self.slope0
-            if np.isfinite(denominator) and denominator > 0:
-                fraction = np.divide(-.5*self.slope0, denominator)
-                if np.isfinite(fraction) and fraction > 0:
-                    candidate = step*float(np.clip(fraction, .1, .5))
-                    if candidate > 0:
-                        return self._result(candidate, 'interpolation')
-        return self._result(.5*step, 'contraction')
+        next_step, kind = safeguarded_step(
+            step, merit, self.merit0, self.slope0, slope, curvature,
+            require_positive_step=True)
+        return self._result(next_step, kind)

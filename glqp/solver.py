@@ -21,7 +21,7 @@ from .util import (
 from .linear import LinearSolveError, ShiftedSystemWorkspace
 from .linesearch import CachedGLMRay, search_scalar_ray
 from .qp_linesearch import QPScalarProposer
-from .qp_ray import QPResidualNorms, QPResidualRay
+from .objective_search import CachedObjectiveRay, search_restoration_ray
 from .kkt import KKTWorkspace
 from .barrier import (
     validate_barrier_settings, select_barrier_target, describe_barrier_update,
@@ -40,9 +40,9 @@ from .proximal import (
 )
 from .diagnostics import (
     observe_iteration, point_diagnostics, direction_diagnostics,
-    start_iteration_diagnostics, start_line_search_diagnostics, reject_trial,
+    start_iteration_diagnostics, start_line_search_diagnostics,
     slack_repair_diagnostics, history_diagnostics,
-    policy_diagnostics, start_repair_diagnostics, record_fallback_progress,
+    policy_diagnostics, start_repair_diagnostics,
     proximal_history_fields, record_scalar_search,
 )
 
@@ -653,21 +653,8 @@ class GLQP():
                 xQx = np.dot(x,Qx)
                 xQdx = np.dot(x,Qdx)
                 dxQdx = np.dot(dx,Qdx)
-                #Enter line search
-
-                #OK with a small additive error in line search
-                def merit_line(t, trial_x, trial_s, trial_z):
-                    primal = (
-                        self.f(trial_z)
-                        + (1/2) * (xQx + 2*t*xQdx + t*t*dxQdx)
-                            - np.dot(trial_x,self.b)
-                    )
-                    barrier = -mu*np.sum(np.log(trial_s))
-                    return primal + barrier
-
-                # Only the objective-plus-barrier descent path is a convex
-                # scalar ray. QP restoration, non-descent directions, and an
-                # explicitly enabled Newton fallback retain their old search.
+                # Choose the acceptance policy once. Both objective searches
+                # use the same trial controller and safeguarded step proposer.
                 scalar_search = (settings.glm_linesearch == 'scalar'
                                  and not self.QP_mode
                                  and np.isfinite(merit_slope) and merit_slope < 0
@@ -707,189 +694,24 @@ class GLQP():
                     if diagnostics_enabled:
                         record_scalar_search(search_diag, scalar_result)
                 else:
-                    qp_scalar = (self.QP_mode and settings.qp_linesearch == 'scalar'
-                                 and np.isfinite(merit_slope) and merit_slope < 0)
-                    qp_proposer = None
-                    qp_residual_ray = None
-                    if diagnostics_enabled:
-                        search_diag['algorithm'] = 'qp_scalar' if qp_scalar else 'backtracking'
-                        if self.QP_mode:
-                            search_diag.update(qp_scalar_requested=settings.qp_linesearch == 'scalar',
-                                qp_scalar_eligible=bool(qp_scalar), qp_scalar_proposals=[],
-                                qp_scalar_counters=None, fallback_eligible_count=0,
-                                residual_screen=settings.qp_residual_screen,
-                                residual_screen_checks=0, complementarity_rejections=0,
-                                affine_screen_checks=0, affine_rejections=0,
-                                affine_cache_initializations=0)
-
-                    def next_qp_step(step, slack, merit):
-                        # Called only after rejection by every applicable gate.
-                        # Leave the accepted full-step path free of model work.
-                        nonlocal qp_proposer
-                        if linesearch_step + 1 == settings.max_linesearch_steps:
-                            return .9*step
-                        if qp_proposer is None:
-                            qp_proposer = QPScalarProposer(
-                                s, ds, mu, xQdx, dxQdx, np.dot(dx, self.b),
-                                merit0, merit_slope)
-                        proposed, kind = qp_proposer.propose(step, slack, merit)
-                        if diagnostics_enabled:
-                            threshold = settings.let_newton_cook*tmax
-                            search_diag['qp_scalar_counters'] = qp_proposer.counters
-                            search_diag['qp_scalar_proposals'].append(dict(
-                                from_step=float(step), next_step=float(proposed), kind=kind,
-                                crosses_fallback=bool(settings.newton_fallback_policy != 'off'
-                                    and step >= threshold and proposed < threshold)))
-                        return proposed
-
-                    successful = False
-                    for linesearch_step in range(settings.max_linesearch_steps):
-                        if diagnostics_enabled:
-                            search_diag['trial_count'] += 1
-                        if not np.isfinite(t) or t <= 0:
-                            if diagnostics_enabled:
-                                reject_trial(search_diag, 'invalid_step')
-                            break
-                        trial_x = x + t*dx
-                        trial_s, trial_y = s + t*ds, y + t*dy
-                        new_merit = np.inf
-                        # Products from a rejected trial belong only to that point.
-                        trial_products = trial_glm_gradient = None
-                        if (not np.all(np.isfinite(trial_x))
-                                or not np.all(np.isfinite(trial_s))
-                                or not np.all(np.isfinite(trial_y))
-                                or np.any(trial_s <= 0) or np.any(trial_y <= 0)):
-                            if diagnostics_enabled:
-                                reject_trial(search_diag, 'nonfinite_or_nonpositive_trial')
-                            t = next_qp_step(t, trial_s, new_merit) if qp_scalar else 0.9*t
-                            continue
-                        #Check armijo
-                        trial_z = z if self.dummy_A else z + t*dz
-                        with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
-                            new_merit = merit_line(t, trial_x, trial_s, trial_z)
-                        if not np.isfinite(new_merit):
-                            if diagnostics_enabled:
-                                reject_trial(search_diag, 'nonfinite_merit')
-                            t = next_qp_step(t, trial_s, new_merit) if qp_scalar else 0.9*t
-                            continue
-                        armijo_satisfied = (
-                            new_merit<(
-                                merit0 +
-                                settings.armijo_param * t * merit_slope +
-                                settings.armijo_additive_eps)
-                        )
-                        if armijo_satisfied:
-                            successful = True
-                            if diagnostics_enabled:
-                                search_diag['acceptance_reason'] = 'armijo'
-                            break
-
-                        if diagnostics_enabled:
-                            search_diag['armijo_failure_count'] += 1
-
-                        # A rejected nonlinear descent trial can use its KKT norm
-                        # only once the explicitly enabled Newton fallback applies.
-                        # Skip derivatives and constraint products otherwise.
-                        residual_acceptance = self.QP_mode or merit_slope >= 0
-                        newton_fallback = (settings.newton_fallback_policy != 'off'
-                                           and t < settings.let_newton_cook*tmax)
-                        if diagnostics_enabled and self.QP_mode:
-                            search_diag['fallback_eligible_count'] += int(newton_fallback)
-                        if not (residual_acceptance or newton_fallback):
-                            if diagnostics_enabled:
-                                reject_trial(search_diag, 'acceptance_tests_failed')
-                            t = 0.9*t
-                            continue
-                
-                        # Complementarity is one block of the original max-norm
-                        # KKT residual. Its actual trial products alone can prove
-                        # BOTH residual acceptance inequalities false. Fallback
-                        # has its own criterion and always gets fresh blocks.
-                        if (self.QP_mode and settings.qp_residual_screen != 'off'
-                                and not newton_fallback):
-                            with np.errstate(over='ignore', invalid='ignore'):
-                                complementarity_norm = maxnorm(trial_y*trial_s)
-                            if diagnostics_enabled:
-                                search_diag['residual_screen_checks'] += 1
-                            if (np.isfinite(complementarity_norm)
-                                    and complementarity_norm >= (1-settings.armijo_param*t)*kkt_res
-                                    and complementarity_norm >= settings.tol):
-                                if diagnostics_enabled:
-                                    search_diag['complementarity_rejections'] += 1
-                                    reject_trial(search_diag, 'acceptance_tests_failed')
-                                t = next_qp_step(t, trial_s, new_merit) if qp_scalar else .9*t
-                                continue
-
-                            # Pay for four direction products only after a full
-                            # trial has failed. Predictions can reject, never
-                            # accept; uncertainty falls through to fresh blocks.
-                            if settings.qp_residual_screen == 'bounded' and linesearch_step > 0:
-                                if qp_residual_ray is None:
-                                    if qp_residual_norms is None:
-                                        qp_residual_norms = QPResidualNorms(self.C, self.E)
-                                    qp_residual_ray = QPResidualRay(self, qp_residual_norms,
-                                        rx=rx, rp=rp, req=req, x=x, y=y, s=s, nu=nu,
-                                        dx=dx, dy=dy, ds=ds, dnu=dnu, Qx=Qx, Qdx=Qdx)
-                                    if diagnostics_enabled:
-                                        search_diag['affine_cache_initializations'] += 1
-                                report = qp_residual_ray.screen(t, trial_y, trial_s,
-                                    residual_limit=(1-settings.armijo_param*t)*kkt_res,
-                                    tolerance=settings.tol)
-                                if diagnostics_enabled:
-                                    search_diag['affine_screen_checks'] += 1
-                                if report.can_reject:
-                                    if diagnostics_enabled:
-                                        search_diag['affine_rejections'] += 1
-                                        reject_trial(search_diag, 'acceptance_tests_failed')
-                                    t = next_qp_step(t, trial_s, new_merit) if qp_scalar else .9*t
-                                    continue
-
-                        #Check KKT residual
-                        if diagnostics_enabled:
-                            search_diag['residual_check_count'] += 1
-                        trial_glm_gradient = 0. if self.dummy_A else AT@self.f.d1f(trial_z)
-                        ls_gradf = trial_glm_gradient + Qx + t*Qdx
-                        trial_products = self._constraint_products(trial_x, trial_y, nu+t*dnu)
-                        ls_blocks = self._kkt_residuals(ls_gradf, trial_y, trial_s, trial_products)
-                        ls_kkt_res = maxnorm(np.hstack(ls_blocks))
-                        # Preserve residual acceptance for QPs, including restoration
-                        # from an inconsistent positive slack warm start. For nonlinear
-                        # GLMs, alternating merit decreases and residual-only steps can
-                        # cycle: descent directions must pass the merit test there.
-                        if residual_acceptance and np.isfinite(ls_kkt_res) and (
-                            ls_kkt_res<(1-settings.armijo_param*t)*kkt_res
-                            or ls_kkt_res<settings.tol
-                        ):
-                            successful = True
-                            if diagnostics_enabled:
-                                search_diag['acceptance_reason'] = 'residual'
-                            break
-                        # Preserve the explicitly configured Newton fallback, but
-                        # never use it to accept nonfinite or non-interior trials.
-                        if np.isfinite(ls_kkt_res) and newton_fallback:
-                            if settings.newton_fallback_policy == 'progress':
-                                ls_rx, ls_rp, ls_rc, ls_req = ls_blocks
-                                trial_perturbed_kkt = maxnorm(np.hstack(
-                                    [ls_rx, ls_rp, ls_rc-mu, ls_req]))
-                                contraction_limit = (1-settings.armijo_param*t)*perturbed_kkt_before
-                                progress = bool(np.isfinite(trial_perturbed_kkt) and (
-                                    trial_perturbed_kkt < contraction_limit
-                                    or trial_perturbed_kkt < settings.tol))
-                                if diagnostics_enabled:
-                                    record_fallback_progress(search_diag, t, perturbed_kkt_before,
-                                                             trial_perturbed_kkt, contraction_limit, progress)
-                                if not progress:
-                                    if diagnostics_enabled:
-                                        reject_trial(search_diag, 'fallback_no_progress')
-                                    t = next_qp_step(t, trial_s, new_merit) if qp_scalar else 0.9*t
-                                    continue
-                            successful = True
-                            if diagnostics_enabled:
-                                search_diag['acceptance_reason'] = 'newton_fallback'
-                            break
-                        if diagnostics_enabled:
-                            reject_trial(search_diag, 'acceptance_tests_failed')
-                        t = next_qp_step(t, trial_s, new_merit) if qp_scalar else 0.9*t
+                    ray = CachedObjectiveRay(self,
+                        point=(x, s, y, nu, z), direction=(dx, ds, dy, dnu),
+                        dz=dz, quadratic=(Qx, Qdx, xQx, xQdx, dxQdx), mu=mu,
+                        transpose=AT)
+                    trial, qp_residual_norms = search_restoration_ray(
+                        ray, settings, tmax=tmax, merit0=merit0, slope0=merit_slope,
+                        residuals=(rx, rp, req), kkt_res=kkt_res,
+                        perturbed_kkt_before=perturbed_kkt_before,
+                        residual_norms=qp_residual_norms,
+                        diagnostics=search_diag if diagnostics_enabled else None,
+                        proposer_factory=QPScalarProposer)
+                    successful = trial is not None
+                    if successful:
+                        t = trial.step
+                        trial_x, trial_y = trial.x, trial.y
+                        trial_s, trial_z = trial.slack, trial.predictor
+                        trial_products = trial.products
+                        trial_glm_gradient = trial.glm_gradient
 
             if not successful:
                 termination_tag = "failed_line_search"

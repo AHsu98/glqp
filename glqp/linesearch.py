@@ -12,6 +12,8 @@ from dataclasses import dataclass
 import numpy as np
 
 from .obj import GaussianNLL, LogisticNLL, PoissonNLL, _weighted_logistic_tail
+from .search_control import TrialDecision, search_trials
+from .step_proposal import safeguarded_step
 
 
 @dataclass(frozen=True)
@@ -273,12 +275,12 @@ def search_scalar_ray(ray, *, tmax, merit0, slope0, armijo_param, additive_eps,
     if not np.isfinite(tmax) or tmax <= 0:
         return finish(None, 'invalid_step')
 
-    step = float(tmax)
     proposal_kind = 'full_step'
     poisson_model_tried = False
-    for _ in range(max_trials):
+
+    def attempt(step, index):
         if not np.isfinite(step) or step <= 0:
-            return finish(None, 'step_underflow')
+            return TrialDecision(reason='step_underflow', stop=True)
         counters['trial_count'] += 1
         point = None
         valid = trial_is_valid is None or trial_is_valid(step)
@@ -297,16 +299,18 @@ def search_scalar_ray(ray, *, tmax, merit0, slope0, armijo_param, additive_eps,
                     if history is not None:
                         history.append(dict(step=step, merit=point.merit,
                                             proposal=proposal_kind, reason='armijo'))
-                    return finish(point, 'armijo')
+                    return TrialDecision(point, 'armijo', accepted=True)
                 reason = 'armijo'
                 counters['armijo_failure_count'] += 1
         if history is not None:
             history.append(dict(step=step,
                                 merit=None if point is None or not np.isfinite(point.merit)
                                 else point.merit, proposal=proposal_kind, reason=reason))
-        if counters['trial_count'] == max_trials:
-            break
+        return TrialDecision(point, reason)
 
+    def propose(step, decision):
+        nonlocal proposal_kind, poisson_model_tried
+        point = decision.point
         proposed = None
         proposal_kind = 'contraction'
         if (not poisson_model_tried and ray._kind is PoissonNLL and ray.model_allowed):
@@ -322,21 +326,13 @@ def search_scalar_ray(ray, *, tmax, merit0, slope0, armijo_param, additive_eps,
         if (proposed is None and ray.model_allowed and point is not None
                 and np.isfinite(point.merit)):
             derivative, curvature = ray.derivatives(point)
-            if np.isfinite(derivative) and np.isfinite(curvature) and curvature > 0:
-                candidate = point.step-derivative/curvature
-                if .1*step <= candidate <= .5*step:
-                    proposed, proposal_kind = candidate, 'newton'
-                    counters['newton_steps'] += 1
-                else:
-                    with np.errstate(over='ignore', invalid='ignore', divide='ignore'):
-                        denominator = (point.merit-merit0)/step-slope0
-                        fraction = -.5*slope0/denominator
-                    if np.isfinite(fraction) and fraction > 0:
-                        proposed = step*float(np.clip(fraction, .1, .5))
-                        proposal_kind = 'interpolation'
-                        counters['interpolation_steps'] += 1
+            proposed, proposal_kind = safeguarded_step(
+                step, point.merit, merit0, slope0, derivative, curvature)
+            counters[proposal_kind+'_steps'] += 1
         if proposed is None:
             proposed = .5*step
             counters['contraction_steps'] += 1
-        step = proposed
-    return finish(None, 'trial_limit')
+        return proposed
+
+    result = search_trials(float(tmax), max_trials, attempt, propose)
+    return finish(result.point, result.reason)
