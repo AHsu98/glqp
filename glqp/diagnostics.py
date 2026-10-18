@@ -174,7 +174,7 @@ def policy_diagnostics(settings):
              'repair_growth_limit', 'newton_fallback_policy', 'step_strategy',
              'proximal_policy', 'prox_dual_reg', 'proximal_center_reduction',
              'proximal_inner_tolerance', 'proximal_corrector_limit', 'proximal_reg_update',
-             'glm_linesearch')
+             'glm_linesearch', 'qp_linesearch')
     return {name: getattr(settings, name) for name in names}
 
 

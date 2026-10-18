@@ -20,6 +20,7 @@ from .util import (
 
 from .linear import LinearSolveError, ShiftedSystemWorkspace
 from .linesearch import CachedGLMRay, search_scalar_ray
+from .qp_linesearch import QPScalarProposer
 from .kkt import KKTWorkspace
 from .barrier import (
     validate_barrier_settings, select_barrier_target, describe_barrier_update,
@@ -54,6 +55,9 @@ def _validate_policy_settings(settings):
     if (not isinstance(settings.glm_linesearch, str)
             or settings.glm_linesearch not in ('backtracking', 'scalar')):
         raise ValueError("glm_linesearch must be 'backtracking' or 'scalar'")
+    if (not isinstance(settings.qp_linesearch, str)
+            or settings.qp_linesearch not in ('backtracking', 'scalar')):
+        raise ValueError("qp_linesearch must be 'backtracking' or 'scalar'")
 
 
 def _no_glm_hessian(z):
@@ -80,6 +84,8 @@ class SolverSettings():
     # Scalar search applies to nonlinear descent with the legacy merit and no
     # Newton fallback. Other globalization paths retain their own contracts.
     glm_linesearch:str = 'scalar'
+    # Opt-in QP proposals retain all existing merit/residual/fallback tests.
+    qp_linesearch:str = 'backtracking'
     # Maximum inner steps in one right-preconditioned GMRES correction cycle.
     max_iterative_refinement:int = 10
     max_time:float = 600.
@@ -694,8 +700,36 @@ class GLQP():
                     if diagnostics_enabled:
                         record_scalar_search(search_diag, scalar_result)
                 else:
+                    qp_scalar = (self.QP_mode and settings.qp_linesearch == 'scalar'
+                                 and np.isfinite(merit_slope) and merit_slope < 0)
+                    qp_proposer = None
                     if diagnostics_enabled:
-                        search_diag['algorithm'] = 'backtracking'
+                        search_diag['algorithm'] = 'qp_scalar' if qp_scalar else 'backtracking'
+                        if self.QP_mode:
+                            search_diag.update(qp_scalar_requested=settings.qp_linesearch == 'scalar',
+                                qp_scalar_eligible=bool(qp_scalar), qp_scalar_proposals=[],
+                                qp_scalar_counters=None, fallback_eligible_count=0)
+
+                    def next_qp_step(step, slack, merit):
+                        # Called only after rejection by every applicable gate.
+                        # Leave the accepted full-step path free of model work.
+                        nonlocal qp_proposer
+                        if linesearch_step + 1 == settings.max_linesearch_steps:
+                            return .9*step
+                        if qp_proposer is None:
+                            qp_proposer = QPScalarProposer(
+                                s, ds, mu, xQdx, dxQdx, np.dot(dx, self.b),
+                                merit0, merit_slope)
+                        proposed, kind = qp_proposer.propose(step, slack, merit)
+                        if diagnostics_enabled:
+                            threshold = settings.let_newton_cook*tmax
+                            search_diag['qp_scalar_counters'] = qp_proposer.counters
+                            search_diag['qp_scalar_proposals'].append(dict(
+                                from_step=float(step), next_step=float(proposed), kind=kind,
+                                crosses_fallback=bool(settings.newton_fallback_policy != 'off'
+                                    and step >= threshold and proposed < threshold)))
+                        return proposed
+
                     successful = False
                     for linesearch_step in range(settings.max_linesearch_steps):
                         if diagnostics_enabled:
@@ -706,6 +740,7 @@ class GLQP():
                             break
                         trial_x = x + t*dx
                         trial_s, trial_y = s + t*ds, y + t*dy
+                        new_merit = np.inf
                         # Products from a rejected trial belong only to that point.
                         trial_products = trial_glm_gradient = None
                         if (not np.all(np.isfinite(trial_x))
@@ -714,7 +749,7 @@ class GLQP():
                                 or np.any(trial_s <= 0) or np.any(trial_y <= 0)):
                             if diagnostics_enabled:
                                 reject_trial(search_diag, 'nonfinite_or_nonpositive_trial')
-                            t = 0.9*t
+                            t = next_qp_step(t, trial_s, new_merit) if qp_scalar else 0.9*t
                             continue
                         #Check armijo
                         trial_z = z if self.dummy_A else z + t*dz
@@ -723,7 +758,7 @@ class GLQP():
                         if not np.isfinite(new_merit):
                             if diagnostics_enabled:
                                 reject_trial(search_diag, 'nonfinite_merit')
-                            t = 0.9*t
+                            t = next_qp_step(t, trial_s, new_merit) if qp_scalar else 0.9*t
                             continue
                         armijo_satisfied = (
                             new_merit<(
@@ -746,6 +781,8 @@ class GLQP():
                         residual_acceptance = self.QP_mode or merit_slope >= 0
                         newton_fallback = (settings.newton_fallback_policy != 'off'
                                            and t < settings.let_newton_cook*tmax)
+                        if diagnostics_enabled and self.QP_mode:
+                            search_diag['fallback_eligible_count'] += int(newton_fallback)
                         if not (residual_acceptance or newton_fallback):
                             if diagnostics_enabled:
                                 reject_trial(search_diag, 'acceptance_tests_failed')
@@ -789,7 +826,7 @@ class GLQP():
                                 if not progress:
                                     if diagnostics_enabled:
                                         reject_trial(search_diag, 'fallback_no_progress')
-                                    t = 0.9*t
+                                    t = next_qp_step(t, trial_s, new_merit) if qp_scalar else 0.9*t
                                     continue
                             successful = True
                             if diagnostics_enabled:
@@ -797,7 +834,7 @@ class GLQP():
                             break
                         if diagnostics_enabled:
                             reject_trial(search_diag, 'acceptance_tests_failed')
-                        t = 0.9*t
+                        t = next_qp_step(t, trial_s, new_merit) if qp_scalar else 0.9*t
 
             if not successful:
                 termination_tag = "failed_line_search"
