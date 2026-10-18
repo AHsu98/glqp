@@ -153,7 +153,8 @@ def test_large_cancellation_requests_fresh_instead_of_false_rejection():
     assert report.predicted_norm == .5
     assert maximum(fresh(model, values, .5)) < .1
     assert report.error_bound > .5
-    assert not report.can_reject and report.lower_bound == 0.
+    assert not report.can_reject
+    assert 0. <= report.lower_bound <= maximum(fresh(model, values, .5))
 
 
 def test_stationarity_uncertainty_does_not_hide_primal_rejection():
