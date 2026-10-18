@@ -36,7 +36,7 @@ def test_rejected_qp_trials_use_scalar_proposals_after_residual_rejection(monkey
     assert abs(x[0]) < 1
 
 
-@pytest.mark.parametrize('screen', ['off', 'complementarity'])
+@pytest.mark.parametrize('screen', ['off', 'complementarity', 'bounded'])
 def test_full_step_restoration_never_constructs_scalar_model(monkeypatch, screen):
     problem = GLQP(Q=csc_array([[1.]]), C=csc_array([[1.]]), c=np.array([10.]))
     fixed_direction(monkeypatch, problem, [-4.], [8.], [-.99])
@@ -208,3 +208,25 @@ def test_mutated_qp_residual_screen_rejected():
     settings.qp_residual_screen = 'unknown'
     with pytest.raises(ValueError, match='qp_residual_screen'):
         GLQP(Q=csc_array([[1.]])).solve(settings=settings, verbose=False)
+
+
+def test_affine_screen_preserves_fallback_and_avoids_rejected_fresh_checks(monkeypatch):
+    results = []
+    for screen in ('off', 'bounded'):
+        problem = GLQP(Q=csc_array([[1.]]))
+        fixed_direction(monkeypatch, problem, [-40.])
+        with pytest.warns(UserWarning, match='Maximum Iterations'):
+            _, result = problem.solve(x0=np.ones(1), verbose=False,
+                settings=SolverSettings(max_iter=1, qp_residual_screen=screen,
+                    let_newton_cook=.5, armijo_additive_eps=0., iteration_diagnostics=True))
+        results.append(result)
+    for name in ('x', 'y', 's', 'nu'):
+        assert getattr(results[0], name).tobytes() == getattr(results[1], name).tobytes()
+    old, new = [r.diagnostics['iterations'][0]['line_search'] for r in results]
+    assert old['trial_count'] == new['trial_count'] == 8
+    assert old['accepted_step'] == new['accepted_step']
+    assert old['acceptance_reason'] == new['acceptance_reason'] == 'newton_fallback'
+    assert new['complementarity_rejections'] == 0
+    assert new['affine_cache_initializations'] == 1
+    assert new['affine_rejections'] == 6
+    assert old['residual_check_count'] == 8 and new['residual_check_count'] == 2

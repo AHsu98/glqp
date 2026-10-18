@@ -116,6 +116,11 @@ def summarize_searches(diagnostics, observer):
     return dict(counts=dict(sorted(observer.counts.items())), search_count=len(searches),
         trial_count=sum(item['trial_count'] for item in searches),
         residual_check_count=sum(item['residual_check_count'] for item in searches),
+        residual_screen_checks=sum(item.get('residual_screen_checks', 0) for item in searches),
+        complementarity_rejections=sum(item.get('complementarity_rejections', 0) for item in searches),
+        affine_screen_checks=sum(item.get('affine_screen_checks', 0) for item in searches),
+        affine_rejections=sum(item.get('affine_rejections', 0) for item in searches),
+        affine_cache_initializations=sum(item.get('affine_cache_initializations', 0) for item in searches),
         residual_product_evaluations=len(observer.residual_products),
         residual_product_evaluations_with_fallback_eligible=sum(
             item['fallback_eligible'] is True for item in observer.residual_products),
@@ -239,7 +244,8 @@ def main():
         problem = load_problem(path)
         case_output = args.output / name
         case_output.mkdir()
-        case = dict(problem_id=name, data_sha256=auxiliary[str(path)], variants={})
+        case = dict(problem_id=name, data_sha256=auxiliary[str(path)], variants={}, screen_parity={})
+        plain_results = {}
         for variant in args.variants:
             results, records = {}, {}
             for label in ('plain', 'observed'):
@@ -254,6 +260,7 @@ def main():
             if 'time' in records['plain']['native'] or 'time' in records['observed']['native']:
                 parity.update(conclusive=False, passed=False)
             write_json(case_output / variant / 'parity.json', parity)
+            plain_results[variant] = results['plain']
             case['variants'][variant] = dict(native=records['plain']['native'],
                 iterations=records['plain']['iterations'], validation=records['plain']['validation'],
                 parity=parity, work=records['observed']['work'])
@@ -262,15 +269,28 @@ def main():
                 accepted=records['plain']['validation']['accepted'], parity=parity['passed'],
                 trials=records['observed']['work']['trial_count'],
                 residual_checks=records['observed']['work']['residual_check_count']))), flush=True)
+        for variant, result in plain_results.items():
+            mode, screen = VARIANTS[variant]
+            if screen == 'off' or mode not in plain_results:
+                continue
+            comparison = compare_results(plain_results[mode], result)
+            if 'time' in result.termination_tag or 'time' in plain_results[mode].termination_tag:
+                comparison.update(conclusive=False, passed=False)
+            comparison.update(reference=mode, candidate=variant,
+                              settings_difference='qp_residual_screen only')
+            case['screen_parity'][variant] = comparison
+            write_json(case_output / f'{mode}-vs-{variant}-parity.json', comparison)
         summary['cases'].append(case)
         write_json(args.output / 'summary.json', summary)
     check_source()
     summary['parity_passed'] = all(variant['parity']['passed'] for case in summary['cases']
                                  for variant in case['variants'].values())
+    summary['screen_parity_passed'] = all(comparison['passed'] for case in summary['cases']
+                                        for comparison in case['screen_parity'].values())
     summary['artifact_sha256'] = {str(path.relative_to(args.output)): hashlib.sha256(path.read_bytes()).hexdigest()
         for path in sorted(args.output.rglob('*')) if path.is_file() and path != args.output / 'summary.json'}
     write_json(args.output / 'summary.json', summary)
-    return 0 if summary['parity_passed'] else 1
+    return 0 if summary['parity_passed'] and summary['screen_parity_passed'] else 1
 
 
 if __name__ == '__main__':

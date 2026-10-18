@@ -21,6 +21,7 @@ from .util import (
 from .linear import LinearSolveError, ShiftedSystemWorkspace
 from .linesearch import CachedGLMRay, search_scalar_ray
 from .qp_linesearch import QPScalarProposer
+from .qp_ray import QPResidualNorms, QPResidualRay
 from .kkt import KKTWorkspace
 from .barrier import (
     validate_barrier_settings, select_barrier_target, describe_barrier_update,
@@ -59,8 +60,8 @@ def _validate_policy_settings(settings):
             or settings.qp_linesearch not in ('backtracking', 'scalar')):
         raise ValueError("qp_linesearch must be 'backtracking' or 'scalar'")
     if (not isinstance(settings.qp_residual_screen, str)
-            or settings.qp_residual_screen not in ('off', 'complementarity')):
-        raise ValueError("qp_residual_screen must be 'off' or 'complementarity'")
+            or settings.qp_residual_screen not in ('off', 'complementarity', 'bounded')):
+        raise ValueError("qp_residual_screen must be 'off', 'complementarity', or 'bounded'")
 
 
 def _no_glm_hessian(z):
@@ -428,6 +429,7 @@ class GLQP():
         use_predictor_corrector = (settings.step_strategy == 'predictor_corrector'
                                    and not self.dummy_ineq and self.k > 0)
         diagnostics_enabled = settings.iteration_diagnostics
+        qp_residual_norms = None
         diagnostics = (dict(schema_version=1, initial=None, iterations=[],
                             policies=policy_diagnostics(settings), initial_target=None)
                        if diagnostics_enabled else None)
@@ -708,6 +710,7 @@ class GLQP():
                     qp_scalar = (self.QP_mode and settings.qp_linesearch == 'scalar'
                                  and np.isfinite(merit_slope) and merit_slope < 0)
                     qp_proposer = None
+                    qp_residual_ray = None
                     if diagnostics_enabled:
                         search_diag['algorithm'] = 'qp_scalar' if qp_scalar else 'backtracking'
                         if self.QP_mode:
@@ -715,7 +718,9 @@ class GLQP():
                                 qp_scalar_eligible=bool(qp_scalar), qp_scalar_proposals=[],
                                 qp_scalar_counters=None, fallback_eligible_count=0,
                                 residual_screen=settings.qp_residual_screen,
-                                residual_screen_checks=0, complementarity_rejections=0)
+                                residual_screen_checks=0, complementarity_rejections=0,
+                                affine_screen_checks=0, affine_rejections=0,
+                                affine_cache_initializations=0)
 
                     def next_qp_step(step, slack, merit):
                         # Called only after rejection by every applicable gate.
@@ -814,6 +819,30 @@ class GLQP():
                                     reject_trial(search_diag, 'acceptance_tests_failed')
                                 t = next_qp_step(t, trial_s, new_merit) if qp_scalar else .9*t
                                 continue
+
+                            # Pay for four direction products only after a full
+                            # trial has failed. Predictions can reject, never
+                            # accept; uncertainty falls through to fresh blocks.
+                            if settings.qp_residual_screen == 'bounded' and linesearch_step > 0:
+                                if qp_residual_ray is None:
+                                    if qp_residual_norms is None:
+                                        qp_residual_norms = QPResidualNorms(self.C, self.E)
+                                    qp_residual_ray = QPResidualRay(self, qp_residual_norms,
+                                        rx=rx, rp=rp, req=req, x=x, y=y, s=s, nu=nu,
+                                        dx=dx, dy=dy, ds=ds, dnu=dnu, Qx=Qx, Qdx=Qdx)
+                                    if diagnostics_enabled:
+                                        search_diag['affine_cache_initializations'] += 1
+                                report = qp_residual_ray.screen(t, trial_y, trial_s,
+                                    residual_limit=(1-settings.armijo_param*t)*kkt_res,
+                                    tolerance=settings.tol)
+                                if diagnostics_enabled:
+                                    search_diag['affine_screen_checks'] += 1
+                                if report.can_reject:
+                                    if diagnostics_enabled:
+                                        search_diag['affine_rejections'] += 1
+                                        reject_trial(search_diag, 'acceptance_tests_failed')
+                                    t = next_qp_step(t, trial_s, new_merit) if qp_scalar else .9*t
+                                    continue
 
                         #Check KKT residual
                         if diagnostics_enabled:
