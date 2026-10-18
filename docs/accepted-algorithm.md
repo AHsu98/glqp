@@ -1,10 +1,10 @@
 # Accepted GLQP algorithm
 
 This is a source-level reference for the accepted **legacy Newton method with
-float64 right-preconditioned GMRES refinement**. It describes the numerical
-implementation at `1f5ac45`, also present at documentation revision `72a3642`
-(2026-10-17). Later experimental options in the same source tree do not change
-that default. This document records implemented behavior, including heuristics;
+float64 right-preconditioned GMRES refinement**. The base implementation is
+`1f5ac45`, also present at documentation revision `72a3642` (2026-10-17), with
+the accepted GLM arithmetic and search updates listed below. Other experimental
+options remain opt-in. This document records implemented behavior, including heuristics;
 it does not claim a convergence theorem for their combination.
 The structural cleanup at `f179f1d` preserves this numerical behavior; selected
 exact-parity checks and regression tests are recorded in the
@@ -19,6 +19,13 @@ equations, Hessian assembly, regularization, and outer policies are unchanged.
 The [GLM numerical review](research/glm-numerics-review-20261017.md) and
 [81-case checkpoint](../../glqp-bench/benchmarks/progression/glm-stress-20261017/README.md)
 record the reproducer, independent validation correction, and remaining limits.
+
+The cached GLM scalar search at `af8e5bb` (2026-10-18) is now accepted and the
+default for eligible nonlinear descent directions. It preserves the merit and
+Armijo acceptance, using cached ray derivatives only to choose trial steps.
+QP and centered-proximal searches keep their previous behavior. See the
+[scalar-search reference](glm-scalar-search.md) for equations, safeguards,
+custom-loss behavior, and the matched Poisson certificate results.
 
 The authoritative entry points are [`SolverSettings` and `GLQP`](../glqp/solver.py).
 Benchmark settings are a separate layer in the sibling repository's
@@ -211,7 +218,8 @@ polynomial along the direction. Reject nonfinite primal, slack, or inequality
 multiplier trials, nonpositive slacks/inequality multipliers, and nonfinite merit.
 The target stays fixed
 through the search. Equality multipliers are free in sign and do not receive
-an explicit finiteness check before Armijo. Acceptance is tried in this order:
+an explicit finiteness check before legacy Armijo; scalar search also checks
+their finiteness. The legacy acceptance routes are tried in this order:
 
 1. **Armijo:** `M_trial < M_current + .005*t*D M + 1e-8`, with coefficients
    controlled by `armijo_param` and `armijo_additive_eps`.
@@ -224,8 +232,13 @@ an explicit finiteness check before Armijo. Acceptance is tried in this order:
    requires neither merit nor residual decrease. It is inactive when
    `let_newton_cook=0`, as in public general-objective settings and GLM profiles.
 
-Rejected trials multiply `t` by **.9**. The retained `gamma=.5` setting does not
-control this contraction and is unused in the current solver. Exhausting the
+For finite negative GLM merit slopes with Newton fallback inactive, the default
+`glm_linesearch='scalar'` accepts by Armijo and chooses rejected-trial steps with
+the [cached scalar controller](glm-scalar-search.md). Full steps need no scalar
+derivatives. Its safeguarded Newton/interpolation proposals contract by at least
+half; the Poisson log-growth proposal can jump farther. Other paths, or explicit
+`glm_linesearch='backtracking'`, multiply rejected steps by **.9**. The retained
+`gamma=.5` setting is unused in both controllers. Exhausting the
 profile's trial budget yields `failed_line_search`. The actual objective,
 gradient, and original KKT blocks are refreshed at an accepted point; constant
 QP/Gaussian Hessians are reused, while nonlinear GLM Hessians are refreshed.
@@ -322,6 +335,7 @@ from the public defaults.
 | `max_iter` | 200 | 10000 | 1000 |
 | `max_stagnation` | 20 | 5000 | 100 |
 | `max_linesearch_steps` | 50 | 40 | 100 |
+| `glm_linesearch` | `scalar` | inherited, QP path bypasses | inherited (`scalar` in current source) |
 | `let_newton_cook` | 0 | .5 | 0 |
 | `max_iterative_refinement` | 10 | 10 | 10 |
 

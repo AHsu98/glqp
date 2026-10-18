@@ -1,6 +1,6 @@
 # Experiment ledger
 
-Status: 2026-10-17. This index records implemented changes, completed experiments,
+Status: 2026-10-18. This index records implemented changes, completed experiments,
 and working decisions. Dated reports remain the authority for their particular
 source revisions, settings, observations, and limitations. An option's presence
 in the solver does not mean that it has been selected as a default.
@@ -25,6 +25,18 @@ with identical counts on every case. Three severe Poisson cases fail their
 initial line search; two weak-ridge cases fail only the external gap bound.
 These results motivate separate globalization and certification experiments,
 not a universal replacement of sparse-MKL Gram formation.
+
+The accepted [cached scalar search](../glm-scalar-search.md) at `af8e5bb` now
+replaces `.9` backtracking for eligible GLM descent directions. All 76/81
+certificates are retained at native `1e-7`; the three severe Poisson cases now
+reach native convergence, but still fail the external gap bound. A matched
+severe12 control at native `1e-9` improves 9/12 to 12/12. Initial severe Poisson
+searches take two trials instead of exhausting 100, without extra sparse
+matvecs. The clean final parallel-8 sweep observes about 2% lower wall time on
+76 common successes; this single short-case sweep is not a broad timing claim.
+The [checkpoint](../../../glqp-bench/benchmarks/progression/scalar-search-20261018/README.md)
+retains both flagged earlier timing attempts, numerical revalidation, and raw
+evidence. QP searches, regularization, and barrier updates are unchanged.
 
 ## Measurement scopes
 
