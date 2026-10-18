@@ -173,7 +173,8 @@ def policy_diagnostics(settings):
              'barrier_reduction_limit', 'barrier_kkt_floor', 'slack_repair',
              'repair_growth_limit', 'newton_fallback_policy', 'step_strategy',
              'proximal_policy', 'prox_dual_reg', 'proximal_center_reduction',
-             'proximal_inner_tolerance', 'proximal_corrector_limit', 'proximal_reg_update')
+             'proximal_inner_tolerance', 'proximal_corrector_limit', 'proximal_reg_update',
+             'glm_linesearch')
     return {name: getattr(settings, name) for name in names}
 
 
@@ -197,6 +198,24 @@ def record_fallback_progress(diagnostics, step, old_norm, trial_norm, limit, acc
         step=float(step), previous_perturbed_kkt=float(old_norm),
         trial_perturbed_kkt=float(trial_norm), contraction_limit=float(limit),
         accepted=bool(accepted)))
+
+
+def record_scalar_search(diagnostics, result):
+    """Map the scalar controller's observations to common search diagnostics."""
+    counts = result.counters
+    diagnostics.update(
+        algorithm='scalar', scalar_status=result.status,
+        scalar_counters=counts, scalar_history=result.history,
+        trial_count=counts['trial_count'],
+        armijo_failure_count=counts['armijo_failure_count'],
+        acceptance_reason='armijo' if result.trial is not None else None)
+    for reason, key in (
+            ('nonfinite_or_nonpositive_trial', 'invalid_trial_count'),
+            ('nonfinite_merit', 'nonfinite_count'),
+            ('acceptance_tests_failed', 'armijo_failure_count')):
+        if counts[key]:
+            diagnostics['rejection_reasons'][reason] = counts[key]
+    diagnostics['rejection_count'] = sum(diagnostics['rejection_reasons'].values())
 
 
 def start_repair_diagnostics(settings):

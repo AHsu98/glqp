@@ -19,6 +19,7 @@ from .util import (
 )
 
 from .linear import LinearSolveError, ShiftedSystemWorkspace
+from .linesearch import CachedGLMRay, search_scalar_ray
 from .kkt import KKTWorkspace
 from .barrier import (
     validate_barrier_settings, select_barrier_target, describe_barrier_update,
@@ -40,7 +41,7 @@ from .diagnostics import (
     start_iteration_diagnostics, start_line_search_diagnostics, reject_trial,
     slack_repair_diagnostics, history_diagnostics,
     policy_diagnostics, start_repair_diagnostics, record_fallback_progress,
-    proximal_history_fields,
+    proximal_history_fields, record_scalar_search,
 )
 
 
@@ -50,6 +51,9 @@ def _validate_policy_settings(settings):
     validate_repair_and_fallback_settings(settings)
     validate_step_strategy(settings)
     validate_proximal_settings(settings)
+    if (not isinstance(settings.glm_linesearch, str)
+            or settings.glm_linesearch not in ('backtracking', 'scalar')):
+        raise ValueError("glm_linesearch must be 'backtracking' or 'scalar'")
 
 
 def _no_glm_hessian(z):
@@ -73,6 +77,9 @@ class SolverSettings():
     min_mu:float = 1e-12
     tau_reg:float =2e-8
     max_linesearch_steps:int = 50
+    # Scalar search applies to nonlinear descent with the legacy merit and no
+    # Newton fallback. Other globalization paths retain their own contracts.
+    glm_linesearch:str = 'backtracking'
     # Maximum inner steps in one right-preconditioned GMRES correction cycle.
     max_iterative_refinement:int = 10
     max_time:float = 600.
@@ -645,108 +652,152 @@ class GLQP():
                     barrier = -mu*np.sum(np.log(trial_s))
                     return primal + barrier
 
-                successful = False
-                for linesearch_step in range(settings.max_linesearch_steps):
-                    if diagnostics_enabled:
-                        search_diag['trial_count'] += 1
-                    if not np.isfinite(t) or t <= 0:
-                        if diagnostics_enabled:
-                            reject_trial(search_diag, 'invalid_step')
-                        break
-                    trial_x = x + t*dx
-                    trial_s, trial_y = s + t*ds, y + t*dy
-                    # Products from a rejected trial belong only to that point.
+                # Only the objective-plus-barrier descent path is a convex
+                # scalar ray. QP restoration, non-descent directions, and an
+                # explicitly enabled Newton fallback retain their old search.
+                scalar_search = (settings.glm_linesearch == 'scalar'
+                                 and not self.QP_mode
+                                 and np.isfinite(merit_slope) and merit_slope < 0
+                                 and (settings.let_newton_cook <= 0
+                                      or settings.newton_fallback_policy == 'off'))
+                if scalar_search:
+                    ray = CachedGLMRay(
+                        self.f, z, dz, s, ds, mu, xQx, xQdx, dxQdx,
+                        np.dot(x, self.b), np.dot(dx, self.b))
+
+                    def trial_is_valid(step):
+                        # No matrix products: the ray checks its loss and slack.
+                        # Include free equality multipliers in the finite check.
+                        with np.errstate(over='ignore', invalid='ignore'):
+                            next_x = x + step*dx
+                            next_y = y + step*dy
+                            next_nu = nu + step*dnu
+                        return bool(np.all(np.isfinite(next_x))
+                                    and np.all(np.isfinite(next_y))
+                                    and np.all(next_y > 0)
+                                    and np.all(np.isfinite(next_nu)))
+
+                    scalar_result = search_scalar_ray(
+                        ray, tmax=tmax, merit0=merit0, slope0=merit_slope,
+                        armijo_param=settings.armijo_param,
+                        additive_eps=settings.armijo_additive_eps,
+                        max_trials=settings.max_linesearch_steps,
+                        trial_is_valid=trial_is_valid,
+                        record_history=diagnostics_enabled)
+                    successful = scalar_result.trial is not None
                     trial_products = trial_glm_gradient = None
-                    if (not np.all(np.isfinite(trial_x))
-                            or not np.all(np.isfinite(trial_s))
-                            or not np.all(np.isfinite(trial_y))
-                            or np.any(trial_s <= 0) or np.any(trial_y <= 0)):
-                        if diagnostics_enabled:
-                            reject_trial(search_diag, 'nonfinite_or_nonpositive_trial')
-                        t = 0.9*t
-                        continue
-                    #Check armijo
-                    trial_z = z if self.dummy_A else z + t*dz
-                    with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
-                        new_merit = merit_line(t, trial_x, trial_s, trial_z)
-                    if not np.isfinite(new_merit):
-                        if diagnostics_enabled:
-                            reject_trial(search_diag, 'nonfinite_merit')
-                        t = 0.9*t
-                        continue
-                    armijo_satisfied = (
-                        new_merit<(
-                            merit0 +
-                            settings.armijo_param * t * merit_slope +
-                            settings.armijo_additive_eps)
-                    )
-                    if armijo_satisfied:
-                        successful = True
-                        if diagnostics_enabled:
-                            search_diag['acceptance_reason'] = 'armijo'
-                        break
-
+                    if successful:
+                        trial = scalar_result.trial
+                        t = trial.step
+                        trial_x, trial_y = x + t*dx, y + t*dy
+                        trial_s, trial_z = trial.slack, trial.predictor
                     if diagnostics_enabled:
-                        search_diag['armijo_failure_count'] += 1
+                        record_scalar_search(search_diag, scalar_result)
+                else:
+                    if diagnostics_enabled:
+                        search_diag['algorithm'] = 'backtracking'
+                    successful = False
+                    for linesearch_step in range(settings.max_linesearch_steps):
+                        if diagnostics_enabled:
+                            search_diag['trial_count'] += 1
+                        if not np.isfinite(t) or t <= 0:
+                            if diagnostics_enabled:
+                                reject_trial(search_diag, 'invalid_step')
+                            break
+                        trial_x = x + t*dx
+                        trial_s, trial_y = s + t*ds, y + t*dy
+                        # Products from a rejected trial belong only to that point.
+                        trial_products = trial_glm_gradient = None
+                        if (not np.all(np.isfinite(trial_x))
+                                or not np.all(np.isfinite(trial_s))
+                                or not np.all(np.isfinite(trial_y))
+                                or np.any(trial_s <= 0) or np.any(trial_y <= 0)):
+                            if diagnostics_enabled:
+                                reject_trial(search_diag, 'nonfinite_or_nonpositive_trial')
+                            t = 0.9*t
+                            continue
+                        #Check armijo
+                        trial_z = z if self.dummy_A else z + t*dz
+                        with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
+                            new_merit = merit_line(t, trial_x, trial_s, trial_z)
+                        if not np.isfinite(new_merit):
+                            if diagnostics_enabled:
+                                reject_trial(search_diag, 'nonfinite_merit')
+                            t = 0.9*t
+                            continue
+                        armijo_satisfied = (
+                            new_merit<(
+                                merit0 +
+                                settings.armijo_param * t * merit_slope +
+                                settings.armijo_additive_eps)
+                        )
+                        if armijo_satisfied:
+                            successful = True
+                            if diagnostics_enabled:
+                                search_diag['acceptance_reason'] = 'armijo'
+                            break
 
-                    # A rejected nonlinear descent trial can use its KKT norm
-                    # only once the explicitly enabled Newton fallback applies.
-                    # Skip derivatives and constraint products otherwise.
-                    residual_acceptance = self.QP_mode or merit_slope >= 0
-                    newton_fallback = (settings.newton_fallback_policy != 'off'
-                                       and t < settings.let_newton_cook*tmax)
-                    if not (residual_acceptance or newton_fallback):
+                        if diagnostics_enabled:
+                            search_diag['armijo_failure_count'] += 1
+
+                        # A rejected nonlinear descent trial can use its KKT norm
+                        # only once the explicitly enabled Newton fallback applies.
+                        # Skip derivatives and constraint products otherwise.
+                        residual_acceptance = self.QP_mode or merit_slope >= 0
+                        newton_fallback = (settings.newton_fallback_policy != 'off'
+                                           and t < settings.let_newton_cook*tmax)
+                        if not (residual_acceptance or newton_fallback):
+                            if diagnostics_enabled:
+                                reject_trial(search_diag, 'acceptance_tests_failed')
+                            t = 0.9*t
+                            continue
+                
+                        #Check KKT residual
+                        if diagnostics_enabled:
+                            search_diag['residual_check_count'] += 1
+                        trial_glm_gradient = 0. if self.dummy_A else AT@self.f.d1f(trial_z)
+                        ls_gradf = trial_glm_gradient + Qx + t*Qdx
+                        trial_products = self._constraint_products(trial_x, trial_y, nu+t*dnu)
+                        ls_blocks = self._kkt_residuals(ls_gradf, trial_y, trial_s, trial_products)
+                        ls_kkt_res = maxnorm(np.hstack(ls_blocks))
+                        # Preserve residual acceptance for QPs, including restoration
+                        # from an inconsistent positive slack warm start. For nonlinear
+                        # GLMs, alternating merit decreases and residual-only steps can
+                        # cycle: descent directions must pass the merit test there.
+                        if residual_acceptance and np.isfinite(ls_kkt_res) and (
+                            ls_kkt_res<(1-settings.armijo_param*t)*kkt_res
+                            or ls_kkt_res<settings.tol
+                        ):
+                            successful = True
+                            if diagnostics_enabled:
+                                search_diag['acceptance_reason'] = 'residual'
+                            break
+                        # Preserve the explicitly configured Newton fallback, but
+                        # never use it to accept nonfinite or non-interior trials.
+                        if np.isfinite(ls_kkt_res) and newton_fallback:
+                            if settings.newton_fallback_policy == 'progress':
+                                ls_rx, ls_rp, ls_rc, ls_req = ls_blocks
+                                trial_perturbed_kkt = maxnorm(np.hstack(
+                                    [ls_rx, ls_rp, ls_rc-mu, ls_req]))
+                                contraction_limit = (1-settings.armijo_param*t)*perturbed_kkt_before
+                                progress = bool(np.isfinite(trial_perturbed_kkt) and (
+                                    trial_perturbed_kkt < contraction_limit
+                                    or trial_perturbed_kkt < settings.tol))
+                                if diagnostics_enabled:
+                                    record_fallback_progress(search_diag, t, perturbed_kkt_before,
+                                                             trial_perturbed_kkt, contraction_limit, progress)
+                                if not progress:
+                                    if diagnostics_enabled:
+                                        reject_trial(search_diag, 'fallback_no_progress')
+                                    t = 0.9*t
+                                    continue
+                            successful = True
+                            if diagnostics_enabled:
+                                search_diag['acceptance_reason'] = 'newton_fallback'
+                            break
                         if diagnostics_enabled:
                             reject_trial(search_diag, 'acceptance_tests_failed')
                         t = 0.9*t
-                        continue
-                
-                    #Check KKT residual
-                    if diagnostics_enabled:
-                        search_diag['residual_check_count'] += 1
-                    trial_glm_gradient = 0. if self.dummy_A else AT@self.f.d1f(trial_z)
-                    ls_gradf = trial_glm_gradient + Qx + t*Qdx
-                    trial_products = self._constraint_products(trial_x, trial_y, nu+t*dnu)
-                    ls_blocks = self._kkt_residuals(ls_gradf, trial_y, trial_s, trial_products)
-                    ls_kkt_res = maxnorm(np.hstack(ls_blocks))
-                    # Preserve residual acceptance for QPs, including restoration
-                    # from an inconsistent positive slack warm start. For nonlinear
-                    # GLMs, alternating merit decreases and residual-only steps can
-                    # cycle: descent directions must pass the merit test there.
-                    if residual_acceptance and np.isfinite(ls_kkt_res) and (
-                        ls_kkt_res<(1-settings.armijo_param*t)*kkt_res
-                        or ls_kkt_res<settings.tol
-                    ):
-                        successful = True
-                        if diagnostics_enabled:
-                            search_diag['acceptance_reason'] = 'residual'
-                        break
-                    # Preserve the explicitly configured Newton fallback, but
-                    # never use it to accept nonfinite or non-interior trials.
-                    if np.isfinite(ls_kkt_res) and newton_fallback:
-                        if settings.newton_fallback_policy == 'progress':
-                            ls_rx, ls_rp, ls_rc, ls_req = ls_blocks
-                            trial_perturbed_kkt = maxnorm(np.hstack(
-                                [ls_rx, ls_rp, ls_rc-mu, ls_req]))
-                            contraction_limit = (1-settings.armijo_param*t)*perturbed_kkt_before
-                            progress = bool(np.isfinite(trial_perturbed_kkt) and (
-                                trial_perturbed_kkt < contraction_limit
-                                or trial_perturbed_kkt < settings.tol))
-                            if diagnostics_enabled:
-                                record_fallback_progress(search_diag, t, perturbed_kkt_before,
-                                                         trial_perturbed_kkt, contraction_limit, progress)
-                            if not progress:
-                                if diagnostics_enabled:
-                                    reject_trial(search_diag, 'fallback_no_progress')
-                                t = 0.9*t
-                                continue
-                        successful = True
-                        if diagnostics_enabled:
-                            search_diag['acceptance_reason'] = 'newton_fallback'
-                        break
-                    if diagnostics_enabled:
-                        reject_trial(search_diag, 'acceptance_tests_failed')
-                    t = 0.9*t
 
             if not successful:
                 termination_tag = "failed_line_search"
