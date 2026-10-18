@@ -30,7 +30,10 @@ def safeguarded_step(step, merit, merit0, slope0, slope, curvature, *,
         return .5*step, 'contraction'
 
     with np.errstate(over='ignore', invalid='ignore', divide='ignore', under='ignore'):
-        candidate = step-np.divide(slope, curvature)
+        # Preserve each policy's scalar arithmetic, including Python float
+        # zero-division behavior for standalone GLM callers.
+        ratio = np.divide(slope, curvature) if require_positive_step else slope/curvature
+        candidate = step-ratio
         if ((not require_positive_step or candidate > 0)
                 and .1*step <= candidate <= .5*step):
             return float(candidate), 'newton'
@@ -38,7 +41,8 @@ def safeguarded_step(step, merit, merit0, slope0, slope, curvature, *,
         denominator = (merit-merit0)/step-slope0
         if (not require_positive_step
                 or (np.isfinite(denominator) and denominator > 0)):
-            fraction = np.divide(-.5*slope0, denominator)
+            fraction = (np.divide(-.5*slope0, denominator) if require_positive_step
+                        else -.5*slope0/denominator)
             if np.isfinite(fraction) and fraction > 0:
                 candidate = step*float(np.clip(fraction, .1, .5))
                 if not require_positive_step or candidate > 0:

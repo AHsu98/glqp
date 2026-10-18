@@ -3,6 +3,7 @@ import numpy as np
 import pytest
 
 from glqp.step_proposal import safeguarded_step
+from glqp.linesearch import CachedGLMRay, search_scalar_ray
 
 
 @pytest.mark.parametrize('require_positive_step', [False, True])
@@ -27,7 +28,7 @@ def test_unusable_derivatives_disable_interpolation_too(slope, curvature):
     assert safeguarded_step(1., 1., 0., -1., slope, curvature) == (.5, 'contraction')
 
 
-@pytest.mark.parametrize('merit', [-1., -2., np.nan, np.inf])
+@pytest.mark.parametrize('merit', [-2., np.nan, np.inf])
 @pytest.mark.parametrize('require_positive_step', [False, True])
 def test_unusable_interpolation_falls_back_to_halving(merit, require_positive_step):
     assert safeguarded_step(1., merit, 0., -1., 0., 1.,
@@ -52,3 +53,41 @@ def test_zero_newton_proposal_retains_each_policy_underflow_reason():
     args = (smallest, 1., 0., -1., smallest, 1.)
     assert safeguarded_step(*args) == (0., 'newton')
     assert safeguarded_step(*args, require_positive_step=True) == (0., 'contraction')
+
+
+def test_qp_interpolation_zero_denominator_contracts():
+    assert safeguarded_step(1., -1., 0., -1., 0., 1.,
+                            require_positive_step=True) == (.5, 'contraction')
+
+
+@pytest.mark.parametrize('scalar_type', [float, np.float64])
+def test_public_glm_search_preserves_scalar_type_zero_division_behavior(scalar_type):
+    # The smooth nonconvex loss is allowed for custom scalar rays. Its trial
+    # value rounds onto the Armijo bound and its interpolation denominator is
+    # exactly zero. Standalone Python floats historically raise; solver NumPy
+    # scalars produce an unusable model and contract. Consolidation preserves
+    # both behaviors, including the caller's scalar types.
+    smallest = float(np.nextafter(0., 1.))
+
+    class Loss:
+        def __call__(self, z):
+            return float(np.sum(-smallest*z + z*z*(z-1)))
+
+        def d1f(self, z):
+            return -smallest + 3*z*z - 2*z
+
+        def d2f(self, z):
+            return 6*z-2
+
+    ray = CachedGLMRay(Loss(), np.zeros(1), np.ones(1), np.ones(1), np.zeros(1),
+                       0., 0., 0., 0., 0., 0.)
+    kwargs = dict(tmax=1., merit0=scalar_type(0.), slope0=scalar_type(-smallest),
+                  armijo_param=.9, additive_eps=0., max_trials=2)
+    if scalar_type is float:
+        with pytest.raises(ZeroDivisionError):
+            search_scalar_ray(ray, **kwargs)
+    else:
+        result = search_scalar_ray(ray, **kwargs)
+        assert result.status == 'armijo'
+        assert result.trial.step == .5
+        assert result.counters['contraction_steps'] == 1
