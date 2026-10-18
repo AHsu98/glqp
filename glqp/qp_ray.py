@@ -15,14 +15,15 @@ roundoff envelopes, not interval-arithmetic certificates for arbitrary BLAS,
 hardware failures, changing matrices, or differently grouped residuals.
 """
 from dataclasses import dataclass
+import math
 
 import numpy as np
 
 
 # eps is twice the round-to-nearest unit roundoff: using k*eps covers a
 # length-k sparse dot with up to 2k separate multiply/add operations.
-_EPS = np.finfo(float).eps
-_TINY = np.finfo(float).tiny
+_EPS = float(np.finfo(float).eps)
+_TINY = float(np.finfo(float).tiny)
 
 
 def _norm(vector):
@@ -30,7 +31,7 @@ def _norm(vector):
 
 
 def _up(value):
-    return float(np.nextafter(value, np.inf)) if value > 0 else float(value)
+    return math.nextafter(value, math.inf) if value > 0 else float(value)
 
 
 def _sum(*values):
@@ -43,13 +44,13 @@ def _sum(*values):
 def _mul(first, second):
     product = first*second
     if product == 0 and first > 0 and second > 0:
-        return float(np.nextafter(0., np.inf))
+        return math.nextafter(0., math.inf)
     return _up(product)
 
 
 def _roundoff(operations, magnitude):
     scaled = operations*_EPS
-    if not np.isfinite(magnitude) or scaled >= .5:
+    if not math.isfinite(magnitude) or scaled >= .5:
         return np.inf
     gamma = _up(scaled/(1-scaled))
     return _sum(_mul(gamma, magnitude), _mul(operations, _TINY))
@@ -148,7 +149,7 @@ C.T@dy and E.T@dnu; subsequent predictions use vector arithmetic only.
 
     def _errors(self, step):
         """Bound fresh-minus-cached blocks, including base cancellation error."""
-        t = abs(step)
+        t = abs(float(step))
         v = self.vector_norms
         C, CT, E, ET = (self.norms.get()[key] for key in ('C', 'CT', 'E', 'ET'))
         exact_size = {name: _sum(v[name], _mul(t, v['d'+name])) for name in ('x', 'y', 's', 'nu')}
@@ -212,7 +213,8 @@ cache. This method never changes a direction, target, or acceptance threshold.
             return QPResidualScreen(None, None, None, False, 'affine_screen_deferred')
         with np.errstate(over='ignore', invalid='ignore', under='ignore'):
             blocks = self.residuals(step, trial_y, trial_s)
-            predicted = max(_norm(block) for block in blocks)
+            block_norms = tuple(_norm(block) for block in blocks)
+            predicted = max(block_norms)
             # Every bound term is nonnegative and nondecreasing in |step|.
             # Reuse the first envelope as backtracking contracts the ray; grow
             # it only for a caller that later requests a larger step.
@@ -224,8 +226,10 @@ cache. This method never changes a direction, target, or acceptance threshold.
         if (not all(np.all(np.isfinite(block)) for block in blocks)
                 or not all(np.isfinite(value) for value in errors)):
             return QPResidualScreen(predicted, error, None, False, 'nonfinite_prediction', errors)
-        # Round downward so subtracting the envelope cannot enlarge this bound.
-        lower = max(0., float(np.nextafter(predicted-error, -np.inf)))
+        # Each block has its own error envelope. A large stationarity error
+        # must not hide a decisive primal/equality residual lower bound.
+        lower = max(0., max(math.nextafter(norm-bound, -math.inf)
+                            for norm, bound in zip(block_norms, errors)))
         reject = lower >= max(residual_limit, tolerance)
         return QPResidualScreen(predicted, error, lower, reject,
             'residual_gates_excluded' if reject else 'possible_acceptance_requires_fresh', errors)

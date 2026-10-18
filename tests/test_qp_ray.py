@@ -156,6 +156,21 @@ def test_large_cancellation_requests_fresh_instead_of_false_rejection():
     assert not report.can_reject and report.lower_bound == 0.
 
 
+def test_stationarity_uncertainty_does_not_hide_primal_rejection():
+    model = SimpleNamespace(C=sparse.csc_array([[1e12]]), E=sparse.csc_array((0, 1)),
+        b=np.zeros(1), c=np.array([-1e-4]), e=np.empty(0),
+        _transpose_views=SparseTransposeCache())
+    values = dict(x=np.zeros(1), y=np.ones(1), s=np.array([1e-10]), nu=np.empty(0),
+        dx=np.zeros(1), dy=np.zeros(1), ds=np.zeros(1), dnu=np.empty(0),
+        Qx=np.array([-1e12]), Qdx=np.zeros(1))
+    rx, rp, _, req = fresh(model, values, 0.)
+    ray = QPResidualRay(model, QPResidualNorms(model.C, model.E), rx=rx, rp=rp, req=req, **values)
+    report = ray.screen(.5, values['y'], values['s'], residual_limit=5e-5, tolerance=1e-7)
+    assert report.error_bound > report.predicted_norm  # the global envelope is inconclusive
+    assert report.can_reject and report.lower_bound >= 5e-5
+    assert report.lower_bound <= maximum(fresh(model, values, .5))
+
+
 @pytest.mark.parametrize('k,p', [(0, 0), (0, 3), (7, 0)])
 def test_empty_constraint_blocks_have_valid_error_envelopes(k, p):
     model, values, ray, _ = make_ray(k=k, p=p)
