@@ -46,6 +46,12 @@ No QP search default changes, and no full-suite coverage claim follows from
 this screen. The [four-round checkpoint](../../../glqp-bench/benchmarks/progression/qp-scalar-search-20261018/README.md)
 retains the excluded timing attempt and diagnostic parity evidence.
 
+The [full scalar-proposal reliability follow-up](../../../glqp-bench/benchmarks/progression/qp-scalar-full-20261018/README.md)
+retains the same 129/138 certificates and nine failures as backtracking, with
+residual screening disabled. Full-run timings are excluded after four host
+flags. QP restoration/fallback acceptance is preserved; these results do not
+validate replacing it with the GLM merit-only descent policy.
+
 ## Measurement scopes
 
 | Evidence family | Machine and execution | Scope and interpretation |

@@ -104,7 +104,34 @@ bytes, rejects 9,436 trials through affine bounds, and removes 26,712 sparse
 product calls net of cache setup. Saved sparse calls alone therefore do not
 establish a complete-solve speedup on this problem.
 
-No option is promoted from this screen, and this is not a full 138-case coverage
-claim. The tests protect restoration, finite/progress fallback, cancellation,
+No option is promoted from this screen. The tests protect restoration, finite/progress fallback, cancellation,
 actual clipped directions, empty blocks, and diagnostics parity. The final
 implementation test run passes 783 tests with one existing expected warning.
+
+## Subsequent full QP reliability comparison
+
+The [full 138-case follow-up](../../glqp-bench/benchmarks/progression/qp-scalar-full-20261018/README.md)
+compares `qp_linesearch='backtracking'` and `'scalar'` with residual screening
+off, holding all other settings fixed. Both certify **129/138 (93.48%)**, with
+no gains or losses. Both time out on BOYD1, BOYD2, CONT-300, CVXQP1_L, and
+CVXQP3_L, and fail the certificate on LISWET8, LISWET9, LISWET12, and QPILOTNO.
+The native tolerance is `1e-7`, independent certificate tolerance `1e-6`, and
+budget 60 seconds. The host guard flags four intervals; all full-run timings
+are excluded. This is empirical coverage at those settings, not a convergence
+guarantee or evidence for a new acceptance rule.
+
+The 129 common certified cases use 29,802 baseline iterations versus 30,179
+with scalar proposals (+1.27%); 93 counts are unchanged. The QP-profile smoke
+panel passes 9/10 tests in both arms. Its logistic test stagnates because the
+QP benchmark's explicitly enabled finite Newton fallback also applies to that
+test. This is shared baseline behavior, not a scalar-proposal regression or a
+test of the normal fallback-disabled GLM profile.
+
+The option still preserves QP-specific restoration and fallback acceptance.
+It has not unified the GLM and QP searches. A shared trial loop and ray/proposal
+interface can retain explicit acceptance policies; making the acceptance rule
+itself identical would require a separate algorithm experiment. In particular,
+the current objective-plus-slack-barrier merit contains no equality or
+slack-consistency penalty. Removing restoration simply to share code would
+change that globalization contract. Residual caching is independent of this
+structural cleanup and remains off.

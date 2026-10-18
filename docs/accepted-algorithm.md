@@ -31,6 +31,9 @@ The subsequent [QP search experiments](qp-search-experiments.md) remain opt-in:
 `qp_linesearch='backtracking'` and `qp_residual_screen='off'` are still the
 defaults. The 12-case screen did not establish a speed or iteration improvement
 from scalar proposals or residual rejection caching.
+The subsequent full 138-QP check retains the same 129 certificates and nine
+failures with scalar proposals and screening off. This tests the preserved QP
+acceptance rules; a unified QP/GLM acceptance rule has not been evaluated.
 
 The authoritative entry points are [`SolverSettings` and `GLQP`](../glqp/solver.py).
 Benchmark settings are a separate layer in the sibling repository's
