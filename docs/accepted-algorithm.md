@@ -27,6 +27,11 @@ QP and centered-proximal searches keep their previous behavior. See the
 [scalar-search reference](glm-scalar-search.md) for equations, safeguards,
 custom-loss behavior, and the matched Poisson certificate results.
 
+The subsequent [QP search experiments](qp-search-experiments.md) remain opt-in:
+`qp_linesearch='backtracking'` and `qp_residual_screen='off'` are still the
+defaults. The 12-case screen did not establish a speed or iteration improvement
+from scalar proposals or residual rejection caching.
+
 The authoritative entry points are [`SolverSettings` and `GLQP`](../glqp/solver.py).
 Benchmark settings are a separate layer in the sibling repository's
 [`adapters.py`](../../glqp-bench/src/glqp_bench/adapters.py). Those sibling links

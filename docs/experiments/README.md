@@ -38,6 +38,14 @@ The [checkpoint](../../../glqp-bench/benchmarks/progression/scalar-search-202610
 retains both flagged earlier timing attempts, numerical revalidation, and raw
 evidence. QP searches, regularization, and barrier updates are unchanged.
 
+The [QP search follow-up](../qp-search-experiments.md) tests scalar proposals,
+exact complementarity rejection, and bounded affine residual caching separately.
+All retain 12/12 certificates on the selected panel. Scalar proposals leave
+the long trajectories unchanged; the bounded cache adds work on QPCBOEI2.
+No QP search default changes, and no full-suite coverage claim follows from
+this screen. The [four-round checkpoint](../../../glqp-bench/benchmarks/progression/qp-scalar-search-20261018/README.md)
+retains the excluded timing attempt and diagnostic parity evidence.
+
 ## Measurement scopes
 
 | Evidence family | Machine and execution | Scope and interpretation |
