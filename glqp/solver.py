@@ -58,6 +58,9 @@ def _validate_policy_settings(settings):
     if (not isinstance(settings.qp_linesearch, str)
             or settings.qp_linesearch not in ('backtracking', 'scalar')):
         raise ValueError("qp_linesearch must be 'backtracking' or 'scalar'")
+    if (not isinstance(settings.qp_residual_screen, str)
+            or settings.qp_residual_screen not in ('off', 'complementarity')):
+        raise ValueError("qp_residual_screen must be 'off' or 'complementarity'")
 
 
 def _no_glm_hessian(z):
@@ -86,6 +89,8 @@ class SolverSettings():
     glm_linesearch:str = 'scalar'
     # Opt-in QP proposals retain all existing merit/residual/fallback tests.
     qp_linesearch:str = 'backtracking'
+    # Reject impossible KKT-decrease trials before sparse constraint products.
+    qp_residual_screen:str = 'off'
     # Maximum inner steps in one right-preconditioned GMRES correction cycle.
     max_iterative_refinement:int = 10
     max_time:float = 600.
@@ -708,7 +713,9 @@ class GLQP():
                         if self.QP_mode:
                             search_diag.update(qp_scalar_requested=settings.qp_linesearch == 'scalar',
                                 qp_scalar_eligible=bool(qp_scalar), qp_scalar_proposals=[],
-                                qp_scalar_counters=None, fallback_eligible_count=0)
+                                qp_scalar_counters=None, fallback_eligible_count=0,
+                                residual_screen=settings.qp_residual_screen,
+                                residual_screen_checks=0, complementarity_rejections=0)
 
                     def next_qp_step(step, slack, merit):
                         # Called only after rejection by every applicable gate.
@@ -789,6 +796,25 @@ class GLQP():
                             t = 0.9*t
                             continue
                 
+                        # Complementarity is one block of the original max-norm
+                        # KKT residual. Its actual trial products alone can prove
+                        # BOTH residual acceptance inequalities false. Fallback
+                        # has its own criterion and always gets fresh blocks.
+                        if (self.QP_mode and settings.qp_residual_screen != 'off'
+                                and not newton_fallback):
+                            with np.errstate(over='ignore', invalid='ignore'):
+                                complementarity_norm = maxnorm(trial_y*trial_s)
+                            if diagnostics_enabled:
+                                search_diag['residual_screen_checks'] += 1
+                            if (np.isfinite(complementarity_norm)
+                                    and complementarity_norm >= (1-settings.armijo_param*t)*kkt_res
+                                    and complementarity_norm >= settings.tol):
+                                if diagnostics_enabled:
+                                    search_diag['complementarity_rejections'] += 1
+                                    reject_trial(search_diag, 'acceptance_tests_failed')
+                                t = next_qp_step(t, trial_s, new_merit) if qp_scalar else .9*t
+                                continue
+
                         #Check KKT residual
                         if diagnostics_enabled:
                             search_diag['residual_check_count'] += 1

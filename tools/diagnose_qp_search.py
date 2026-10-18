@@ -31,8 +31,11 @@ from diagnose_scalar_search import (THREAD_VARIABLES, WorkObserver, compare_resu
 
 
 DEFAULT_CASES = ('QPCBOEI2', 'YAO', 'LISWET1', 'QAFIRO', 'PRIMAL4', 'QSHELL')
-VARIANTS = {'backtracking': ('backtracking', False), 'scalar': ('scalar', False),
-            'scalar-cache': ('scalar', True), 'backtracking-cache': ('backtracking', True)}
+VARIANTS = {'backtracking': ('backtracking', 'off'), 'scalar': ('scalar', 'off'),
+    'backtracking-complementarity': ('backtracking', 'complementarity'),
+    'backtracking-bounded': ('backtracking', 'bounded'),
+    'scalar-complementarity': ('scalar', 'complementarity'),
+    'scalar-bounded': ('scalar', 'bounded')}
 
 
 class QPWorkObserver(WorkObserver):
@@ -40,6 +43,18 @@ class QPWorkObserver(WorkObserver):
         super().__init__(model, source)
         self.residual_products = []
         self.first_direction = None
+        self.solver_filename = str(source / 'glqp/solver.py')
+        self.diagnostics_filename = str(source / 'glqp/diagnostics.py')
+
+    def attribution(self):
+        if self.phase != 'solver':
+            return self.phase
+        frame = sys._getframe(1)
+        while frame is not None:
+            if frame.f_code.co_filename == self.diagnostics_filename:
+                return 'diagnostic_observer'
+            frame = frame.f_back
+        return 'solver'
 
     def products_wrapper(self, original):
         @functools.wraps(original)
@@ -61,10 +76,15 @@ class QPWorkObserver(WorkObserver):
         return wrapped
 
     def profile(self, frame, event, value):
+        # Profiling sees every Python/C event: reject almost all of them before
+        # constructing paths or inspecting frame locals.
+        if frame.f_code.co_name != 'merit_line' or event not in ('call', 'return'):
+            return
+        if frame.f_code.co_filename != self.solver_filename:
+            return
         super().profile(frame, event, value)
         if (self.first_direction is None and event == 'return'
-                and frame.f_code.co_filename == str(self.source / 'glqp/solver.py')
-                and frame.f_code.co_name == 'merit_line'):
+                and frame.f_code.co_filename == self.solver_filename):
             local = frame.f_back.f_locals
             self.first_direction = {key: local[key].copy()
                 for key in ('x', 's', 'y', 'nu', 'dx', 'ds', 'dy', 'dnu')}
@@ -122,14 +142,14 @@ def solve_case(problem, variant, observed, args, output):
     from glqp_bench.qp import validate_solution
 
     settings = glqp_settings(glqp, tol=1e-7, time_limit=600., settings_profile='benchmark-v1')
-    mode, cache = VARIANTS[variant]
+    mode, screen = VARIANTS[variant]
     if not hasattr(settings, 'qp_linesearch'):
         raise ValueError('Solver does not expose qp_linesearch yet')
-    if cache and not hasattr(settings, 'qp_residual_cache'):
-        raise ValueError('Solver does not expose qp_residual_cache yet')
+    if screen != 'off' and not hasattr(settings, 'qp_residual_screen'):
+        raise ValueError('Solver does not expose qp_residual_screen yet')
     settings.qp_linesearch = mode
-    if hasattr(settings, 'qp_residual_cache'):
-        settings.qp_residual_cache = cache
+    if hasattr(settings, 'qp_residual_screen'):
+        settings.qp_residual_screen = screen
     settings.iteration_diagnostics = observed
     model = glqp.GLQP(Q=problem.P, b=-problem.q, C=problem.G, c=problem.h,
                       E=problem.A, e=problem.b)
