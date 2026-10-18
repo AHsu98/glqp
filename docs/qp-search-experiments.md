@@ -128,8 +128,9 @@ test. This is shared baseline behavior, not a scalar-proposal regression or a
 test of the normal fallback-disabled GLM profile.
 
 The option still preserves QP-specific restoration and fallback acceptance.
-It has not unified the GLM and QP searches. A shared trial loop and ray/proposal
-interface can retain explicit acceptance policies; making the acceptance rule
+The subsequent [structural consolidation](accepted-algorithm.md#search-implementation)
+shares the trial loop, ray interface, and safeguarded proposal implementation
+while retaining explicit acceptance policies. Making the acceptance rule
 itself identical would require a separate algorithm experiment. In particular,
 the current objective-plus-slack-barrier merit contains no equality or
 slack-consistency penalty. Removing restoration simply to share code would

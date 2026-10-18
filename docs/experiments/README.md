@@ -52,6 +52,16 @@ residual screening disabled. Full-run timings are excluded after four host
 flags. QP restoration/fallback acceptance is preserved; these results do not
 validate replacing it with the GLM merit-only descent policy.
 
+The subsequent [search consolidation][search-consolidation] at `f9ceb2e` shares
+trial scheduling, cached-ray interfaces, and safeguarded proposals while
+retaining explicit acceptance policies and all defaults. All 277 frozen-source
+comparisons match `606ae0d` exactly: selected QP modes, all 81 GLMs, severe12 at
+native `1e-9`, legacy-search controls, and Newton/PC/proximal small cases.
+The check covers 78,922 non-time history rows and full diagnostics on 179 cases;
+the same five deliberately exercised legacy/fallback failures also match.
+Solver tests: 823. This is untimed structural verification, with no speed or
+new full-138-QP coverage claim.
+
 ## Measurement scopes
 
 | Evidence family | Machine and execution | Scope and interpretation |
@@ -85,6 +95,7 @@ or interpret warm component profiles as cold complete-solve measurements. The
 | Five rounds of per-iteration implementation work | Retain accepted-iterate objective/gradient/product reuse, invariant line-search dot products, sparse transpose views, skipped unused rejected-trial work, per-solve constant Gaussian curvature, QDLDL triangular buffers, and shifted-CSC workspace reuse. Fresh accepted-point arithmetic and requested-system residual verification remain protected by parity tests. | [Operation counts and round-by-round profiles](../iteration-work.md), [first implementation checkpoint][research1], [second checkpoint][research2] |
 | Direct final implementation comparison | The i7-14700 full 178-QP comparison against original float64-GMRES `3f27e71` preserves 169/178 successes and all 169 accepted primal/dual bytes. Geometric wall/solve time falls 23.7%/26.4%. This remains the last accepted broad implementation gain; it is a direct comparison, not a product of smaller-screen ratios. | [Measured source `4154fa9`, numerical changes through `663374c`][research2] |
 | Policy and documentation cleanup | Shared direction clipping, settings validation, and history formatting; named experimental constants and clarified frozen-model ownership. Source `f179f1d` preserves exact numerical output on 112 small QP/GLM cases and seven selected MM trajectories; 556 solver and 104 benchmark integration tests pass. Quiet solves now suppress the old slack-repair print. This is untimed verification, with no performance claim or algorithm promotion. | [Cleanup evidence][cleanup] |
+| Shared objective search machinery | One trial controller and safeguarded proposer; cached GLM/legacy merit adapters retain arithmetic and acceptance policies. Source `f9ceb2e` matches all 277 baseline observations exactly, including failed searches, iteration histories, and diagnostics. Accepted-point products remain owned by their trial; defaults are unchanged. | [Implementation map](../accepted-algorithm.md#search-implementation), [parity evidence][search-consolidation] |
 
 The two regularization mechanisms have different contracts. Outer coefficients
 modify the requested Newton/proximal equations. Factorization-only `tau_reg`
@@ -194,6 +205,7 @@ measurements, and source snapshots are preserved rather than silently relabeled.
 [research1]: ../../../glqp-bench/benchmarks/progression/numerical-research-20261016/README.md
 [research2]: ../../../glqp-bench/benchmarks/progression/numerical-research-round2-20261016/README.md
 [cleanup]: ../../../glqp-bench/benchmarks/progression/cleanup-20261017/README.md
+[search-consolidation]: ../../../glqp-bench/benchmarks/progression/search-consolidation-20261018/README.md
 [backends]: ../../../glqp-bench/benchmarks/linear-systems/backend-20261016/README.md
 [guard]: ../../../glqp-bench/benchmarks/progression/barrier-guard-20261016/README.md
 [outer]: ../../../glqp-bench/benchmarks/progression/outer-policy-20261016/README.md

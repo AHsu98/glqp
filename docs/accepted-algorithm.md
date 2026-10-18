@@ -35,6 +35,11 @@ The subsequent full 138-QP check retains the same 129 certificates and nine
 failures with scalar proposals and screening off. This tests the preserved QP
 acceptance rules; a unified QP/GLM acceptance rule has not been evaluated.
 
+The subsequent search consolidation shares trial scheduling, the cached-ray
+interface, and safeguarded step proposals. Acceptance policies, defaults, and
+floating-point evaluation order are retained. See the implementation map below
+and the [exact-parity checkpoint](../../glqp-bench/benchmarks/progression/search-consolidation-20261018/README.md).
+
 The authoritative entry points are [`SolverSettings` and `GLQP`](../glqp/solver.py).
 Benchmark settings are a separate layer in the sibling repository's
 [`adapters.py`](../../glqp-bench/src/glqp_bench/adapters.py). Those sibling links
@@ -246,10 +251,38 @@ the [cached scalar controller](glm-scalar-search.md). Full steps need no scalar
 derivatives. Its safeguarded Newton/interpolation proposals contract by at least
 half; the Poisson log-growth proposal can jump farther. Other paths, or explicit
 `glm_linesearch='backtracking'`, multiply rejected steps by **.9**. The retained
-`gamma=.5` setting is unused in both controllers. Exhausting the
+`gamma=.5` setting is unused in both objective acceptance policies. Exhausting the
 profile's trial budget yields `failed_line_search`. The actual objective,
 gradient, and original KKT blocks are refreshed at an accepted point; constant
 QP/Gaussian Hessians are reused, while nonlinear GLM Hessians are refreshed.
+
+### Search implementation
+
+The solver prepares the clipped direction and ray coefficients, selects an
+acceptance policy once, and consumes its accepted point. The shared components
+are intentionally small:
+
+| Component | Responsibility |
+| --- | --- |
+| [`search_control.py`](../glqp/search_control.py) | One bounded trial loop: try the boundary step first, return an accepted point or failure, and request a proposal only when another trial is available. |
+| [`step_proposal.py`](../glqp/step_proposal.py) | Shared safeguarded Newton/interpolation/halving arithmetic. Derivatives choose a step; they never accept it. |
+| [`linesearch.py`](../glqp/linesearch.py) | Cached GLM loss/ray arithmetic, strict finite/interior Armijo policy, and the optional Poisson growth proposal. |
+| [`objective_search.py`](../glqp/objective_search.py) | Cached legacy objective ray and explicit Armijo/KKT-restoration/Newton-fallback policy, including opt-in residual rejection screens. |
+| [`qp_linesearch.py`](../glqp/qp_linesearch.py) | Lazy quadratic-plus-barrier derivatives and QP proposal counters, delegating step selection to the shared proposer. |
+
+Each evaluator exposes `evaluate(step)` returning a trial with its merit. The
+legacy evaluator retains `dot(trial_x,b)` and public loss callbacks; the fused
+GLM evaluator retains `bx+step*bdx` and its existing loss caches. These are the
+same mathematical merit but can round differently near an acceptance boundary.
+The legacy finite-bound and equality-multiplier checks, diagnostic counting,
+and the QP proposal's positive-output underflow guard also retain their existing
+semantics. Identical mathematical acceptance would be a separate experiment.
+
+Fresh constraint products and the likelihood gradient belong to one trial.
+Only the accepted trial can return them to the solver; accepted `Q@x` is always
+recomputed. No proposal or model evaluation occurs after the trial budget is
+exhausted. Centered proximal search in `proximal.py` continues to use its own
+residual merit and globalization rules.
 
 ## Next barrier target and post-step slack repair
 

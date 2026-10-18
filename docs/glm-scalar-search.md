@@ -72,7 +72,10 @@ is introduced.
 The dispatch requires a finite negative merit slope and no enabled Newton
 fallback. QP restoration, nonlinear non-descent restoration, explicitly enabled
 Newton fallback, and the centered-proximal squared-residual merit retain their
-existing searches. `proximal_policy='no_slack'` has the same objective-plus-barrier
+existing acceptance rules. The objective searches now share trial scheduling
+and safeguarded proposals; the [implementation map](accepted-algorithm.md#search-implementation)
+describes the policy and ray adapters that preserve their numerical behavior.
+`proximal_policy='no_slack'` has the same objective-plus-barrier
 merit and is eligible. Physical proximal regularization changes the direction;
 it is not added as an invented penalty on this ray.
 
