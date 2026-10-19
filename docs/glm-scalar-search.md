@@ -43,6 +43,11 @@ Poisson weights and trailing unused predictor coordinates keep their existing
 semantics. Accepted outer-point gradient/Hessian arithmetic is refreshed by the
 solver as before; the ray cache does not change that ownership contract.
 
+The [weighted-range correction](weighted-loss-range.md) at `5573cae` also
+applies to cached Gaussian and Poisson kernels. It rescues exceptional weighted
+values and derivatives while preserving ordinary arithmetic. The trial cache
+still owns the reused rate or error; rescue does not introduce matrix products.
+
 ## Proposals and safeguards
 
 1. Try the fraction-to-boundary full step using only its value. Most searches

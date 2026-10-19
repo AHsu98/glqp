@@ -1,5 +1,14 @@
 # GLM numerical review: scalar tails, Gram Hessians, and verification
 
+Follow-up, 2026-10-19: the [weighted-range fix](../weighted-loss-range.md)
+addresses premature positive-weight Gaussian/Poisson overflow and underflow.
+The [operator audit](glm-operator-audit-20261019.md) adds opt-in diagnostics;
+predictor drift does not explain the five certificate failures. The
+[stopping study](../../../glqp-bench/benchmarks/progression/glm-stopping-20261019/README.md)
+recovers all five experimentally with nine extra total iterations, and isolates
+a separate barrier-floor issue at strict tolerances. The review below retains
+its original source and evidence scope.
+
 Review date: 2026-10-17. Baseline source is `6617a0c`, whose accepted numerical
 path remains legacy Newton, QDLDL, and float64 right-GMRES. This review used
 local source, installed library source, primary numerical-analysis literature,

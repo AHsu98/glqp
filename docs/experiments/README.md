@@ -1,6 +1,6 @@
 # Experiment ledger
 
-Status: 2026-10-18. This index records implemented changes, completed experiments,
+Status: 2026-10-19. This index records implemented changes, completed experiments,
 and working decisions. Dated reports remain the authority for their particular
 source revisions, settings, observations, and limitations. An option's presence
 in the solver does not mean that it has been selected as a default.
@@ -61,6 +61,23 @@ The check covers 78,922 non-time history rows and full diagnostics on 179 cases;
 the same five deliberately exercised legacy/fallback failures also match.
 Solver tests: 823. This is untimed structural verification, with no speed or
 new full-138-QP coverage claim.
+
+The [weighted Gaussian/Poisson range fix](../weighted-loss-range.md) at
+`5573cae` preserves representable weighted values and derivatives outside the
+range of their unweighted intermediates. `0f98254` adds opt-in original-design
+diagnostics. The [operator audit](../../../glqp-bench/benchmarks/progression/glm-operators-20261019/README.md)
+rules out predictor drift as the cause of the five gap failures; manufactured
+controls still demonstrate that forming a Gram matrix can erase weak modes.
+No normal-equation or fallback policy changes follow from those controls.
+
+The [613-solve stopping study](../../../glqp-bench/benchmarks/progression/glm-stopping-20261019/README.md)
+separates outer stopping, inner accuracy, proximal regularization, and the
+barrier floor. A certificate veto followed by tighter inner accuracy recovers
+81/81 certificates in 1,059 total iterations, versus baseline 76/81 in 1,050;
+all previously certified final arrays remain byte-identical. Merely tightening
+the linear solve recovers none. A separate strict-tolerance control needs a
+constraint-count-aware barrier floor to avoid six stagnation tails. These are
+untimed experiments, with no production convergence hook or changed defaults.
 
 ## Measurement scopes
 

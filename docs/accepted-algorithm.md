@@ -40,6 +40,14 @@ interface, and safeguarded step proposals. Acceptance policies, defaults, and
 floating-point evaluation order are retained. See the implementation map below
 and the [exact-parity checkpoint](../../glqp-bench/benchmarks/progression/search-consolidation-20261018/README.md).
 
+The weighted Gaussian/Poisson range correction at `5573cae` (2026-10-19)
+preserves finite weighted values when an unweighted square, exponential, or
+response product would overflow or prematurely underflow. Ordinary arithmetic
+keeps its previous operation order. `0f98254` adds opt-in predictor and Hessian
+action diagnostics. See the [range contract](weighted-loss-range.md) and
+[operator audit](research/glm-operator-audit-20261019.md). Stopping, barrier
+floors, normal equations, and regularization remain unchanged.
+
 The authoritative entry points are [`SolverSettings` and `GLQP`](../glqp/solver.py).
 Benchmark settings are a separate layer in the sibling repository's
 [`adapters.py`](../../glqp-bench/src/glqp_bench/adapters.py). Those sibling links
@@ -361,6 +369,22 @@ Synchronous callbacks observe initialization and accepted points after repair;
 their arrays are borrowed read-only views that must be copied to retain.
 Diagnostics and callbacks consume time and stay off in comparative timings.
 
+For GLMs, diagnostics also compare the carried predictor with fresh `A@x`,
+including their effect on stationarity. Each proposed direction compares the
+assembled objective Hessian action with `Q@dx + A.T@(f.d2f(z)*(A@dx))`.
+These observations exclude physical proximal terms and numerical factor shifts;
+they neither replace the carried predictor nor change the linear solve.
+
+The [stopping study](../../glqp-bench/benchmarks/progression/glm-stopping-20261019/README.md)
+separates native convergence from the positive-ridge benchmark certificate.
+An experimental certificate veto with tighter linear accuracy after rejection
+certifies 81/81 GLMs in 1,059 total iterations versus 76/81 in 1,050. This is
+not a public API or default policy. The study also identifies a strict-tolerance
+limitation: with `k` real inequalities and small objective magnitude, the
+configured `min_mu` can leave aggregate complementarity near `k*min_mu`, above
+the requested `tol`. An experimental constraint-count floor cap resolves the
+six observed large constrained cases. The accepted floor remains unchanged.
+
 ## Public defaults versus benchmark profiles
 
 Passing `settings=SolverSettings()` selects the dataclass defaults. Omitting
@@ -423,7 +447,8 @@ isolation monitoring, and stopping other work during timings remain required.
 | Predictor–corrector | [`predictor_corrector.py`](../glqp/predictor_corrector.py) | `step_strategy='predictor_corrector'` is opt-in; affine/combined RHSs share a frozen matrix; no-real-inequality cases use Newton |
 | Centered proximal equations | [`proximal.py`](../glqp/proximal.py) | `proximal_policy='centered'` adds persistent centers and fixed-residual merit; `no_slack` is only a block-removal control |
 | Standalone C++ presolve | [`presolve.py`](../glqp/presolve.py), [`_native/presolve.cpp`](../glqp/_native/presolve.cpp) | Explicit preprocessing/recovery wrapper; disabled by default; QP reductions do not transform GLM losses |
-| Observation | [`diagnostics.py`](../glqp/diagnostics.py) | Optional telemetry; decision-neutral apart from elapsed time |
+| Weighted scalar arithmetic | [`weighted_loss.py`](../glqp/weighted_loss.py) | Exceptional-range rescue shared by objective callbacks and cached rays; no clipping or objective change |
+| Observation | [`diagnostics.py`](../glqp/diagnostics.py), [`glm_diagnostics.py`](../glqp/glm_diagnostics.py) | Optional telemetry; decision-neutral apart from elapsed time |
 
 Centered proximal coefficient continuation (`proximal_reg_update='progress'`)
 and PC can be enabled independently where supported. Centered Newton is
@@ -445,7 +470,9 @@ The accepted method uses heuristic regularization, clipping, slack repair,
 and fallback rules. Merit decrease alone does not enforce constraint progress;
 the finite fallback and unguarded repair can accept increases. Absolute native
 KKT tolerances and a fixed initial target are sensitive to problem scaling.
-Poisson trials may overflow and require substantial backtracking. A finite
+Truly unrepresentable Poisson trials remain nonfinite; scalar proposals shorten
+the observed difficult searches, and weighted-range rescue avoids premature
+overflow when the weighted result is representable. A finite
 inaccurate scaled linear direction can pass the outer search; requested-system
 accuracy alone also does not bound every recovered unscaled equation tightly.
 The retained [legacy slope-overflow capture](../../glqp-bench/benchmarks/progression/predictor-corrector-20261016/slope-capture/README.md)
