@@ -22,6 +22,7 @@ from .linear import LinearSolveError, ShiftedSystemWorkspace
 from .linesearch import CachedGLMRay, search_scalar_ray
 from .qp_linesearch import QPScalarProposer
 from .objective_search import CachedObjectiveRay, search_restoration_ray
+from .glm_diagnostics import glm_predictor_diagnostics, glm_hessian_diagnostics
 from .kkt import KKTWorkspace
 from .barrier import (
     validate_barrier_settings, select_barrier_target, describe_barrier_update,
@@ -477,6 +478,8 @@ class GLQP():
         if diagnostics_enabled:
             initial_point = point_diagnostics(
                 self, x, y, s, primal, mu, kkt_res, rx, rp, rc, req)
+            if not self.dummy_A:
+                initial_point['glm_predictor'] = glm_predictor_diagnostics(self, x, z)
             diagnostics['initial'] = initial_point
             if use_predictor_corrector:
                 diagnostics['initial_target'] = dict(
@@ -609,6 +612,8 @@ class GLQP():
                     **linear_options,
                     **({} if proximal_model is None else dict(
                         center_offsets=proximal_model.offsets(x,y,nu))))
+                if not self.dummy_A:
+                    iteration_diag['glm_hessian'] = glm_hessian_diagnostics(self, H, z, dx)
             
             boundary_frac = settings.boundary_frac
             tmax = get_step_size(s,ds,y,dy,frac = boundary_frac)
@@ -835,6 +840,8 @@ class GLQP():
             if diagnostics_enabled:
                 accepted_point = point_diagnostics(
                     self, x, y, s, primal, mu, kkt_res, rx, rp, rc, req)
+                if not self.dummy_A:
+                    accepted_point['glm_predictor'] = glm_predictor_diagnostics(self, x, z)
                 iteration_diag['barrier'] = (describe_held_target(
                     mu, mu_est, xi, pre_repair_kkt, settings) if use_predictor_corrector else
                     describe_barrier_update(
