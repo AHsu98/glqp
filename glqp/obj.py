@@ -7,6 +7,8 @@ coordinates. Likelihood constants independent of the predictors are omitted.
 
 import numpy as np
 
+from . import weighted_loss
+
 
 def _pad_derivative(values, size):
     """Return a full predictor derivative without copying an exact-size result."""
@@ -15,6 +17,69 @@ def _pad_derivative(values, size):
     result = np.zeros(size)
     result[:len(values)] = values
     return result
+
+
+def _gaussian_value(z, y, w, error=None):
+    """Keep ordinary arithmetic; rescue squares formed outside float64 range."""
+    with np.errstate(over='ignore', invalid='ignore', under='ignore'):
+        error = z-y if error is None else error
+        squared = error**2
+        value = .5*np.dot(w, squared)
+        if (not np.isfinite(value)
+                or np.any((squared < weighted_loss.TINY) & (error != 0) & (np.abs(w) > 1))):
+            if np.all(np.isfinite(z)) and np.all(np.isfinite(y)) and np.all(np.isfinite(w)):
+                value = weighted_loss.gaussian_value(z, y, np.broadcast_to(w, z.shape))
+        return value
+
+
+def _gaussian_gradient(z, y, w, error=None):
+    with np.errstate(over='ignore', invalid='ignore', under='ignore'):
+        error = z-y if error is None else error
+        gradient = w*error
+        if not np.all(np.isfinite(error)):
+            rescue = ~np.isfinite(error) & np.isfinite(z) & np.isfinite(y) & np.isfinite(w)
+            weights = np.broadcast_to(w, z.shape)[rescue]
+            gradient[rescue] = weighted_loss.gaussian_gradient(z[rescue], y[rescue], weights)
+        return gradient
+
+
+def _poisson_value(z, y, w, rate):
+    with np.errstate(over='ignore', invalid='ignore', under='ignore'):
+        response = y*z
+        value = np.dot(w, rate-response)
+        underflow = ((rate < weighted_loss.TINY)
+                     | ((np.abs(response) < weighted_loss.TINY) & (y != 0) & (z != 0)))
+        if not np.isfinite(value) or np.any(underflow & (np.abs(w) > 1)):
+            value = weighted_loss.poisson_value(z, y, w, rate)
+        return value
+
+
+def _poisson_gradient(z, y, w, rate):
+    with np.errstate(over='ignore', invalid='ignore', under='ignore'):
+        gradient = w*(rate-y)
+        rescue = (~np.isfinite(gradient) | ~np.isfinite(rate)
+                  | ((rate < weighted_loss.TINY) & (np.abs(w) > 1)))
+        if np.any(rescue):
+            weights = np.broadcast_to(w, z.shape)
+            gradient[rescue] = weighted_loss.poisson_gradient(
+                z[rescue], y[rescue], weights[rescue], rate[rescue])
+        return gradient
+
+
+def _poisson_curvature(z, w, rate):
+    with np.errstate(over='ignore', invalid='ignore', under='ignore'):
+        curvature = w*rate
+        rescue = ~np.isfinite(rate) | ((rate < weighted_loss.TINY) & (np.abs(w) > 1))
+        if np.any(rescue):
+            weights = np.broadcast_to(w, z.shape)
+            curvature[rescue] = weighted_loss.poisson_curvature(z[rescue], weights[rescue], rate[rescue])
+        return curvature
+
+
+def _poisson_rate(z):
+    # An overflowing unweighted rate may still have a finite weighted value.
+    with np.errstate(over='ignore', under='ignore'):
+        return np.exp(z)
 
 
 def _weighted_logistic_tail(z, weights):
@@ -127,7 +192,7 @@ class GaussianNLL:
             0.5 * sum_i w_i * (z_i - y_i)**2
         """
         z = np.asarray(z[:self.m], dtype=float)
-        return 0.5 * np.dot(self.w,(self.y - z) ** 2)
+        return _gaussian_value(z, self.y, self.w)
 
     def d1f(self, z):
         """
@@ -135,7 +200,7 @@ class GaussianNLL:
         """
         tot_z = len(z)
         z = np.asarray(z[:self.m], dtype=float)
-        grad = self.w*(z-self.y)
+        grad = _gaussian_gradient(z, self.y, self.w)
         return _pad_derivative(grad, tot_z)
 
     def d2f(self, z):
@@ -173,9 +238,10 @@ class PoissonNLL:
         """
         z, active = self._observations(z)
         if active is not None:
-            return np.dot(self.w[active], np.exp(z[active])-self.y[active]*z[active])
-        u = np.exp(z)
-        return np.dot(self.w,u - self.y*z)
+            z, y, w = z[active], self.y[active], self.w[active]
+        else:
+            y, w = self.y, self.w
+        return _poisson_value(z, y, w, _poisson_rate(z))
 
     def d1f(self, z):
         """
@@ -185,10 +251,10 @@ class PoissonNLL:
         z, active = self._observations(z)
         if active is not None:
             grad = np.zeros(self.m)
-            grad[active] = self.w[active]*(np.exp(z[active])-self.y[active])
+            grad[active] = _poisson_gradient(z[active], self.y[active], self.w[active],
+                                            _poisson_rate(z[active]))
             return _pad_derivative(grad, tot_z)
-        u = np.exp(z)
-        grad = self.w*(u - self.y)
+        grad = _poisson_gradient(z, self.y, self.w, _poisson_rate(z))
         return _pad_derivative(grad, tot_z)
 
     def d2f(self, z):
@@ -199,10 +265,10 @@ class PoissonNLL:
         z, active = self._observations(z)
         if active is not None:
             hessian = np.zeros(self.m)
-            hessian[active] = self.w[active]*np.exp(z[active])
+            hessian[active] = _poisson_curvature(z[active], self.w[active],
+                                               _poisson_rate(z[active]))
             return _pad_derivative(hessian, tot_z)
-        u = np.exp(z)
-        return _pad_derivative(self.w*u, tot_z)
+        return _pad_derivative(_poisson_curvature(z, self.w, _poisson_rate(z)), tot_z)
 
     def __call__(self, z):
         return self.f(z)

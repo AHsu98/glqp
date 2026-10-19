@@ -11,7 +11,9 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .obj import GaussianNLL, LogisticNLL, PoissonNLL, _weighted_logistic_tail
+from .obj import (GaussianNLL, LogisticNLL, PoissonNLL, _weighted_logistic_tail,
+                  _gaussian_value, _gaussian_gradient, _poisson_value,
+                  _poisson_gradient, _poisson_curvature)
 from .search_control import TrialDecision, search_trials
 from .step_proposal import safeguarded_step
 
@@ -125,7 +127,7 @@ class CachedGLMRay:
             else:
                 if self._kind is GaussianNLL:
                     error = predictor[:self._m]-self._y
-                    value = .5*np.dot(self._w, error**2)
+                    value = _gaussian_value(observed, self._y, self._w, error)
                     aux = error
                 elif self._kind is LogisticNLL:
                     z = predictor[:self._m]
@@ -139,7 +141,7 @@ class CachedGLMRay:
                 elif self._kind is PoissonNLL:
                     # Skip zero weights before exp, matching PoissonNLL exactly.
                     rate = np.exp(observed)
-                    value = np.dot(poisson_w, rate-poisson_y*observed)
+                    value = _poisson_value(observed, poisson_y, poisson_w, rate)
                     aux = rate
                 else:
                     value = self.loss(predictor)
@@ -171,7 +173,9 @@ class CachedGLMRay:
         with np.errstate(over='ignore', invalid='ignore', divide='ignore', under='ignore'):
             if self._kind is GaussianNLL:
                 dz = self.dz[:self._m]
-                gradient, curvature = self._w*self._last_aux, self._w
+                gradient = _gaussian_gradient(trial.predictor[:self._m], self._y,
+                                               self._w, self._last_aux)
+                curvature = self._w
             elif self._kind is LogisticNLL:
                 z, dz = trial.predictor[:self._m], self.dz[:self._m]
                 tail, weighted_tail = self._last_aux
@@ -181,11 +185,12 @@ class CachedGLMRay:
                 curvature = weighted_tail/(1+tail)**2
             elif self._kind is PoissonNLL:
                 dz = self.dz[:self._m]
-                _, y, w = self._poisson_observations(trial.predictor)
+                observed, y, w = self._poisson_observations(trial.predictor)
                 if self._active is not None:
                     dz = dz[self._active]
                 rate = self._last_aux
-                gradient, curvature = w*(rate-y), w*rate
+                gradient = _poisson_gradient(observed, y, w, rate)
+                curvature = _poisson_curvature(observed, w, rate)
             else:
                 dz = self.dz
                 # A finite boundary value need not have finite derivatives,
