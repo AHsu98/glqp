@@ -1,6 +1,6 @@
 # Experiment ledger
 
-Status: 2026-10-19. This index records implemented changes, completed experiments,
+Status: 2026-10-20. This index records implemented changes, completed experiments,
 and working decisions. Dated reports remain the authority for their particular
 source revisions, settings, observations, and limitations. An option's presence
 in the solver does not mean that it has been selected as a default.
@@ -78,6 +78,17 @@ all previously certified final arrays remain byte-identical. Merely tightening
 the linear solve recovers none. A separate strict-tolerance control needs a
 constraint-count-aware barrier floor to avoid six stagnation tails. These are
 untimed experiments, with no production convergence hook or changed defaults.
+
+The [QP absolute-floor follow-up](../../../glqp-bench/benchmarks/progression/qp-floor-20261020/README.md)
+tests `min_mu=min(1e-12,.1*tol/k)` without changing the separate `.01*KKT`
+floor. At native `1e-7`, all 14 affected MM cases retain nine certificates
+and five timeouts; four unchanged controls also pass. Completed iteration
+counts are unchanged. A separately declared strict12 diagnostic at `1e-9`
+and shared stagnation window 100 retains 12/12 certificates, improves native
+optimal 6→11, and reduces total iterations 979→483. LISWET2 stays stagnant
+with identical iterates because its absolute floor never activates.
+Primary timings are excluded after a host flag; one clean strict sweep has
+wall ratio .59786, scoped to this selected diagnostic panel. No default changes.
 
 ## Measurement scopes
 

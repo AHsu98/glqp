@@ -385,6 +385,16 @@ configured `min_mu` can leave aggregate complementarity near `k*min_mu`, above
 the requested `tol`. An experimental constraint-count floor cap resolves the
 six observed large constrained cases. The accepted floor remains unchanged.
 
+The [QP floor follow-up](../../glqp-bench/benchmarks/progression/qp-floor-20261020/README.md)
+tests that explicit cap on all 14 MM cases whose configured floor would change
+at native `1e-7`: the same nine certify and five time out, with unchanged
+iteration counts on completed pairs. Four unchanged-setting controls pass.
+A separate strict12 panel at `1e-9`, with a shared diagnostic stagnation window
+of 100, retains all twelve certificates and improves native optimal from six
+to eleven (979→483 iterations). LISWET2 does not improve because its absolute
+floor stays inactive. This is evidence for an opt-in policy, with no adopted
+default or public API change; the `0.01*KKT` floor remains unchanged.
+
 ## Public defaults versus benchmark profiles
 
 Passing `settings=SolverSettings()` selects the dataclass defaults. Omitting
