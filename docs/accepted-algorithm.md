@@ -45,8 +45,18 @@ preserves finite weighted values when an unweighted square, exponential, or
 response product would overflow or prematurely underflow. Ordinary arithmetic
 keeps its previous operation order. `0f98254` adds opt-in predictor and Hessian
 action diagnostics. See the [range contract](weighted-loss-range.md) and
-[operator audit](research/glm-operator-audit-20261019.md). Stopping, barrier
-floors, normal equations, and regularization remain unchanged.
+[operator audit](research/glm-operator-audit-20261019.md). Those arithmetic and
+diagnostic changes retain stopping, barrier floors, normal equations, and regularization.
+
+The constraint-count barrier-floor policy tested at `32ffecb` (2026-10-21)
+is accepted after the [full 178-QP comparison](../../glqp-bench/benchmarks/progression/qp-floor-full-20261021/README.md).
+Both revisions certify 129/138 MM problems and all 40 applications, with the
+same nine failures and identical iteration counts on all returned solutions.
+All 346 saved certificates independently replay. Full-run timings are excluded
+after host-load flags. The policy changes only the absolute floor, as defined below.
+The follow-up `94dd41c` makes the new setting keyword-only, preserving the old
+positional constructor signature; its defaults and numerical implementation
+are identical to the measured candidate. The solver suite passes 924 tests.
 
 The authoritative entry points are [`SolverSettings` and `GLQP`](../glqp/solver.py).
 Benchmark settings are a separate layer in the sibling repository's
@@ -126,6 +136,34 @@ and `min_mu=1e-12` otherwise. An explicit `solve(mu0=...)` takes precedence.
 Complementarity-based initialization is an opt-in experiment. There is no
 precentering loop in the current solve path despite the retained
 `max_precenter` setting.
+
+At solve entry, `min_mu_policy='constraint_count'` resolves the effective floor
+for `k` real inequality rows:
+
+\[
+\mu_{\min,\mathrm{effective}}=
+\begin{cases}
+\min(\texttt{min_mu},\ 0.1\,\texttt{tol}/k),&k>0,\\
+\texttt{min_mu},&k=0.
+\end{cases}
+\]
+
+The configured default remains `min_mu=1e-12`. Dummy rows are excluded. This
+reserves one tenth of the absolute aggregate-complementarity budget for the
+floor; it does not scale with the objective or change the stopping test.
+With the default floor, it activates above 10,000 inequalities at `tol=1e-7`,
+above 1,000 at the public `tol=1e-8`, and above 100 at `tol=1e-9`.
+`min_mu_policy='fixed'` restores the configured floor exactly. A smaller
+configured floor is never raised. `min_mu` must be finite and nonnegative,
+and `tol` finite and positive.
+
+The solver copies settings before resolving this value, so reusing the caller's
+settings on another problem resolves its own cap. `result.settings.min_mu` is
+the effective value; `result.barrier_floor` records the policy, configured and
+effective values, real inequality count, and count-derived cap. The optional
+iteration diagnostics include the same provenance. Initialization and every
+Newton, GLM, predictor–corrector, and centered-proximal path use that one resolved
+floor. All later references to `min_mu` mean this effective value.
 
 ## One Newton direction and the two regularizations
 
@@ -307,7 +345,7 @@ The accepted legacy target update in [`barrier.py`](../glqp/barrier.py) is
 \[
 \mu_{\mathrm{next}}=
 \max\left(\mu_{\mathrm{raw}},\ .1\mu_{\mathrm{raw}},
-10^{-12},\ .01 K_{\mathrm{pre\ repair}}\right).
+\mu_{\min,\mathrm{effective}},\ .01 K_{\mathrm{pre\ repair}}\right).
 \]
 
 The `.1` guard multiplies the **new raw proposal**, not the previous target.
@@ -382,8 +420,8 @@ certifies 81/81 GLMs in 1,059 total iterations versus 76/81 in 1,050. This is
 not a public API or default policy. The study also identifies a strict-tolerance
 limitation: with `k` real inequalities and small objective magnitude, the
 configured `min_mu` can leave aggregate complementarity near `k*min_mu`, above
-the requested `tol`. An experimental constraint-count floor cap resolves the
-six observed large constrained cases. The accepted floor remains unchanged.
+the requested `tol`. A constraint-count floor cap resolves the six observed
+large constrained cases; it is now the default after the full QP check below.
 
 The [QP floor follow-up](../../glqp-bench/benchmarks/progression/qp-floor-20261020/README.md)
 tests that explicit cap on all 14 MM cases whose configured floor would change
@@ -392,8 +430,13 @@ iteration counts on completed pairs. Four unchanged-setting controls pass.
 A separate strict12 panel at `1e-9`, with a shared diagnostic stagnation window
 of 100, retains all twelve certificates and improves native optimal from six
 to eleven (979→483 iterations). LISWET2 does not improve because its absolute
-floor stays inactive. This is evidence for an opt-in policy, with no adopted
-default or public API change; the `0.01*KKT` floor remains unchanged.
+floor stays inactive. That study used explicit per-problem floor overrides.
+The subsequent full 178-QP comparison tests the production policy and retains
+169/178 certificates, the same nine failures, and 30,731 iterations on the
+169 common successes. Of 173 returned solution pairs, 170 have byte-identical
+primal/dual arrays; only CONT-101, CONT-200, and CONT-201 change. The cap is now
+accepted, with a fixed-policy escape hatch. The separate `0.01*KKT` floor,
+centrality proposal, clipping, repair, and proximal rules remain unchanged.
 
 ## Public defaults versus benchmark profiles
 
@@ -413,6 +456,8 @@ from the public defaults.
 | `glm_linesearch` | `scalar` | inherited, QP path bypasses | inherited (`scalar` in current source) |
 | `let_newton_cook` | 0 | .5 | 0 |
 | `max_iterative_refinement` | 10 | 10 | 10 |
+| configured `min_mu` | `1e-12` | inherited | inherited |
+| `min_mu_policy` | `constraint_count` | inherited | inherited |
 
 Unchanged baseline choices are `step_strategy='newton'`,
 `proximal_policy='legacy'`, `prox_reg=2e-8`, `tau_reg=2e-8`,
@@ -449,7 +494,7 @@ isolation monitoring, and stopping other work during timings remain required.
 | Area | Source and role | Accepted boundary |
 |---|---|---|
 | Problem and outer iteration | [`solver.py`](../glqp/solver.py), [`obj.py`](../glqp/obj.py), [`util.py`](../glqp/util.py) | Legacy Newton and loss/constraint interface described above |
-| Barrier target | [`barrier.py`](../glqp/barrier.py) | Previous-target guard, complementarity initialization, and floor ablations are opt-in |
+| Barrier target | [`barrier.py`](../glqp/barrier.py) | Constraint-count absolute-floor cap accepted; fixed floor, previous-target guard, complementarity initialization, and KKT-floor ablations are explicit alternatives |
 | Repair/fallback controls | [`outer_policy.py`](../glqp/outer_policy.py) | Guarded/off repair and progress/off fallback are opt-in |
 | Symmetric Newton matrix | [`kkt.py`](../glqp/kkt.py) | Separate block shifts support experiments; legacy uses one scalar rho in all blocks |
 | Linear verification | [`linear.py`](../glqp/linear.py) | Float64 GMRES applies to every backend; multiple-RHS reuse supports experimental PC |

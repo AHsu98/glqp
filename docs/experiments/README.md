@@ -1,6 +1,6 @@
 # Experiment ledger
 
-Status: 2026-10-20. This index records implemented changes, completed experiments,
+Status: 2026-10-21. This index records implemented changes, completed experiments,
 and working decisions. Dated reports remain the authority for their particular
 source revisions, settings, observations, and limitations. An option's presence
 in the solver does not mean that it has been selected as a default.
@@ -8,7 +8,8 @@ See the [accepted algorithm reference](../accepted-algorithm.md) for its exact
 equations, control flow, and public versus benchmark settings.
 
 **Keep accepted Newton, legacy outer policies, QDLDL, float64 right-GMRES
-refinement, and presolve disabled as the working defaults.** The latest full
+refinement, and presolve disabled as the working defaults, with the accepted
+constraint-count cap on the absolute barrier floor.** The latest full
 Maros–Mészáros comparison finds 129/138 accepted solutions for that configuration
 and 127/138 for centered adaptive proximal Newton. The latter has useful large
 individual gains, but loses four previously accepted LISWET cases. On the
@@ -89,6 +90,21 @@ optimal 6→11, and reduces total iterations 979→483. LISWET2 stays stagnant
 with identical iterates because its absolute floor never activates.
 Primary timings are excluded after a host flag; one clean strict sweep has
 wall ratio .59786, scoped to this selected diagnostic panel. No default changes.
+
+The [full 178-QP qualification](../../../glqp-bench/benchmarks/progression/qp-floor-full-20261021/README.md)
+subsequently promotes `min_mu_policy='constraint_count'`, measured at `32ffecb`.
+It resolves `min(configured_min_mu,.1*tol/k)` once per solve without mutating
+caller settings; `min_mu_policy='fixed'` restores the old rule. Baseline and
+candidate both certify 129/138 MM problems and 40/40 applications, with the
+same five timeouts and four inaccurate results. All completed iteration counts
+match; common successes total 30,731 iterations in each arm. All 346 saved
+certificates replay, and 170/173 returned primal/dual pairs are byte-identical.
+The three changed CONT solutions retain their certificates. All timing results
+are excluded after host-load flags; this promotion makes no speed claim.
+The separate `.01*KKT` floor and the other outer policies remain unchanged.
+The signature-only follow-up `94dd41c` preserves all 36 previous positional
+settings arguments by making the new policy keyword-only. All 37 default
+values and types match the measured candidate; 924 solver tests pass.
 
 ## Measurement scopes
 
