@@ -1,4 +1,5 @@
 """Barrier target selection, kept separate from centrality and slack repair."""
+from dataclasses import replace
 import numbers
 
 import numpy as np
@@ -6,6 +7,9 @@ import numpy as np
 
 def validate_barrier_settings(settings):
     """Validate again at solve entry because experiment settings are mutable."""
+    if (not isinstance(settings.min_mu_policy, str)
+            or settings.min_mu_policy not in ('fixed', 'constraint_count')):
+        raise ValueError("min_mu_policy must be 'fixed' or 'constraint_count'")
     if settings.barrier_update_guard not in ('previous', 'legacy'):
         raise ValueError("barrier_update_guard must be 'previous' or 'legacy'")
     limit = settings.barrier_reduction_limit
@@ -17,12 +21,34 @@ def validate_barrier_settings(settings):
     if (not isinstance(settings.initial_mu_policy, str)
             or settings.initial_mu_policy not in ('fixed', 'complementarity')):
         raise ValueError("initial_mu_policy must be 'fixed' or 'complementarity'")
-    for name, positive in (('initial_mu_scale', True), ('barrier_kkt_floor', False)):
+    for name, positive in (('initial_mu_scale', True), ('barrier_kkt_floor', False),
+                           ('min_mu', False), ('tol', True)):
         value = getattr(settings, name)
         if (isinstance(value, (bool, np.bool_)) or not isinstance(value, numbers.Real)
                 or not np.isfinite(value) or (value <= 0 if positive else value < 0)):
             bound = 'positive' if positive else 'nonnegative'
             raise ValueError(f'{name} must be finite and {bound}')
+
+
+def resolve_barrier_floor(settings, real_inequalities):
+    """Copy settings once so every barrier path uses the same effective floor.
+
+    An aggregate complementarity test can plateau near ``k * min_mu``. The
+    constraint-count policy reserves a tenth of its absolute stopping budget
+    for that floor. Count genuine input inequalities, excluding any internal
+    dummy row. Keep the configured value in the returned provenance; never
+    modify the caller's reusable settings or cap an already-small floor upward.
+    """
+    cap = (.1 * settings.tol / real_inequalities if real_inequalities else None)
+    effective = settings.min_mu
+    if settings.min_mu_policy == 'constraint_count' and cap is not None:
+        effective = min(effective, cap)
+    provenance = dict(policy=settings.min_mu_policy,
+                      configured_min_mu=float(settings.min_mu),
+                      effective_min_mu=float(effective),
+                      real_inequalities=int(real_inequalities),
+                      count_cap=None if cap is None else float(cap))
+    return replace(settings, min_mu=effective), provenance
 
 
 def initial_barrier_target(s, y, dummy_inequalities, mu0, settings):

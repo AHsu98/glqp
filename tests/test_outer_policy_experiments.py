@@ -54,7 +54,8 @@ def test_complementarity_initialization_has_minimum_floor(monkeypatch):
     p = GLQP(Q=eye_array(1), b=np.ones(1), C=eye_array(1), c=np.ones(1))
     targets = install_direction(monkeypatch, p)
     solve_one(p, x0=np.zeros(1), s0=np.array([1e-6]), y0=np.array([1e-6]),
-        settings=SolverSettings(max_iter=1, initial_mu_policy="complementarity", min_mu=1e-5))
+        settings=SolverSettings(max_iter=1, initial_mu_policy="complementarity",
+                                min_mu=1e-5, min_mu_policy="fixed"))
     assert targets[0] == 1e-5
 
 

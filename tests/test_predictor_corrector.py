@@ -108,7 +108,7 @@ def test_each_predictor_requests_two_verified_rhs_solves_on_one_matrix(monkeypat
 def test_predictor_target_obeys_the_configured_minimum_and_current_kkt_floor(minimum, kkt_floor, expected):
     model = GLQP(Q=eye_array(1), C=eye_array(1), c=np.ones(1))
     model.initialize(settings=SolverSettings(step_strategy="predictor_corrector",
-        min_mu=minimum, barrier_kkt_floor=kkt_floor))
+        min_mu=minimum, min_mu_policy="fixed", barrier_kkt_floor=kkt_floor))
     result = model.solve_predictor_corrector(np.zeros(1), np.ones(1), np.ones(1),
         eye_array(1), np.ones(1), np.zeros(1), np.zeros(0), 10., prox_reg=0.)
     assert result.target == expected

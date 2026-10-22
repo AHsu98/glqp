@@ -169,7 +169,7 @@ def start_iteration_diagnostics(iteration, rho):
 
 
 def policy_diagnostics(settings):
-    names = ('initial_mu_policy', 'initial_mu_scale', 'barrier_update_guard',
+    names = ('min_mu_policy', 'initial_mu_policy', 'initial_mu_scale', 'barrier_update_guard',
              'barrier_reduction_limit', 'barrier_kkt_floor', 'slack_repair',
              'repair_growth_limit', 'newton_fallback_policy', 'step_strategy',
              'proximal_policy', 'prox_dual_reg', 'proximal_center_reduction',

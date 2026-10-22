@@ -26,7 +26,7 @@ from .glm_diagnostics import glm_predictor_diagnostics, glm_hessian_diagnostics
 from .kkt import KKTWorkspace
 from .barrier import (
     validate_barrier_settings, select_barrier_target, describe_barrier_update,
-    initial_barrier_target, describe_initial_target,
+    initial_barrier_target, describe_initial_target, resolve_barrier_floor,
 )
 from .outer_policy import (
     DIRECTION_CLIP_THRESHOLD, clip_tiny_directions,
@@ -83,7 +83,10 @@ class SolverSettings():
     tol:float = 1e-8
     boundary_frac:float = 0.99
     gamma:float = 0.5
+    # Cap the absolute floor against aggregate complementarity stopping.
+    # 'fixed' preserves min_mu exactly, including for deliberate experiments.
     min_mu:float = 1e-12
+    min_mu_policy:str = 'constraint_count'
     tau_reg:float =2e-8
     max_linesearch_steps:int = 50
     # Scalar search applies to nonlinear descent with the legacy merit and no
@@ -127,6 +130,7 @@ class SolverSettings():
 
 @dataclass
 class SolverResults():
+    """Solution with effective settings and configured/effective floor provenance."""
     settings:SolverSettings
     x:np.ndarray
     y:np.ndarray
@@ -143,6 +147,7 @@ class SolverResults():
     initialization_linear_solve:dict|None = None
     last_linear_solve:dict|None = None
     diagnostics:dict|None = None
+    barrier_floor:dict|None = None
 
 class GLQP():
     def __init__(
@@ -229,8 +234,10 @@ class GLQP():
                 )
             else:
                 settings = SolverSettings()
-        self.settings = settings
         _validate_policy_settings(settings)
+        settings, self.barrier_floor = resolve_barrier_floor(
+            settings, 0 if self.dummy_ineq else self.k)
+        self.settings = settings
         self._initial_linear_info = None
         # Problem matrices may have been replaced since the previous solve.
         self._kkt_workspace = None
@@ -416,6 +423,10 @@ class GLQP():
         model/settings or array bases; its return value is ignored. Exceptions
         propagate, and its work counts toward max_time. Iteration diagnostics
         are optional and likewise consume time, but never decide acceptance.
+
+        Settings are copied before resolving the problem-dependent barrier
+        floor. Returned ``settings`` contain the effective floor; the separate
+        ``barrier_floor`` metadata retains both configured and effective values.
         """
         if iteration_callback is not None and not callable(iteration_callback):
             raise ValueError('iteration_callback must be callable or None')
@@ -432,7 +443,8 @@ class GLQP():
         diagnostics_enabled = settings.iteration_diagnostics
         qp_residual_norms = None
         diagnostics = (dict(schema_version=1, initial=None, iterations=[],
-                            policies=policy_diagnostics(settings), initial_target=None)
+                            policies=policy_diagnostics(settings), initial_target=None,
+                            barrier_floor=self.barrier_floor.copy())
                        if diagnostics_enabled else None)
         if verbose is True:
             k = self.k
@@ -917,6 +929,7 @@ class GLQP():
             last_linear_solve=(None if self._linear_info is None
                                else self._linear_info.history_fields()),
             diagnostics=diagnostics,
+            barrier_floor=self.barrier_floor.copy(),
             )
         return x,results
 
