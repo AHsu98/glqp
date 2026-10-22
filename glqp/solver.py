@@ -4,7 +4,7 @@ The accepted algorithm is documented in docs/accepted-algorithm.md. Numerical
 linear solves, barrier policies, centered residuals, and observations live in
 their own modules; this driver controls when each policy sees an iterate.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import time
 import numpy as np
 import pandas as pd
@@ -86,7 +86,7 @@ class SolverSettings():
     # Cap the absolute floor against aggregate complementarity stopping.
     # 'fixed' preserves min_mu exactly, including for deliberate experiments.
     min_mu:float = 1e-12
-    min_mu_policy:str = 'constraint_count'
+    min_mu_policy:str = field(default='constraint_count', kw_only=True)
     tau_reg:float =2e-8
     max_linesearch_steps:int = 50
     # Scalar search applies to nonlinear descent with the legacy merit and no
