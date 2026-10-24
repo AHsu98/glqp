@@ -7,7 +7,25 @@ in the solver does not mean that it has been selected as a default.
 See the [accepted algorithm reference](../accepted-algorithm.md) for its exact
 equations, control flow, and public versus benchmark settings.
 
-The latest [regularization and accuracy study](../../../glqp-bench/benchmarks/progression/reg-accuracy-20261024/README.md)
+The latest [iteration-decay study](../../../glqp-bench/benchmarks/progression/iteration-decay-20261024/README.md)
+adds independent opt-in `prox_decay_iterations` and `tau_decay_iterations`
+controls; both default to `None`. Solver `77379ce` passes 1,072 tests.
+The best qualified schedule multiplies the conservative physical coefficient
+by `30/(30+i)`, retaining the fixed `2e-8` factorization shift and tighter
+absolute linear target from the study below. After rate screens and a full
+paired qualification, QP certificates/native optima improve 170→172/178
+(QPILOTNO and LISWET12), with no lost native optima or certificates at `1e-6`
+or `1e-8`. GLMs remain 80/81 primary, 76/81 strict, and 81/81 native optimal.
+Common 170 QP iterations fall 11,976→10,771; common 80 GLMs stay at 1,074.
+
+This remains experimental: QSCFXM1 grows 97→301 iterations and develops 80
+inaccurate inner calls before recovering to both certificates. More aggressive
+physical rates T=1/3/10 lose UBH1 native/strict convergence; numerical-shift
+decay loses other previously successful cases. All timing comparisons are
+excluded and no defaults change. The report retains source/data/endpoint
+audits, iteration profiles, and the QSCFXM1 trajectory review.
+
+The preceding [regularization and accuracy study](../../../glqp-bench/benchmarks/progression/reg-accuracy-20261024/README.md)
 adds opt-in keyword-only controls without changing defaults. Its recommended
 candidate sets `prox_reg=2e-9`, `prox_residual_factor=1e-4` and
 `linear_atol_factor=.005`, retaining `linear_rtol=1e-6`, GMRES10 and factorization
