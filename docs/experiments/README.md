@@ -26,13 +26,28 @@ inaccurate inner calls before recovering to both certificates. More aggressive
 physical rates T=1/3/10 lose UBH1 native/strict convergence; numerical-shift
 decay loses other previously successful cases. All timing comparisons are
 excluded. The report retains source/data/endpoint audits, iteration profiles,
-and the QSCFXM1 trajectory review. Slowdown/stalling diagnosis continues
-separately; this promotion changes no algorithm, tolerance, budget, outer
+and the QSCFXM1 trajectory review. The promotion changes no algorithm body,
+outer tolerance, budget, outer
 policy, or initialization setting. The measured coverage uses benchmark
 profiles; it is not a coverage guarantee under the shorter public defaults.
 Tau decay remains disabled, `linear_rtol=1e-6`, and the GMRES budget remains ten.
 The promotion passes all 1,077 solver tests; compatibility checks retain the
 36 original positional settings and explicitly reconstruct historical defaults.
+
+The separate [accepted-decay diagnosis](../../../glqp-bench/benchmarks/progression/accepted-decay-diagnosis-20261024/README.md)
+reproduces QSCFXM1 and LISWET9 exactly, including all 5,318 non-time history
+rows. QSCFXM1 resurfaces the known unchecked QDLDL update failure: its first
+bad factor has 145 zero D entries, while a fresh constructor rejects the
+identical matrix and the existing larger-shift retry produces an accurate
+direction. A two-matrix 95→96 update reproducer isolates the issue; the matching
+upstream source ignores the update return status. Later legacy slack repair
+amplifies feasibility from `2.29e-4` to `1.93e7` at iteration 231.
+LISWET9 instead retains about 91% of the primal residual through `rho*dy` in
+its last Newton direction before a small accepted step. Tighter frozen solves
+improve complementarity correction without removing that physical defect.
+All controls are diagnostic only; no backend failure-handling, repair, or
+other numerical fix is included. Propagating failed updates into the existing
+factorization retry path is the next focused corrective experiment.
 
 The preceding [regularization and accuracy study](../../../glqp-bench/benchmarks/progression/reg-accuracy-20261024/README.md)
 adds opt-in keyword-only controls without changing defaults. Its recommended
