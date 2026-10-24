@@ -1,4 +1,4 @@
-"""Experimental keyword-only settings preserve existing positional arguments."""
+"""Keyword-only regularization settings preserve existing positional arguments."""
 from dataclasses import asdict
 import inspect
 
@@ -10,7 +10,7 @@ from glqp import SolverSettings
 # Captured from the measured candidate 32ffecb38abdea32b5931cfb3a7262ec2390d530.
 # Removing only its new policy field recovers the positional argument order
 # from the preceding accepted version. Keep the full reference so a signature
-# repair cannot silently change any benchmarked numerical default.
+# repair or later promotion can identify each intentionally changed default.
 MEASURED_DEFAULTS = {
     'max_precenter': 100,
     'max_iter': 200,
@@ -51,9 +51,9 @@ MEASURED_DEFAULTS = {
     'iteration_diagnostics': False,
 }
 OLD_POSITIONAL_NAMES = [name for name in MEASURED_DEFAULTS if name != 'min_mu_policy']
-NEW_KEYWORD_DEFAULTS = dict(prox_residual_factor=1e-3,
-                            linear_atol_factor=.05, linear_rtol=1e-6,
-                            prox_decay_iterations=None, tau_decay_iterations=None)
+NEW_KEYWORD_DEFAULTS = dict(prox_residual_factor=1e-4,
+                            linear_atol_factor=.005, linear_rtol=1e-6,
+                            prox_decay_iterations=30., tau_decay_iterations=None)
 
 
 def test_floor_policy_is_keyword_only_and_old_positional_order_is_preserved():
@@ -75,7 +75,14 @@ def test_existing_full_positional_call_preserves_values_after_minimum(policy):
     assert asdict(settings) == expected
 
 
-def test_signature_fix_keeps_all_measured_candidate_defaults():
+def test_promotion_changes_only_the_qualified_regularization_defaults():
     actual = asdict(SolverSettings())
-    assert actual == dict(MEASURED_DEFAULTS, **NEW_KEYWORD_DEFAULTS)
+    assert actual == dict(MEASURED_DEFAULTS, **NEW_KEYWORD_DEFAULTS, prox_reg=2e-9)
     assert all(type(actual[name]) is type(value) for name, value in MEASURED_DEFAULTS.items())
+
+
+def test_historical_defaults_remain_explicitly_reconstructible():
+    historical = dict(MEASURED_DEFAULTS, prox_residual_factor=1e-3,
+                      linear_atol_factor=.05, linear_rtol=1e-6,
+                      prox_decay_iterations=None, tau_decay_iterations=None)
+    assert asdict(SolverSettings(**historical)) == historical

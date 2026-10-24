@@ -74,15 +74,32 @@ def test_disabled_schedules_never_enter_helper_or_add_history(monkeypatch, strat
         pytest.fail('Disabled schedules must bypass the numerical helper')
 
     monkeypatch.setattr(driver, 'decay_regularization', forbidden)
+    historical = dict(prox_reg=2e-8, prox_residual_factor=1e-3,
+                      linear_atol_factor=.05, prox_decay_iterations=None)
     implicit = solve(problem(glm), SolverSettings(step_strategy=strategy, max_iter=4,
-                                                  iteration_diagnostics=True))
+        iteration_diagnostics=True, **historical))
     explicit = solve(problem(glm), SolverSettings(step_strategy=strategy, max_iter=4,
-        iteration_diagnostics=True, prox_decay_iterations=None, tau_decay_iterations=None))
+        iteration_diagnostics=True, tau_decay_iterations=None, **historical))
     for name in ('x', 'y', 's', 'nu'):
         assert getattr(implicit, name).tobytes() == getattr(explicit, name).tobytes()
     assert implicit.history.drop(columns=['time']).equals(explicit.history.drop(columns=['time']))
     assert not any(name.startswith('reg_') for name in implicit.history.columns)
     assert not any('regularization' in row for row in implicit.diagnostics['iterations'])
+
+
+@pytest.mark.parametrize('strategy', ['newton', 'predictor_corrector'])
+@pytest.mark.parametrize('glm', [False, True])
+def test_promoted_defaults_match_the_explicit_qualified_recipe(strategy, glm):
+    common = dict(step_strategy=strategy, max_iter=4, iteration_diagnostics=True)
+    default = solve(problem(glm), SolverSettings(**common))
+    explicit = solve(problem(glm), SolverSettings(**common, prox_reg=2e-9,
+        prox_residual_factor=1e-4, linear_atol_factor=.005,
+        prox_decay_iterations=30., tau_decay_iterations=None,
+        tau_reg=2e-8, linear_rtol=1e-6, max_iterative_refinement=10))
+    for name in ('x', 'y', 's', 'nu'):
+        assert getattr(default, name).tobytes() == getattr(explicit, name).tobytes()
+    assert default.history.drop(columns=['time']).equals(explicit.history.drop(columns=['time']))
+    assert default.diagnostics == explicit.diagnostics
 
 
 @pytest.mark.parametrize('strategy', ['newton', 'predictor_corrector'])
@@ -162,7 +179,8 @@ def test_tau_changes_only_main_solve_and_pc_reuses_its_frozen_shift(monkeypatch,
         return result
 
     monkeypatch.setattr(model, 'solve_predictor_corrector', observed_pc)
-    settings = SolverSettings(max_iter=3, step_strategy=strategy, tau_decay_iterations=.5)
+    settings = SolverSettings(max_iter=3, step_strategy=strategy,
+                              prox_decay_iterations=None, tau_decay_iterations=.5)
     result = solve(model, settings)
     initial = [(args, info) for args, info in calls if 'primal' in args['residual_blocks']]
     main = [(args, info) for args, info in calls if 'scaled_inequality' in args['residual_blocks']]
@@ -172,7 +190,7 @@ def test_tau_changes_only_main_solve_and_pc_reuses_its_frozen_shift(monkeypatch,
     for index, (args, info) in enumerate(main):
         tau = settings.tau_reg*iteration_decay(index, .5)
         assert args['init_tau_reg'] == tau == info.tau_reg
-        assert info.target_atol == .05*settings.tol and info.target_rtol == 1e-6
+        assert info.target_atol == .005*settings.tol and info.target_rtol == 1e-6
         assert args['max_refinement_steps'] == 10
         assert result.history.iloc[index]['reg_prox_factor'] == 1.
         if strategy == 'predictor_corrector':

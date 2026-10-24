@@ -109,18 +109,18 @@ class SolverSettings():
     # Maximum inner steps in one right-preconditioned GMRES correction cycle.
     max_iterative_refinement:int = 10
     # Main KKT targets only; the initial equality projection keeps its targets.
-    linear_atol_factor:float = field(default=.05, kw_only=True)
+    linear_atol_factor:float = field(default=.005, kw_only=True)
     linear_rtol:float = field(default=1e-6, kw_only=True)
     max_time:float = 600.
     max_stagnation:int = 20
     armijo_additive_eps:float = 1e-8
     armijo_param:float = 0.005
     let_newton_cook:float = 0.
-    prox_reg:float = 2e-8
-    # The actual coefficient is min(prox_reg, prox_residual_factor * KKT).
-    prox_residual_factor:float = field(default=1e-3, kw_only=True)
+    prox_reg:float = 2e-9
+    # Residual-limited coefficient, before the accepted-iteration decay below.
+    prox_residual_factor:float = field(default=1e-4, kw_only=True)
     # Scale the whole residual-limited physical coefficient after selection.
-    prox_decay_iterations:float|None = field(default=None, kw_only=True)
+    prox_decay_iterations:float|None = field(default=30., kw_only=True)
     proximal_policy:str = 'legacy'
     prox_dual_reg:float|None = None
     proximal_center_reduction:float = .95

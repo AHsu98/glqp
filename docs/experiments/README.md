@@ -8,9 +8,12 @@ See the [accepted algorithm reference](../accepted-algorithm.md) for its exact
 equations, control flow, and public versus benchmark settings.
 
 The latest [iteration-decay study](../../../glqp-bench/benchmarks/progression/iteration-decay-20261024/README.md)
-adds independent opt-in `prox_decay_iterations` and `tau_decay_iterations`
-controls; both default to `None`. Solver `77379ce` passes 1,072 tests.
-The best qualified schedule multiplies the conservative physical coefficient
+adds independent `prox_decay_iterations` and `tau_decay_iterations`
+controls; both were initially opt-in at solver `77379ce` (1,072 tests).
+The T30 recipe is now accepted as the public default after explicit user
+approval on 2026-10-24: `prox_reg=2e-9`, `prox_residual_factor=1e-4`,
+`linear_atol_factor=.005`, and `prox_decay_iterations=30`.
+It multiplies the conservative physical coefficient
 by `30/(30+i)`, retaining the fixed `2e-8` factorization shift and tighter
 absolute linear target from the study below. After rate screens and a full
 paired qualification, QP certificates/native optima improve 170→172/178
@@ -18,12 +21,18 @@ paired qualification, QP certificates/native optima improve 170→172/178
 or `1e-8`. GLMs remain 80/81 primary, 76/81 strict, and 81/81 native optimal.
 Common 170 QP iterations fall 11,976→10,771; common 80 GLMs stay at 1,074.
 
-This remains experimental: QSCFXM1 grows 97→301 iterations and develops 80
+This promotion accepts the known tradeoff: QSCFXM1 grows 97→301 iterations and develops 80
 inaccurate inner calls before recovering to both certificates. More aggressive
 physical rates T=1/3/10 lose UBH1 native/strict convergence; numerical-shift
 decay loses other previously successful cases. All timing comparisons are
-excluded and no defaults change. The report retains source/data/endpoint
-audits, iteration profiles, and the QSCFXM1 trajectory review.
+excluded. The report retains source/data/endpoint audits, iteration profiles,
+and the QSCFXM1 trajectory review. Slowdown/stalling diagnosis continues
+separately; this promotion changes no algorithm, tolerance, budget, outer
+policy, or initialization setting. The measured coverage uses benchmark
+profiles; it is not a coverage guarantee under the shorter public defaults.
+Tau decay remains disabled, `linear_rtol=1e-6`, and the GMRES budget remains ten.
+The promotion passes all 1,077 solver tests; compatibility checks retain the
+36 original positional settings and explicitly reconstruct historical defaults.
 
 The preceding [regularization and accuracy study](../../../glqp-bench/benchmarks/progression/reg-accuracy-20261024/README.md)
 adds opt-in keyword-only controls without changing defaults. Its recommended
@@ -36,8 +45,9 @@ iterations fall 28,575→9,701. All timings are excluded.
 The more aggressive hundredfold physical reduction certifies 173/178 QPs but
 introduces QETAMACR native stagnation; doubling GMRES work does not rescue it.
 The recommended tenfold reduction preserves QETAMACR's 58-iteration convergence
-but gives up three aggressive-setting QP gains. No default promotion follows
-automatically; the report retains all factorial, full-suite and follow-up
+but gives up three aggressive-setting QP gains. No default promotion followed
+automatically from that study; explicit approval later selected the T30 recipe
+above. The report retains all factorial, full-suite and follow-up
 observations with independent certificate/source/data audits.
 
 **Keep accepted Newton, legacy outer policies, QDLDL, float64 right-GMRES

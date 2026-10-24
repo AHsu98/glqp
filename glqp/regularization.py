@@ -1,4 +1,4 @@
-"""Opt-in iteration decay, frozen before each outer direction is assembled.
+"""Iteration decay, frozen before each outer direction is assembled.
 
 Physical coefficients belong to the requested Newton equations. The separate
 tau is only the initial factorization shift; numerical retries may increase it.

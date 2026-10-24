@@ -3,8 +3,8 @@
 This is a source-level reference for the accepted **legacy Newton method with
 float64 right-preconditioned GMRES refinement**. The base implementation is
 `1f5ac45`, also present at documentation revision `72a3642` (2026-10-17), with
-the accepted GLM arithmetic and search updates listed below. Other experimental
-options remain opt-in. This document records implemented behavior, including heuristics;
+the accepted GLM arithmetic, search, and regularization updates listed below.
+Other experimental options remain opt-in. This document records implemented behavior, including heuristics;
 it does not claim a convergence theorem for their combination.
 The structural cleanup at `f179f1d` preserves this numerical behavior; selected
 exact-parity checks and regression tests are recorded in the
@@ -57,6 +57,24 @@ after host-load flags. The policy changes only the absolute floor, as defined be
 The follow-up `94dd41c` makes the new setting keyword-only, preserving the old
 positional constructor signature; its defaults and numerical implementation
 are identical to the measured candidate. The solver suite passes 924 tests.
+
+The [T30 regularization recipe](../../glqp-bench/benchmarks/progression/iteration-decay-20261024/README.md)
+is accepted as the public default on 2026-10-24 following explicit user approval.
+It sets `prox_reg=2e-9`, `prox_residual_factor=1e-4`,
+`linear_atol_factor=.005`, and `prox_decay_iterations=30`.
+The factorization shift remains `tau_reg=2e-8`, with no tau decay, relative
+linear target `1e-6`, and ten GMRES correction steps. The measured candidate
+is `77379ce` with these explicit options. Full matched profiles certify
+172/178 QPs, including 132/138 MM cases, and 80/81 GLMs; the strict `1e-8`
+certificate counts are 172/178 and 76/81. All baseline certificates and native
+optima are retained. The known QSCFXM1 slowdown (97 to 301 iterations) is
+accepted for separate diagnosis; no stalling or inner-accuracy repair is part
+of this promotion. All timing comparisons remain excluded.
+
+These coverage results use the documented benchmark budgets and globalization
+profiles, not the public 200-iteration/20-step-stagnation defaults. The promotion
+changes only the four regularization/accuracy defaults above; tolerance,
+budgets, outer rules, and initialization remain unchanged.
 
 The authoritative entry points are [`SolverSettings` and `GLQP`](../glqp/solver.py).
 Benchmark settings are a separate layer in the sibling repository's
@@ -167,24 +185,23 @@ floor. All later references to `min_mu` mean this effective value.
 
 ## One Newton direction and the two regularizations
 
-At each outer iteration, the legacy method sets
+At each outer iteration, the accepted legacy method sets
 
 \[
-\rho=\min(\texttt{prox_reg},10^{-3}K),\qquad
-\texttt{prox_reg}=2\cdot10^{-8}\text{ by default}.
+\rho_i=\frac{30}{30+i}\min(2\cdot10^{-9},10^{-4}K_i).
 \]
 
-The multiplier `1e-3` is exposed as the keyword-only experimental setting
-`prox_residual_factor`, with that same default. Reducing both `prox_reg`
+Here `i` counts completed accepted steps, starting at zero. The configured
+cap is `prox_reg=2e-9` and residual multiplier is the keyword-only
+`prox_residual_factor=1e-4`. Reducing both `prox_reg`
 and `prox_residual_factor` by ten weakens both branches of this coefficient
 rule by ten. Reducing only the cap can leave the late, residual-limited
 coefficient unchanged. The residual factor also applies to the independently
 configured dual cap in nonlegacy policies; centered progress continuation
-can subsequently reduce either coefficient further. No default coefficient
-or continuation policy changes with these experimental settings.
+can subsequently reduce either coefficient further.
 
-Two further keyword-only experiments, `prox_decay_iterations=None` and
-`tau_decay_iterations=None`, independently enable algebraic iteration decay.
+The keyword-only settings `prox_decay_iterations=30` and
+`tau_decay_iterations=None` independently control algebraic iteration decay.
 A positive finite timescale `T` gives `d(i)=T/(T+i)`, where `i` counts completed
 accepted outer steps: the first direction has `i=0` and factor exactly one.
 For example, `10/(10+i/10)` corresponds to `T=100`. Ordinary finite denominators
@@ -198,7 +215,8 @@ Centered progress continuation applies afterward and may reduce the requested
 coefficients further. Thus the decay factor is monotone, while the actual
 coefficient can increase when the KKT residual increases. Each iteration
 freezes its coefficients before matrix assembly, all predictor/corrector RHSs,
-and line-search trials. Neither option is enabled by default.
+and line-search trials. Physical decay is enabled by default; tau decay remains
+an opt-in experiment. `prox_decay_iterations=None` disables physical decay.
 
 It requests the four linearized equations
 
@@ -247,7 +265,7 @@ with pattern matching, numeric updates, and upper-triangle storage reuse.
    RHS `h`. Rescale it by `(h.T*(G*v))/||G*v||2^2`, evaluated with numerical
    scaling to avoid unnecessary overflow.
 2. Recompute `h-G*v` in float64. A direction is labeled accurate if
-   `||h-G*v||inf <= .05*tol` **or** `||h-G*v||2/||h||2 <= 1e-6` in the main solve.
+   `||h-G*v||inf <= .005*tol` **or** `||h-G*v||2/||h||2 <= 1e-6` in the main solve.
    These tests concern the assembled, scaled KKT system, not every recovered
    unscaled Newton block independently.
 3. Run at most one right-preconditioned GMRES correction cycle, with at most
@@ -270,8 +288,8 @@ does not trigger a new factorization. Finite inaccurate directions are labeled
 as such and passed to the outer acceptance logic. Input/programming errors are
 not silently converted into numerical retries.
 
-The keyword-only experimental settings `linear_atol_factor=.05` and
-`linear_rtol=1e-6` expose the two existing accuracy targets. The main absolute
+The keyword-only settings `linear_atol_factor=.005` and
+`linear_rtol=1e-6` expose the two accuracy targets. The main absolute
 target is `linear_atol_factor*tol`; either it or the relative target may stop
 refinement. They apply to Newton and every predictor/corrector RHS, including
 centered variants, but do not change the initial equality projection's fixed
@@ -294,8 +312,11 @@ When either decay is enabled, history includes `reg_decay_index`, `reg_kkt_befor
 and `reg_tau_configured`/`reg_tau_requested`. Opt-in iteration diagnostics
 also record the configured physical caps. The requested physical values
 include any centered continuation; requested tau precedes numerical retries.
-With both decay settings `None`, the existing history and numerical path
-are preserved, apart from the two new settings metadata fields.
+With both decay settings `None`, schedule history columns are omitted.
+To reproduce the pre-promotion regularization recipe, explicitly set
+`prox_reg=2e-8`, `prox_residual_factor=1e-3`, `linear_atol_factor=.05`,
+`prox_decay_iterations=None`, and `tau_decay_iterations=None`; all other
+settings, including any benchmark profile overrides, must also match.
 
 ## Clipping, positivity, and line search
 
@@ -513,7 +534,9 @@ from the public defaults.
 | `min_mu_policy` | `constraint_count` | inherited | inherited |
 
 Unchanged baseline choices are `step_strategy='newton'`,
-`proximal_policy='legacy'`, `prox_reg=2e-8`, `tau_reg=2e-8`,
+`proximal_policy='legacy'`, `prox_reg=2e-9`, `prox_residual_factor=1e-4`,
+`prox_decay_iterations=30`, `linear_atol_factor=.005`, `linear_rtol=1e-6`,
+`tau_reg=2e-8`, `tau_decay_iterations=None`,
 `linear_solver_backend='qdldl'`, `barrier_update_guard='legacy'`,
 `barrier_reduction_limit=.1`, `barrier_kkt_floor=.01`,
 `initial_mu_policy='fixed'`, `slack_repair='legacy'`, and

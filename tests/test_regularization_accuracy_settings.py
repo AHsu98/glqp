@@ -88,5 +88,5 @@ def test_residual_factor_controls_both_requested_physical_coefficients(monkeypat
     assert coefficients == [(primal, dual, primal if policy == 'legacy' else 0.)]
     assert result.diagnostics['iterations'][0]['rho'] == primal
     assert result.diagnostics['policies']['prox_residual_factor'] == factor
-    assert result.diagnostics['policies']['linear_atol_factor'] == .05
+    assert result.diagnostics['policies']['linear_atol_factor'] == .005
     assert result.diagnostics['policies']['linear_rtol'] == 1e-6
