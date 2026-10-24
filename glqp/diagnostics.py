@@ -172,7 +172,8 @@ def policy_diagnostics(settings):
     names = ('min_mu_policy', 'initial_mu_policy', 'initial_mu_scale', 'barrier_update_guard',
              'barrier_reduction_limit', 'barrier_kkt_floor', 'slack_repair',
              'repair_growth_limit', 'newton_fallback_policy', 'step_strategy',
-             'proximal_policy', 'prox_dual_reg', 'proximal_center_reduction',
+             'proximal_policy', 'prox_dual_reg', 'prox_residual_factor',
+             'linear_atol_factor', 'linear_rtol', 'proximal_center_reduction',
              'proximal_inner_tolerance', 'proximal_corrector_limit', 'proximal_reg_update',
              'glm_linesearch', 'qp_linesearch', 'qp_residual_screen')
     return {name: getattr(settings, name) for name in names}

@@ -180,7 +180,8 @@ def compute_predictor_corrector(model, x, y, s, H, rx, rp, req, kkt_res, *,
 
     with VerifiedLinearSystem(
         G, model.reg_shift, settings.tau_reg, solver,
-        target_atol=.05*settings.tol, max_solve_attempts=12,
+        target_atol=settings.linear_atol_factor*settings.tol,
+        target_rtol=settings.linear_rtol, max_solve_attempts=12,
         max_refinement_steps=settings.max_iterative_refinement,
         residual_blocks={'stationarity': slice(0, model.n),
                          'scaled_inequality': slice(model.n, model.n+model.k),

@@ -174,6 +174,15 @@ At each outer iteration, the legacy method sets
 \texttt{prox_reg}=2\cdot10^{-8}\text{ by default}.
 \]
 
+The multiplier `1e-3` is exposed as the keyword-only experimental setting
+`prox_residual_factor`, with that same default. Reducing both `prox_reg`
+and `prox_residual_factor` by ten weakens both branches of this coefficient
+rule by ten. Reducing only the cap can leave the late, residual-limited
+coefficient unchanged. The residual factor also applies to the independently
+configured dual cap in nonlegacy policies; centered progress continuation
+can subsequently reduce either coefficient further. No default coefficient
+or continuation policy changes with these experimental settings.
+
 It requests the four linearized equations
 
 \[
@@ -243,6 +252,15 @@ zero initial `tau` disables escalation. Merely exhausting refinement accuracy
 does not trigger a new factorization. Finite inaccurate directions are labeled
 as such and passed to the outer acceptance logic. Input/programming errors are
 not silently converted into numerical retries.
+
+The keyword-only experimental settings `linear_atol_factor=.05` and
+`linear_rtol=1e-6` expose the two existing accuracy targets. The main absolute
+target is `linear_atol_factor*tol`; either it or the relative target may stop
+refinement. They apply to Newton and every predictor/corrector RHS, including
+centered variants, but do not change the initial equality projection's fixed
+`1e-12`/`1e-6` targets. They also leave the refinement budget and factorization
+stabilization unchanged. Tighter requested targets do not guarantee that the
+bounded refinement can attain them; inspect the returned accuracy status.
 
 ## Clipping, positivity, and line search
 

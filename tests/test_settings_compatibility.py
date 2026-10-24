@@ -1,4 +1,4 @@
-"""The new floor policy preserves existing positional settings arguments."""
+"""Experimental keyword-only settings preserve existing positional arguments."""
 from dataclasses import asdict
 import inspect
 
@@ -51,6 +51,8 @@ MEASURED_DEFAULTS = {
     'iteration_diagnostics': False,
 }
 OLD_POSITIONAL_NAMES = [name for name in MEASURED_DEFAULTS if name != 'min_mu_policy']
+NEW_KEYWORD_DEFAULTS = dict(prox_residual_factor=1e-3,
+                            linear_atol_factor=.05, linear_rtol=1e-6)
 
 
 def test_floor_policy_is_keyword_only_and_old_positional_order_is_preserved():
@@ -58,12 +60,13 @@ def test_floor_policy_is_keyword_only_and_old_positional_order_is_preserved():
     positional = [name for name, parameter in parameters.items()
                   if parameter.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD]
     assert positional == OLD_POSITIONAL_NAMES
-    assert parameters['min_mu_policy'].kind == inspect.Parameter.KEYWORD_ONLY
+    for name in ('min_mu_policy', *NEW_KEYWORD_DEFAULTS):
+        assert parameters[name].kind == inspect.Parameter.KEYWORD_ONLY
 
 
 @pytest.mark.parametrize('policy', ['fixed', 'constraint_count'])
 def test_existing_full_positional_call_preserves_values_after_minimum(policy):
-    expected = dict(MEASURED_DEFAULTS, min_mu_policy=policy,
+    expected = dict(MEASURED_DEFAULTS, **NEW_KEYWORD_DEFAULTS, min_mu_policy=policy,
                     tau_reg=7e-9, max_linesearch_steps=13, max_time=123.,
                     barrier_kkt_floor=.03, iteration_diagnostics=True)
     settings = SolverSettings(*(expected[name] for name in OLD_POSITIONAL_NAMES),
@@ -73,5 +76,5 @@ def test_existing_full_positional_call_preserves_values_after_minimum(policy):
 
 def test_signature_fix_keeps_all_measured_candidate_defaults():
     actual = asdict(SolverSettings())
-    assert actual == MEASURED_DEFAULTS
+    assert actual == dict(MEASURED_DEFAULTS, **NEW_KEYWORD_DEFAULTS)
     assert all(type(actual[name]) is type(value) for name, value in MEASURED_DEFAULTS.items())

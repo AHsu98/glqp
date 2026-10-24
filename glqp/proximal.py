@@ -28,7 +28,7 @@ def validate_proximal_settings(settings):
     if (not isinstance(settings.proximal_policy, str)
             or settings.proximal_policy not in ('legacy', 'no_slack', 'centered')):
         raise ValueError("proximal_policy must be 'legacy', 'no_slack', or 'centered'")
-    for name in ('prox_reg', 'prox_dual_reg'):
+    for name in ('prox_reg', 'prox_dual_reg', 'prox_residual_factor'):
         value = getattr(settings, name)
         if value is None and name == 'prox_dual_reg':
             continue

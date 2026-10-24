@@ -5,6 +5,7 @@ linear solves, barrier policies, centered residuals, and observations live in
 their own modules; this driver controls when each policy sees an iterate.
 """
 from dataclasses import dataclass, field
+import numbers
 import time
 import numpy as np
 import pandas as pd
@@ -54,6 +55,11 @@ def _validate_policy_settings(settings):
     validate_repair_and_fallback_settings(settings)
     validate_step_strategy(settings)
     validate_proximal_settings(settings)
+    for name in ('linear_atol_factor', 'linear_rtol'):
+        value = getattr(settings, name)
+        if (isinstance(value, (bool, np.bool_)) or not isinstance(value, numbers.Real)
+                or not np.isfinite(value) or value < 0):
+            raise ValueError(f'{name} must be finite and nonnegative')
     if (not isinstance(settings.glm_linesearch, str)
             or settings.glm_linesearch not in ('backtracking', 'scalar')):
         raise ValueError("glm_linesearch must be 'backtracking' or 'scalar'")
@@ -98,12 +104,17 @@ class SolverSettings():
     qp_residual_screen:str = 'off'
     # Maximum inner steps in one right-preconditioned GMRES correction cycle.
     max_iterative_refinement:int = 10
+    # Main KKT targets only; the initial equality projection keeps its targets.
+    linear_atol_factor:float = field(default=.05, kw_only=True)
+    linear_rtol:float = field(default=1e-6, kw_only=True)
     max_time:float = 600.
     max_stagnation:int = 20
     armijo_additive_eps:float = 1e-8
     armijo_param:float = 0.005
     let_newton_cook:float = 0.
     prox_reg:float = 2e-8
+    # The actual coefficient is min(prox_reg, prox_residual_factor * KKT).
+    prox_residual_factor:float = field(default=1e-3, kw_only=True)
     proximal_policy:str = 'legacy'
     prox_dual_reg:float|None = None
     proximal_center_reduction:float = .95
@@ -357,7 +368,8 @@ class GLQP():
             reg_shift=self.reg_shift,
             init_tau_reg = tau_reg,
             solver = solver,
-            target_atol = 0.05*self.settings.tol,
+            target_atol = self.settings.linear_atol_factor*self.settings.tol,
+            target_rtol = self.settings.linear_rtol,
             max_solve_attempts=12,
             max_refinement_steps=self.settings.max_iterative_refinement,
             residual_blocks={'stationarity': slice(0, self.n),
@@ -544,12 +556,12 @@ class GLQP():
                 #Little progress in settings.max_stagnation
                 termination_tag = "stagnated"
                 break
-            prox_reg = np.minimum(settings.prox_reg,kkt_res*1e-3)
+            prox_reg = np.minimum(settings.prox_reg,kkt_res*settings.prox_residual_factor)
             linear_options = {}
             dual_reg = prox_reg
             if settings.proximal_policy != 'legacy':
                 dual_cap = settings.prox_reg if settings.prox_dual_reg is None else settings.prox_dual_reg
-                dual_reg = np.minimum(dual_cap, kkt_res*1e-3)
+                dual_reg = np.minimum(dual_cap, kkt_res*settings.prox_residual_factor)
                 if proximal_state is not None and settings.proximal_reg_update == 'progress':
                     prox_reg, dual_reg = proximal_state.select_regularization(prox_reg, dual_reg)
                 linear_options = dict(dual_reg=dual_reg, complementarity_reg=0.)
