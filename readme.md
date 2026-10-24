@@ -41,10 +41,19 @@ defaults from the QP and GLM benchmark profiles.
 The [experiment ledger](docs/experiments/README.md) records what we tried,
 the measured outcomes, and unresolved issues. Accepted defaults remain legacy
 Newton, QDLDL, ten-step float64 right-GMRES, and presolve disabled. Predictor–
-corrector and centered proximal methods remain experimental. The latest full
+corrector and centered proximal methods remain experimental. The earlier full
 138-problem Maros–Mészáros comparison validates 129 cases with accepted Newton
 and 127 with centered adaptive Newton; the latter is slower on the separately
 audited timing subset. Its selected large gains do not justify promotion.
+
+The accepted [physical-decay recipe](../glqp-bench/benchmarks/progression/accepted-decay-diagnosis-20261024/README.md)
+uses `rho_i=30/(30+i)*min(2e-9,1e-4*KKT_i)` with a fixed `2e-8`
+factorization shift and absolute linear target `.005*tol`. At native `1e-8`,
+the measured benchmark profiles certify 172/178 QPs (132/138 MM and 40/40
+applications) and 80/81 GLMs at the independent `1e-6` threshold. Public
+budgets remain shorter than those benchmark budgets. QSCFXM1's increased
+iteration count is accepted for now and diagnosed separately; timings are
+excluded from this qualification.
 
 #### Numerical experiments
 
@@ -59,7 +68,7 @@ audited timing subset. Its selected large gains do not justify promotion.
 
 The sibling `glqp-bench` repository contains committed-source comparison
 campaigns, explicit per-variant presolve/backend settings, and 81 GLM examples,
-including large sparse and weighted real-data problems. The latest
+including large sparse and weighted real-data problems. The 2026-10-17
 [GLM stress checkpoint](../glqp-bench/benchmarks/progression/glm-stress-20261017/README.md)
 adds 42 compact cases targeting numerical difficulty: all 30 initial additions
 pass, as do 7 of 12 deliberately severe cases. The original 39 also pass.
