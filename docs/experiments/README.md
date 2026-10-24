@@ -1,15 +1,30 @@
 # Experiment ledger
 
-Status: 2026-10-21. This index records implemented changes, completed experiments,
+Status: 2026-10-24. This index records implemented changes, completed experiments,
 and working decisions. Dated reports remain the authority for their particular
 source revisions, settings, observations, and limitations. An option's presence
 in the solver does not mean that it has been selected as a default.
 See the [accepted algorithm reference](../accepted-algorithm.md) for its exact
 equations, control flow, and public versus benchmark settings.
 
+The latest [regularization and accuracy study](../../../glqp-bench/benchmarks/progression/reg-accuracy-20261024/README.md)
+adds opt-in keyword-only controls without changing defaults. Its recommended
+candidate sets `prox_reg=2e-9`, `prox_residual_factor=1e-4` and
+`linear_atol_factor=.005`, retaining `linear_rtol=1e-6`, GMRES10 and factorization
+shift `2e-8`. At native tolerance `1e-8`, full paired qualifications preserve
+every baseline native optimum and certificate with this conservative recipe:
+QP certificates improve 169→170/178 and GLMs 78→80/81. Common 169 QP outer
+iterations fall 28,575→9,701. All timings are excluded.
+The more aggressive hundredfold physical reduction certifies 173/178 QPs but
+introduces QETAMACR native stagnation; doubling GMRES work does not rescue it.
+The recommended tenfold reduction preserves QETAMACR's 58-iteration convergence
+but gives up three aggressive-setting QP gains. No default promotion follows
+automatically; the report retains all factorial, full-suite and follow-up
+observations with independent certificate/source/data audits.
+
 **Keep accepted Newton, legacy outer policies, QDLDL, float64 right-GMRES
 refinement, and presolve disabled as the working defaults, with the accepted
-constraint-count cap on the absolute barrier floor.** The latest full
+constraint-count cap on the absolute barrier floor.** The earlier full
 Maros–Mészáros comparison finds 129/138 accepted solutions for that configuration
 and 127/138 for centered adaptive proximal Newton. The latter has useful large
 individual gains, but loses four previously accepted LISWET cases. On the
