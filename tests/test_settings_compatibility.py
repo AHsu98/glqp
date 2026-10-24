@@ -52,7 +52,8 @@ MEASURED_DEFAULTS = {
 }
 OLD_POSITIONAL_NAMES = [name for name in MEASURED_DEFAULTS if name != 'min_mu_policy']
 NEW_KEYWORD_DEFAULTS = dict(prox_residual_factor=1e-3,
-                            linear_atol_factor=.05, linear_rtol=1e-6)
+                            linear_atol_factor=.05, linear_rtol=1e-6,
+                            prox_decay_iterations=None, tau_decay_iterations=None)
 
 
 def test_floor_policy_is_keyword_only_and_old_positional_order_is_preserved():

@@ -20,6 +20,7 @@ from .util import (
 )
 
 from .linear import LinearSolveError, ShiftedSystemWorkspace
+from .regularization import validate_decay_settings, decay_regularization
 from .linesearch import CachedGLMRay, search_scalar_ray
 from .qp_linesearch import QPScalarProposer
 from .objective_search import CachedObjectiveRay, search_restoration_ray
@@ -55,6 +56,7 @@ def _validate_policy_settings(settings):
     validate_repair_and_fallback_settings(settings)
     validate_step_strategy(settings)
     validate_proximal_settings(settings)
+    validate_decay_settings(settings)
     for name in ('linear_atol_factor', 'linear_rtol'):
         value = getattr(settings, name)
         if (isinstance(value, (bool, np.bool_)) or not isinstance(value, numbers.Real)
@@ -94,6 +96,8 @@ class SolverSettings():
     min_mu:float = 1e-12
     min_mu_policy:str = field(default='constraint_count', kw_only=True)
     tau_reg:float =2e-8
+    # Optional accepted-iteration timescale; initialization is never aged.
+    tau_decay_iterations:float|None = field(default=None, kw_only=True)
     max_linesearch_steps:int = 50
     # Scalar search applies to nonlinear descent with the legacy merit and no
     # Newton fallback. Other globalization paths retain their own contracts.
@@ -115,6 +119,8 @@ class SolverSettings():
     prox_reg:float = 2e-8
     # The actual coefficient is min(prox_reg, prox_residual_factor * KKT).
     prox_residual_factor:float = field(default=1e-3, kw_only=True)
+    # Scale the whole residual-limited physical coefficient after selection.
+    prox_decay_iterations:float|None = field(default=None, kw_only=True)
     proximal_policy:str = 'legacy'
     prox_dual_reg:float|None = None
     proximal_center_reduction:float = .95
@@ -352,6 +358,11 @@ class GLQP():
         x,y,s,H,rx,rp,rc,req,mu,
         tau_reg=None,prox_reg = 1e-7,
         solver = None, *, dual_reg=None, complementarity_reg=None):
+        """Solve one supplied system; omitted tau uses the unaged setting.
+
+        Only the outer solve owns the iteration clock. Direct calls preserve
+        the supplied physical coefficient and accept an explicit tau override.
+        """
         # x and mu remain in the public signature for caller compatibility.
 
         if tau_reg is None:
@@ -394,13 +405,15 @@ class GLQP():
     def solve_predictor_corrector(self, x, y, s, H, rx, rp, req, kkt_res, *,
                                   prox_reg, solver=None, target_override=None,
                                   dual_reg=None, complementarity_reg=None,
-                                  residual_safeguard=False, center_offsets=None):
+                                  residual_safeguard=False, center_offsets=None,
+                                  tau_reg=None):
         """Affine/combined RHS solves, with an optional centered-policy rescue."""
         return compute_predictor_corrector(
             self, x, y, s, H, rx, rp, req, kkt_res,
             prox_reg=prox_reg, solver=solver, target_override=target_override,
             dual_reg=dual_reg, complementarity_reg=complementarity_reg,
-            residual_safeguard=residual_safeguard, center_offsets=center_offsets)
+            residual_safeguard=residual_safeguard, center_offsets=center_offsets,
+            tau_reg=tau_reg)
 
     
     def get_H(self,z):
@@ -453,6 +466,9 @@ class GLQP():
         use_predictor_corrector = (settings.step_strategy == 'predictor_corrector'
                                    and not self.dummy_ineq and self.k > 0)
         diagnostics_enabled = settings.iteration_diagnostics
+        decay_enabled = (settings.prox_decay_iterations is not None
+                         or settings.tau_decay_iterations is not None)
+        regularization_fields = {}
         qp_residual_norms = None
         diagnostics = (dict(schema_version=1, initial=None, iterations=[],
                             policies=policy_diagnostics(settings), initial_target=None,
@@ -562,14 +578,29 @@ class GLQP():
             if settings.proximal_policy != 'legacy':
                 dual_cap = settings.prox_reg if settings.prox_dual_reg is None else settings.prox_dual_reg
                 dual_reg = np.minimum(dual_cap, kkt_res*settings.prox_residual_factor)
+            tau_reg = settings.tau_reg
+            if decay_enabled:
+                # Every previous loop iteration accepted one step. Freeze the
+                # schedule here, before centered continuation and all RHSs.
+                scheduled = decay_regularization(settings, iteration_number, prox_reg, dual_reg)
+                prox_reg, dual_reg, tau_reg = scheduled.rho, scheduled.delta, scheduled.tau
+            if settings.proximal_policy != 'legacy':
                 if proximal_state is not None and settings.proximal_reg_update == 'progress':
                     prox_reg, dual_reg = proximal_state.select_regularization(prox_reg, dual_reg)
                 linear_options = dict(dual_reg=dual_reg, complementarity_reg=0.)
+            if decay_enabled:
+                regularization_fields = scheduled.history_fields(prox_reg, dual_reg)
+                regularization_fields['reg_kkt_before'] = float(kkt_res)
             proximal_model = None if proximal_state is None else proximal_state.freeze(prox_reg, dual_reg)
             linear_rx, linear_rp, linear_req = ((rx,rp,req) if proximal_model is None else
                 proximal_model.residuals(x,y,nu,rx,rp,req))
             if diagnostics_enabled:
                 iteration_diag = start_iteration_diagnostics(iteration_number+1, prox_reg)
+                if decay_enabled:
+                    iteration_diag['regularization'] = dict(regularization_fields,
+                        configured_rho_cap=float(settings.prox_reg),
+                        configured_delta_cap=float(settings.prox_reg if settings.prox_dual_reg is None
+                                                   else settings.prox_dual_reg))
                 if proximal_model is not None:
                     iteration_diag['proximal'] = dict(
                         generation=proximal_model.generation, rho=float(prox_reg), delta=float(dual_reg),
@@ -584,6 +615,7 @@ class GLQP():
                     pc_step = self.solve_predictor_corrector(
                         x, y, s, H, linear_rx, linear_rp, linear_req, kkt_res, prox_reg=prox_reg,
                         solver=solver, target_override=mu0 if iteration_number == 0 else None,
+                        tau_reg=tau_reg,
                         **linear_options,
                         **({} if proximal_model is None else dict(residual_safeguard=True,
                             center_offsets=proximal_model.offsets(x,y,nu))))
@@ -603,7 +635,7 @@ class GLQP():
                         H,
                         linear_rx,linear_rp,rc,linear_req,
                         mu,
-                        tau_reg = self.settings.tau_reg,
+                        tau_reg = tau_reg,
                         prox_reg = prox_reg,
                         solver = solver,
                         **linear_options,
@@ -907,6 +939,7 @@ class GLQP():
                 **({} if pc_step is None else pc_step.history_fields()),
                 **({} if proximal_update is None else
                    proximal_history_fields(proximal_update, search_diag)),
+                **regularization_fields,
             )
 
         termination_tag,message = build_solution_summary(

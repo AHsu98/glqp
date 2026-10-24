@@ -183,6 +183,23 @@ configured dual cap in nonlegacy policies; centered progress continuation
 can subsequently reduce either coefficient further. No default coefficient
 or continuation policy changes with these experimental settings.
 
+Two further keyword-only experiments, `prox_decay_iterations=None` and
+`tau_decay_iterations=None`, independently enable algebraic iteration decay.
+A positive finite timescale `T` gives `d(i)=T/(T+i)`, where `i` counts completed
+accepted outer steps: the first direction has `i=0` and factor exactly one.
+For example, `10/(10+i/10)` corresponds to `T=100`. Ordinary finite denominators
+use the literal formula; only an overflowing denominator uses normalized
+arithmetic. The clock resets for every `solve` and never mutates settings.
+
+Physical decay multiplies the entire `min(cap, KKT*prox_residual_factor)`
+coefficient, including both primal and independently configured dual blocks.
+The legacy complementarity regularization shares the decayed primal value.
+Centered progress continuation applies afterward and may reduce the requested
+coefficients further. Thus the decay factor is monotone, while the actual
+coefficient can increase when the KKT residual increases. Each iteration
+freezes its coefficients before matrix assembly, all predictor/corrector RHSs,
+and line-search trials. Neither option is enabled by default.
+
 It requests the four linearized equations
 
 \[
@@ -261,6 +278,24 @@ centered variants, but do not change the initial equality projection's fixed
 `1e-12`/`1e-6` targets. They also leave the refinement budget and factorization
 stabilization unchanged. Tighter requested targets do not guarantee that the
 bounded refinement can attain them; inspect the returned accuracy status.
+
+With `tau_decay_iterations=T`, the outer iteration requests the initial
+factorization shift `tau_reg*d(i)`. Existing numerical retries can still
+increase that shift; `lin_tau` records the shift actually used. This decay
+does not alter the requested Newton equations, linear accuracy targets,
+refinement budget, or initialization solve. Direct `solve_KKT` and
+`solve_predictor_corrector` calls have no iteration clock: an omitted
+`tau_reg` uses the configured unaged value, and an explicit override applies
+to that direction. All PC RHSs share one scheduled initial shift.
+
+When either decay is enabled, history includes `reg_decay_index`, `reg_kkt_before`,
+`reg_prox_factor`, `reg_tau_factor`, physical `reg_rho_before_decay` and
+`reg_delta_before_decay`, their `*_after_decay` and `*_requested` values,
+and `reg_tau_configured`/`reg_tau_requested`. Opt-in iteration diagnostics
+also record the configured physical caps. The requested physical values
+include any centered continuation; requested tau precedes numerical retries.
+With both decay settings `None`, the existing history and numerical path
+are preserved, apart from the two new settings metadata fields.
 
 ## Clipping, positivity, and line search
 

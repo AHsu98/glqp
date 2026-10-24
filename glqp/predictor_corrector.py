@@ -112,7 +112,8 @@ class PredictorCorrectorResult:
 def compute_predictor_corrector(model, x, y, s, H, rx, rp, req, kkt_res, *,
                                 prox_reg, solver=None, target_override=None,
                                 dual_reg=None, complementarity_reg=None,
-                                residual_safeguard=False, center_offsets=None):
+                                residual_safeguard=False, center_offsets=None,
+                                tau_reg=None):
     """Reuse a factor for the affine, combined, and optional centering RHSs.
 
     Each RHS gets fresh requested-system verification. Its reported accuracy
@@ -129,6 +130,10 @@ def compute_predictor_corrector(model, x, y, s, H, rx, rp, req, kkt_res, *,
     centering direction, using a third RHS and the existing factorization.
     The safeguard tests the direction after the caller's tiny-component
     clipping without applying those edits here.
+
+    ``tau_reg`` overrides the initial factorization shift for this entire
+    affine/corrector step. Direct calls default to the unaged settings value;
+    only the outer solve owns the accepted-iteration decay clock.
     """
     if model.dummy_ineq or not len(s):
         raise ValueError('Predictor-corrector requires real inequalities')
@@ -138,6 +143,8 @@ def compute_predictor_corrector(model, x, y, s, H, rx, rp, req, kkt_res, *,
             or not np.isfinite(target_override) or target_override < 0):
         raise ValueError('Predictor-corrector mu0 must be finite and nonnegative')
     settings = model.settings
+    if tau_reg is None:
+        tau_reg = settings.tau_reg
     rho_y = prox_reg if dual_reg is None else dual_reg
     rho_s = prox_reg if complementarity_reg is None else complementarity_reg
     if residual_safeguard and rho_s != 0:
@@ -179,7 +186,7 @@ def compute_predictor_corrector(model, x, y, s, H, rx, rp, req, kkt_res, *,
     safeguard_decision = {}
 
     with VerifiedLinearSystem(
-        G, model.reg_shift, settings.tau_reg, solver,
+        G, model.reg_shift, tau_reg, solver,
         target_atol=settings.linear_atol_factor*settings.tol,
         target_rtol=settings.linear_rtol, max_solve_attempts=12,
         max_refinement_steps=settings.max_iterative_refinement,
