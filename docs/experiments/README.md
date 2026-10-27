@@ -1,13 +1,42 @@
 # Experiment ledger
 
-Status: 2026-10-24. This index records implemented changes, completed experiments,
+Status: 2026-10-27. This index records implemented changes, completed experiments,
 and working decisions. Dated reports remain the authority for their particular
 source revisions, settings, observations, and limitations. An option's presence
 in the solver does not mean that it has been selected as a default.
 See the [accepted algorithm reference](../accepted-algorithm.md) for its exact
 equations, control flow, and public versus benchmark settings.
 
-The latest [iteration-decay study](../../../glqp-bench/benchmarks/progression/iteration-decay-20261024/README.md)
+The latest [QDLDL failure qualification](../../../glqp-bench/benchmarks/progression/qdldl-failure-retry-20261024/README.md)
+accepts `f4f8a94` on 2026-10-27. A private checked binding propagates failed
+numeric updates into the existing factorization retry and rejects further
+solves with invalid factors. QDLDL/AMD kernels, the physical T30 recipe,
+GMRES accuracy semantics, and nonlinear rules remain unchanged. The installed
+public QDLDL binary remains available unchanged for historical comparisons.
+See the [build and frozen-library contract](../checked-qdldl.md) for the
+64-bit Linux/compiler/CMake/pinned-header requirements.
+
+Full paired runs retain 172/178 QP native optima and certificates at both
+`1e-6` and `1e-8`, and 81/81 GLM native optima, 80/81 primary certificates,
+and 76/81 strict certificates. All 81 GLM and 168/173 returned QP endpoint
+arrays and non-time histories remain exact. The five changed QPs first
+diverge at failed-update retries: QSCFXM1 301→96 iterations, QCAPRI 339→321,
+QSIERRA 128→102, QETAMACR 61→60, and QSCFXM3 120→121. QSCFXM1's refinement
+work falls 1,027→99 and its inaccurate inner calls fall 80→0. Across the 172
+common QP successes, iterations fall 17,067→16,818, refinement steps
+32,779→31,520, and inaccurate inner calls 181→68. Seven additional
+factorization attempts use the existing `2e-8→2e-7` escalation. LISWET9 and
+the five QP timeouts remain unresolved.
+
+Independent audit covers 518 records, 508 returned endpoints, 1,016
+certificate evaluations, and 46,123 history rows; fresh baseline endpoints
+match their prior accepted references exactly. All 1,100 solver tests pass.
+Timings are excluded in advance, and the guard retains 19 external-load
+flags. These results establish reliability and numerical work, not a wall-time
+speedup. No regularization, tolerance, iteration budget, or outer-policy
+setting is promoted in this corrective change.
+
+The preceding [iteration-decay study](../../../glqp-bench/benchmarks/progression/iteration-decay-20261024/README.md)
 adds independent `prox_decay_iterations` and `tau_decay_iterations`
 controls; both were initially opt-in at solver `77379ce` (1,072 tests).
 The T30 recipe is now accepted as the public default after explicit user
@@ -45,9 +74,9 @@ amplifies feasibility from `2.29e-4` to `1.93e7` at iteration 231.
 LISWET9 instead retains about 91% of the primal residual through `rho*dy` in
 its last Newton direction before a small accepted step. Tighter frozen solves
 improve complementarity correction without removing that physical defect.
-All controls are diagnostic only; no backend failure-handling, repair, or
-other numerical fix is included. Propagating failed updates into the existing
-factorization retry path is the next focused corrective experiment.
+Those controls are diagnostic only; that study included no backend
+failure-handling, repair, or other numerical fix. Its proposed failure
+propagation is subsequently qualified and accepted in the checkpoint above.
 
 The preceding [regularization and accuracy study](../../../glqp-bench/benchmarks/progression/reg-accuracy-20261024/README.md)
 adds opt-in keyword-only controls without changing defaults. Its recommended

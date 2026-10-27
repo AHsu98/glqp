@@ -76,6 +76,20 @@ profiles, not the public 200-iteration/20-step-stagnation defaults. The promotio
 changes only the four regularization/accuracy defaults above; tolerance,
 budgets, outer rules, and initialization remain unchanged.
 
+The [checked-QDLDL fix](../../glqp-bench/benchmarks/progression/qdldl-failure-retry-20261024/README.md)
+at `f4f8a94` is accepted on 2026-10-27 after full paired qualification and
+independent replay of all 508 returned endpoints at both certificate thresholds.
+It propagates failed numeric updates into the existing factorization retry;
+the T30 recipe and all nonlinear rules remain unchanged. QP coverage stays
+172/178 at native and both independent thresholds; GLMs retain 81/81 native,
+80/81 primary, and 76/81 strict successes. QSCFXM1 improves from 301 to 96
+iterations, with zero inaccurate inner calls instead of 80. All 81 GLM and
+168/173 returned QP endpoints and non-time histories remain exact. The five
+changed QPs first diverge at an actual failed-update retry. This resolves the
+diagnosed QSCFXM1 factor failure; LISWET9's different stall remains unchanged.
+All 1,100 solver tests pass. Timings are excluded in advance and the guard
+retains 19 external-load flags; no wall-time improvement is claimed.
+
 The authoritative entry points are [`SolverSettings` and `GLQP`](../glqp/solver.py).
 Benchmark settings are a separate layer in the sibling repository's
 [`adapters.py`](../../glqp-bench/src/glqp_bench/adapters.py). Those sibling links
@@ -259,6 +273,14 @@ requested Newton equations; changing `tau` changes their preconditioner.
 
 [`backends.py`](../glqp/backends.py) supplies the default QDLDL factorization,
 with pattern matching, numeric updates, and upper-triangle storage reuse.
+Its [private checked binding](checked-qdldl.md) retains the QDLDL/AMD kernels
+from public QDLDL Python 0.1.9.post1, checks numeric-update return status,
+and invalidates failed factors before raising. The installed public package
+is unchanged. The adapter checks status without exporting factors or scanning
+the sparse pattern on every update. Building requires 64-bit Linux, C/C++
+compilers, CMake, Python headers, and pinned `pybind11==2.13.6`; a matching
+frozen library and manifest can load without build tools. Build/import failures
+remain outside numerical retries.
 [`linear.py`](../glqp/linear.py) owns the common verification policy:
 
 1. Factor the shifted matrix and obtain an initial inverse action `v` on the

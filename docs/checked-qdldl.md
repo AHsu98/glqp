@@ -75,6 +75,17 @@ unchanged public dependency separately for the baseline.
 The native unit suite checks healthy factor/inverse bytes against the public
 package, failed constructor/update propagation, invalid-state rejection and
 recovery, malformed inputs, exact retry limits and no factor export during
-updates. Broader trajectory and coverage effects belong to the separately
-frozen benchmark qualification; this implementation does not claim those
-outcomes in advance.
+updates. All 1,100 solver tests pass. Wheel verification confirms that all 30
+native source, license, and provenance files are included with unchanged bytes.
+
+The [full qualification](../../glqp-bench/benchmarks/progression/qdldl-failure-retry-20261024/README.md)
+accepts `f4f8a94` on 2026-10-27 with the same physical T30 recipe and budgets.
+It retains 172/178 QP certificates at both thresholds and native optima, plus
+80/81 GLM primary certificates, 76/81 strict certificates, and 81/81 native
+optima. All 81 GLM and 168/173 returned QP endpoints and non-time histories
+remain exact. Five QPs change at actual failed-update retries, all using the
+existing `2e-8` to `2e-7` escalation. QSCFXM1 improves from 301 to 96 iterations
+and 1,027 to 99 refinement steps, eliminating its 80 inaccurate inner calls.
+LISWET9 remains unchanged. Timings are excluded in advance; 19 host-load flags
+were retained. The report records independent certificate/history replay and
+the frozen source and native-build provenance.

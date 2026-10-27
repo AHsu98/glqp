@@ -30,6 +30,10 @@ See https://github.com/flatironinstitute/sparse_dot for more details.
 QDLDL is the default KKT factorization. The [backend guide](docs/linear-backends.md)
 describes optional SuperLU, FERAL, and PARDISO alternatives with explicit
 ordering/scaling options and shared verified float64 GMRES refinement.
+The default uses a [private checked QDLDL binding](docs/checked-qdldl.md), leaving
+the installed public package unchanged. Building it requires 64-bit Linux,
+C/C++ compilers, CMake, Python headers, and `pybind11==2.13.6` (the `native-build`
+extra). A matching frozen library and manifest can load without build tools.
 
 #### Current algorithm and experiment history
 
@@ -51,9 +55,16 @@ uses `rho_i=30/(30+i)*min(2e-9,1e-4*KKT_i)` with a fixed `2e-8`
 factorization shift and absolute linear target `.005*tol`. At native `1e-8`,
 the measured benchmark profiles certify 172/178 QPs (132/138 MM and 40/40
 applications) and 80/81 GLMs at the independent `1e-6` threshold. Public
-budgets remain shorter than those benchmark budgets. QSCFXM1's increased
-iteration count is accepted for now and diagnosed separately; timings are
-excluded from this qualification.
+budgets remain shorter than those benchmark budgets.
+
+The [checked-QDLDL qualification](../glqp-bench/benchmarks/progression/qdldl-failure-retry-20261024/README.md)
+accepts failure propagation at `f4f8a94` on 2026-10-27. Failed numeric updates
+now enter the existing larger-shift retry instead of applying partial factors.
+The full suite retains every certificate and native optimum with the same
+T30 recipe; QSCFXM1 falls from 301 to 96 iterations and from 80 to zero
+inaccurate inner calls. All 81 GLM and 168 of 173 returned QP trajectories
+remain exact. The solver passes 1,100 tests. Timings are excluded; the host
+guard retained 19 load flags, so these are numerical-work and reliability results.
 
 #### Numerical experiments
 
