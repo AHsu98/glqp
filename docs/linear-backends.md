@@ -60,8 +60,11 @@ Only numerical factorization failures are eligible for the existing shift retry.
 Memory, malformed input, unknown options, and unexpected backend errors propagate.
 FERAL can report `SUCCESS` for a partial factor with zero pivots, so the adapter
 also checks its zero-inertia count. No numerical inertia threshold is imposed.
-QDLDL's known unchecked numeric-update return code remains a reason to inspect
-the freshly verified residual; this integration does not rewrite its native ABI.
+QDLDL now uses a private checked binding of the same 0.1.9.post1 kernels.
+Its numeric update checks the native return code and invalidates a failed
+factor. Subsequent solves reject that invalid state. The existing retry then
+discards it and increases only the factorization shift. Finite inaccurate
+GMRES results retain their previous behavior. See the [checked build contract](checked-qdldl.md).
 
 ## Explicit options
 

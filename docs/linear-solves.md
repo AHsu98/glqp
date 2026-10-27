@@ -17,6 +17,11 @@ retry with a tenfold numerical shift. A failed update invalidates the cached
 factorization. Zero initial shift disables escalation. Timeouts, input errors,
 and unexpected Python errors propagate rather than being retried as numerical
 failures; GLQP only labels `LinearSolveError` as a linear-solve termination.
+The [private QDLDL binding](checked-qdldl.md) propagates failed numeric updates
+into this existing retry, including exact zero-pivot failures that the upstream
+Python package silently ignored. No new retry is triggered merely because
+GMRES returns a finite inaccurate direction. Preparation/build failures occur
+outside the numerical exception handler.
 
 ## Refinement and accuracy
 

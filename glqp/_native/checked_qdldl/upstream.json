@@ -1,0 +1,41 @@
+{
+  "modified_files": [
+    "cpp/qdldl.hpp",
+    "cpp/qdldl.cpp",
+    "cpp/wrapper.cpp"
+  ],
+  "numeric_c_sources_unchanged": true,
+  "original_sha256": {
+    "LICENSE": "656f63ac3b94a6e9c906acd8f27e7e260a0293d19d77320bf99132f5cd2d1dea",
+    "c/amd/LICENSE": "09d5c2e5ee64fd5fd338ca8d0fce940385ef61bb0d36b855531a675a46176f00",
+    "c/amd/include/SuiteSparse_config.h": "4e3d02b8417896d91bd2fc7aaefa5c4df44dd9ad2b82ae25d4b37fe108a14512",
+    "c/amd/include/amd.h": "c38889f1ed045331e3f1a3e8fbba94ee4b1ba2ceb1beb2f731e771d2ab407cb1",
+    "c/amd/include/amd_internal.h": "f35f2c3cc7dcf1cb3a51f976e86513e46609fdbeb68dec4f053aeffc25ce5dec",
+    "c/amd/include/perm.h": "bfbdb0eb40540f818257e1244e233bb07e7bc9f579b2f2de93997e4be2dfe256",
+    "c/amd/src/SuiteSparse_config.c": "1a6f070ee25e78ae67a8214f939783c090aa8a7c90d933cae79b6a7cceab4684",
+    "c/amd/src/amd_1.c": "63a9e4974aa8ec9c51dbf916361468aae1dab4366b7a9804edc98ddc8631a53c",
+    "c/amd/src/amd_2.c": "80a8140ae9597660f86ca5b6fe6732e1b94f9ce57254c9eb84e7b81e41405596",
+    "c/amd/src/amd_aat.c": "05271557585bbe7e2234a3921b0fbd48fed5037f3062b9087ca2a8b59de4b4df",
+    "c/amd/src/amd_control.c": "43cc871df7dac477a61acf7196ed630806fa870882f818321aa7f2d2635deee3",
+    "c/amd/src/amd_defaults.c": "5675baa23e80487d1028b2220b7cf00a52afb3adfd75e1d6825cc06423a5e6e0",
+    "c/amd/src/amd_info.c": "626e1fd4a5df7d712e103acc6850583276050b34fa842043e1f0868f02a949e8",
+    "c/amd/src/amd_order.c": "41ffdfc6a0f6a5d8c944afb7e7ff44f91fe0617317718b095b32207d8c50deb6",
+    "c/amd/src/amd_post_tree.c": "f97d516d22e20ea6e81d3a1a4dfd04f8ad38a5e434657620a1b2ff89c34ebb87",
+    "c/amd/src/amd_postorder.c": "49e2ec4776e8638a07c3504fcafac8b28cf4b6773d80ffe198f0976ce14e93d6",
+    "c/amd/src/amd_preprocess.c": "e7022d7a1ff673e8d7e0c8325a916f1c8205653e9b1b8ecc79112c27bf44ff75",
+    "c/amd/src/amd_valid.c": "45bb926b9fbdffd3bf6712d48be030c3fad160d58cf15b25fc63f4b8806a739c",
+    "c/amd/src/perm.c": "fc0746d2024be66404acb770e9e612acaf75e37473bb0c8c545b5d5674c93669",
+    "c/qdldl/LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "c/qdldl/configure/qdldl_types.h.in": "e312331514ded83f701f32014f832f799e56f306d125958abbf2ce826b02fe7a",
+    "c/qdldl/configure/qdldl_version.h.in": "14f6758bb679c7db81954af3c041f37932fef05e3616c7b7fe340ed0ae3e5cff",
+    "c/qdldl/include/qdldl.h": "fe0d03d6517e8a26339ae9dcbf978e3f05b8824672ab341c27798e0ff412cf65",
+    "c/qdldl/src/qdldl.c": "ecbc2e131ac5b76b8afe5e5ea244bb966b1bedc10ae12b087d39ce3a982844a7",
+    "cpp/qdldl.cpp": "31db9034968135cb0b0402205f2e9e8210c4d8ffe1cba2d6c5c0f7d29cb6d621",
+    "cpp/qdldl.hpp": "2e412f7cd683b9f9c9ab46b5d738687bf6374fcdd6928c16868af99bef58b2fb",
+    "cpp/wrapper.cpp": "e89b0ab393530d0f399f5386ef313de29d6cb3392430d1386a77503f9d1a6408"
+  },
+  "project": "qdldl-python",
+  "sdist_sha256": "da2016d541c26cefc79bca4d8b5bebfa00f35db19704abb20efbd1c08df3b4c7",
+  "sdist_url": "https://files.pythonhosted.org/packages/51/4e/452984a63df9421cf8e7d25e8e6a44832cf0247a5e7b65e437cd516a0f8f/qdldl-0.1.9.post1.tar.gz",
+  "version": "0.1.9.post1"
+}

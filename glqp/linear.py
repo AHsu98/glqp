@@ -7,7 +7,7 @@ independent of QDLDL so another backend can implement the same three operations.
 """
 from dataclasses import dataclass
 import numpy as np
-import qdldl
+from . import checked_qdldl as qdldl
 from scipy.linalg import lstsq, norm
 from scipy.sparse import csc_array
 from .backends import (

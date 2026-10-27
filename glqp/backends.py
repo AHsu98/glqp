@@ -9,7 +9,7 @@ import ctypes
 import os
 
 import numpy as np
-import qdldl
+from . import checked_qdldl as qdldl
 from scipy.sparse import csc_array
 from scipy.sparse.linalg import splu
 
@@ -77,6 +77,8 @@ class QDLDLFactorization(SparseFactorization):
         super().__init__(matrix, options)
         self._positions, indptr, indices = self._triangle_pattern(upper=True)
         self._upper = csc_array((matrix.data[self._positions], indices, indptr), shape=matrix.shape)
+        # Build/import failures must not be mistaken for numerical failures.
+        qdldl.prepare_checked_qdldl()
         try:
             self.factor = qdldl.Solver(self._upper, upper=True)
         except RuntimeError as exc:
@@ -85,7 +87,7 @@ class QDLDLFactorization(SparseFactorization):
     def update(self, matrix):
         np.take(matrix.data, self._positions, out=self._upper.data)
         try:
-            self.factor.update(self._upper, upper=True)
+            self.factor._update_values(self._upper.data)
         except RuntimeError as exc:
             raise FactorizationError(str(exc)) from exc
 
