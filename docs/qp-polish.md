@@ -55,8 +55,14 @@ in its [solver documentation](https://osqp.org/docs/solver/index.html#polishing)
 The two iterative strategies are bounded working-set heuristics. They do not
 implement feasible blocking steps, a rank-independent basis, or a globally
 convergent classical active-set QP method. A repeated active set ends the run.
-An inaccurate working-set solve ends the run unless the complete original
-certificate independently passes. Wrong-sign duals are never clipped.
+By default an inaccurate working-set solve ends the run unless the complete
+original certificate independently passes. The opt-in
+`allow_inaccurate_updates=True` permits finite candidates from an inaccurate
+solve to propose bounded active-set repairs. A clearly violated omitted row or
+a large negative active multiplier can still identify a useful change. Such
+updates are explicitly marked in the trace; inaccurate candidates receive no
+relaxation of the final acceptance certificate. Wrong-sign duals are never
+clipped.
 
 ## Sparse solves and degeneracy
 

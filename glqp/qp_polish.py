@@ -32,12 +32,15 @@ class PolishSettings:
     backend_options: dict = field(default_factory=dict)
     objective_constant: float = 0.0
     solve_mode: str = 'correction'
+    allow_inaccurate_updates: bool = False
 
     def __post_init__(self):
         if self.strategy not in ('one_shot_slack', 'one_shot_ratio', 'add_drop', 'pdas'):
             raise ValueError('Unknown active-set polishing strategy')
         if self.solve_mode not in ('correction', 'absolute'):
             raise ValueError('solve_mode must be correction or absolute')
+        if not isinstance(self.allow_inaccurate_updates, bool):
+            raise ValueError('allow_inaccurate_updates must be a bool')
         for name in ('active_tol', 'linear_atol', 'linear_rtol', 'tau_reg'):
             value = getattr(self, name)
             if not np.isfinite(value) or value < 0:
@@ -269,9 +272,11 @@ def polish_qp(P, q, A, b, G, h, x, y, z, settings=None):
             if settings.strategy.startswith('one_shot'):
                 stop_reason = 'certificate_rejected'
                 break
-            if linear.info.status != 'accurate':
+            inaccurate = linear.info.status != 'accurate'
+            if inaccurate and not settings.allow_inaccurate_updates:
                 stop_reason = 'inaccurate_working_set_solve'
                 break
+            trace['inaccurate_working_set_update'] = inaccurate
             slack = (h - G @ candidate_x) / g_scale
             dual = candidate_z * (g_scale / objective_scale)
             updated = active.copy()

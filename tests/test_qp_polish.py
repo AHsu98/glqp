@@ -226,3 +226,30 @@ def test_zero_rows_and_noncanonical_inputs_are_not_modified():
     assert result.accepted
     for original, old in ((P.data, old_data), (P.indices, old_indices), (P.indptr, old_indptr)):
         np.testing.assert_array_equal(original, old)
+
+
+@pytest.mark.parametrize('strategy', ['add_drop', 'pdas'])
+def test_inaccurate_finite_candidates_can_repair_with_explicit_option(monkeypatch, strategy):
+    from dataclasses import replace
+    from glqp.qp_polish import factor_and_solve
+
+    def finite_inaccurate(*args, **kwargs):
+        result = factor_and_solve(*args, **kwargs)
+        # Mimic an incomplete refinement of a wrong working set: the original
+        # certificate must still reject its large inactive primal violation.
+        if result.solution.size == 1:
+            result.solution[0] += 1e-6
+            result = replace(result, info=replace(result.info, status='inaccurate', absolute_error=1e-6))
+        return result
+
+    monkeypatch.setattr('glqp.qp_polish.factor_and_solve', finite_inaccurate)
+    conservative = scalar(x=0., z=0., strategy=strategy)
+    repaired = scalar(x=0., z=0., strategy=strategy, allow_inaccurate_updates=True)
+    limited = scalar(x=0., z=0., strategy=strategy, allow_inaccurate_updates=True, max_passes=1)
+    assert not conservative.accepted and conservative.stop_reason == 'inaccurate_working_set_solve'
+    assert repaired.accepted and repaired.history[0]['inaccurate_working_set_update']
+    assert repaired.after['accepted'] and repaired.history[0]['added'] == [0]
+    np.testing.assert_allclose(repaired.x, [1.], atol=1e-10)
+    assert not limited.accepted and limited.stop_reason == 'pass_limit'
+    np.testing.assert_array_equal(limited.x, [0.])
+    np.testing.assert_array_equal(limited.z, [0.])
