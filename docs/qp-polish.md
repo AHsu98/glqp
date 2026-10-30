@@ -136,3 +136,68 @@ native factorization. A benchmark harness should enforce its own outer timeout.
 calls, including finite inaccurate returns. A thrown numerical failure does
 not expose its retry count; `.failed_solve_calls` records these calls separately
 and their trace has `lin_attempts=None`, rather than claiming zero native work.
+
+## Full archived-endpoint experiment, 2026-10-30
+
+The [benchmark study report](../../glqp-bench/benchmarks/progression/active-set-polish-20261030/README.md)
+records the protocols, frozen sources, independent certificate replay, and
+artifacts. The full screen covered 138 Maros–Mészáros problems and 40 application
+QPs. It had 173 available archived endpoints and five unavailable endpoints;
+unavailable cases remained in the declared coverage. Every strategy received
+the same saved input point, and all original-data certificate gates used
+`tolerance=1e-8`.
+
+These results use the following **selected experimental profile**, which is
+stricter than the standalone defaults above. The accepted GLQP solver and its
+defaults remain unchanged, and this profile is not integrated into it.
+
+```python
+settings = PolishSettings(
+    strategy='add_drop',        # or one_shot_ratio / one_shot_slack / pdas
+    tolerance=1e-8,
+    active_tol=1e-6,
+    dual_slack_ratio=1.0,
+    linear_atol=1e-14,
+    linear_rtol=1e-12,
+    tau_reg=1e-12,
+    max_refinement_steps=40,
+    allow_inaccurate_updates=True,
+    max_passes=12,
+    max_solve_attempts=8,
+    max_time=10.0,
+    solve_mode='correction',
+    backend='qdldl',
+    objective_constant=constant,
+)
+```
+
+| Strategy | Certified strict improvements | No certificate improvement | Rejected / cycle | Unavailable |
+| --- | ---: | ---: | ---: | ---: |
+| One-shot slack | 125 | 11 | 37 | 5 |
+| One-shot ratio | 133 | 12 | 28 | 5 |
+| Add/drop | 142 | 17 | 14 | 5 |
+| PDAS | 138 | 15 | 20 | 5 |
+
+These are counts of endpoint improvements, not counts of newly solved QPs.
+Every unsuccessful attempt returns the unchanged input. Ratio, add/drop, and
+PDAS improve all 40 application endpoints; slack improves 38. Add/drop adds
+nine improvements over ratio with no losses, using two to six passes on those
+nine cases. The successful repairs are CONT-200, EXDATA, KSIP, PRIMAL3,
+QADLITTL, QBANDM, QPILOTNO, QSHIP04L, and QSHIP04S.
+
+Dependent active rows are not automatically a blocker. Among 42 initial guesses
+with more active/equality rows than variables, add/drop improves 31 endpoints,
+preserves nine already equally good or better endpoints, and rejects two.
+The remaining difficult families expose both working-set identification and
+numerical limits. Several LISWET cases retain wrong-sign multipliers after the
+pass limit; LISWET12 and UBH1 narrowly fail complementarity despite very small
+linear residuals because large multipliers amplify tiny constraint errors.
+PDAS can make very large infeasible intermediate steps, and it cycles on
+QPCSTAIR. The original-data acceptance gate protects all returned points.
+
+For optional postprocessing, one-shot ratio is the simplest useful choice.
+Use bounded add/drop when additional solves are justified by a need for a more
+accurate endpoint. Keep simultaneous PDAS experimental. The full-screen timing
+guard was flagged, so this broad experiment supports numerical conclusions
+only. Polishing an already completed solve does not demonstrate acceleration;
+the separate early-endpoint experiments in the study report assess that question.
