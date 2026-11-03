@@ -18,5 +18,11 @@ dependencies = [
     "scipy>=1.15",
 ]
 
+[project.optional-dependencies]
+native-build = ["pybind11==2.13.6"]
+
 [tool.setuptools]
 packages = ["glqp","glqp_tests"]
+
+[tool.setuptools.package-data]
+glqp = ["_native/*.cpp", "_native/*.h", "_native/CMakeLists.txt", "_native/checked_qdldl/*", "_native/checked_qdldl/cpp/*", "_native/checked_qdldl/c/amd/*", "_native/checked_qdldl/c/amd/include/*", "_native/checked_qdldl/c/amd/src/*", "_native/checked_qdldl/c/qdldl/*", "_native/checked_qdldl/c/qdldl/include/*", "_native/checked_qdldl/c/qdldl/src/*", "_native/checked_qdldl/c/qdldl/configure/*"]

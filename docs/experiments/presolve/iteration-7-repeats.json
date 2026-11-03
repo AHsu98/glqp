@@ -1,0 +1,2014 @@
+{
+  "kind": "matched complete-solve presolve analysis",
+  "run": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016",
+  "manifest_sha256": "247fb80552e127ad0e837487a29de433a294adf5b14b4cd730a1221b85215da2",
+  "script_sha256": "d183073fe586fcaf4fd73e8f5d85b1902b1e3e3f87ed23556db6c1fcc16c4fdf",
+  "approved_report": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/reports-comparators-paced-20261016/presolve-repeats",
+  "approved_summary_sha256": "8914808d33203eb98f2f6e39f42e999e028f65092ca8bdc08d9eb120ee4e4a65",
+  "artifact_audit_sha256": "7248ee3fd69b41298682d77b14fd311572c9476958547b0b660099bd7784d2b9",
+  "isolation": {
+    "status": "clean_selected_waves",
+    "policy": "first-clean-whole-wave-v1",
+    "original_summary": {
+      "status": "clean",
+      "monitor_errors": [],
+      "command": [
+        "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/bin/python",
+        "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/tools/run_comparator_study.py",
+        "--execute",
+        "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016"
+      ],
+      "cwd": "/scratch/awh9112/InteriorPoint/glqp-bench",
+      "returncode": 0,
+      "samples": 21,
+      "average_external_cores": 0.31708147198339937,
+      "maximum_external_cores": 0.49374312688132044,
+      "flagged_intervals": 0,
+      "thresholds": {
+        "external_cores": 0.5,
+        "competing_compute_cores": 0.05
+      },
+      "host_init": "systemd",
+      "scope": "Sampled live processes; short-lived jobs can evade sampling. Agent compute paused by coordination."
+    },
+    "selected_wave_count": 1,
+    "replayed_wave_count": 0,
+    "evidence": "wave-audits.json and wave-selection.json",
+    "scope": "First complete clean whole-wave attempt; sampled host CPU activity, with agent compute paused."
+  },
+  "wave_selection_sha256": "6c32f01d845625f8dc7d3713650632a4746f1d8fdec2edfde77f10817a1c4661",
+  "solver_commit": "cfad73fac44e7c2f9737865819b989beb025880b",
+  "benchmark_commit": "a337c86f635b9f504b386b2a251d7355eccfe400",
+  "execution": {
+    "cold_process_per_observation": true,
+    "config_sha256": "0ff355d32afc81dc133a34b1701e85ad72d95a090ec876e645799941c8c6dca1",
+    "cpu_groups": [
+      [
+        0
+      ],
+      [
+        1
+      ],
+      [
+        2
+      ],
+      [
+        3
+      ],
+      [
+        4
+      ],
+      [
+        5
+      ],
+      [
+        6
+      ],
+      [
+        7
+      ]
+    ],
+    "id": "execution-v1",
+    "order": "All revisions and repetitions for a problem run consecutively on the same CPU group; rotate revision order",
+    "parallel_workers": 8,
+    "problem_assignment": "Sorted problem index modulo worker count; barrier between waves",
+    "profile": "parallel-8",
+    "scheduling": "fixed-waves-v1",
+    "threads": 1
+  },
+  "solver_options": {
+    "glqp_base": {
+      "presolve": {
+        "enabled": true,
+        "local_fallback": true
+      }
+    },
+    "glqp_candidate": {
+      "presolve": {
+        "enabled": true,
+        "local_fallback": true,
+        "separable_quadratics": true
+      }
+    }
+  },
+  "solver_tolerance": 1e-07,
+  "validation_tolerance": 1e-06,
+  "time_limit": 60.0,
+  "summary": {
+    "problems": 8,
+    "repeats": 3,
+    "variants": {
+      "glqp_current": {
+        "status_counts": {
+          "solved": 24
+        },
+        "all_repetitions_accepted_problems": 8,
+        "accurate_over_budget": 0,
+        "max_residuals": {
+          "primal_residual_scaled": 5.820766091346741e-11,
+          "stationarity_residual_scaled": 2.8083557079554785e-09,
+          "complementarity_residual_scaled": 5.8243213355686194e-08,
+          "dual_sign_violation_scaled": 0.0
+        }
+      },
+      "glqp_base": {
+        "status_counts": {
+          "solved": 24
+        },
+        "all_repetitions_accepted_problems": 8,
+        "accurate_over_budget": 0,
+        "max_residuals": {
+          "primal_residual_scaled": 1.6745061981491947e-10,
+          "stationarity_residual_scaled": 2.4566225358889834e-09,
+          "complementarity_residual_scaled": 5.8243213355686194e-08,
+          "dual_sign_violation_scaled": 0.0
+        }
+      },
+      "glqp_candidate": {
+        "status_counts": {
+          "solved": 24
+        },
+        "all_repetitions_accepted_problems": 8,
+        "accurate_over_budget": 0,
+        "max_residuals": {
+          "primal_residual_scaled": 1.6745061981491947e-10,
+          "stationarity_residual_scaled": 2.4566225358889834e-09,
+          "complementarity_residual_scaled": 5.824392858496081e-08,
+          "dual_sign_violation_scaled": 0.0
+        }
+      }
+    },
+    "pairs": {
+      "glqp_current__glqp_base": {
+        "common_accepted_problems": 8,
+        "wall_geomean_ratio": 1.0718740881546194,
+        "wall_median_ratio": 1.0026829622511717,
+        "summed_common_wall_ratio": 5.447324241832695,
+        "newly_accepted": [],
+        "lost_accepted": [],
+        "ratios": {
+          "MOSARQP1": 1.0332021769908728,
+          "MOSARQP2": 1.004077729424249,
+          "PRIMAL1": 0.9632224457614045,
+          "PRIMAL2": 1.0108514302608798,
+          "PRIMAL4": 1.0012881950780943,
+          "QFFFFF80": 29.01163762307754,
+          "STCQP1": 0.4135618727270564,
+          "STCQP2": 0.14358589298274005
+        },
+        "below_0_95": [
+          "STCQP1",
+          "STCQP2"
+        ],
+        "above_1_05": [
+          "QFFFFF80"
+        ]
+      },
+      "glqp_current__glqp_candidate": {
+        "common_accepted_problems": 8,
+        "wall_geomean_ratio": 0.986562408639368,
+        "wall_median_ratio": 0.9970042536654717,
+        "summed_common_wall_ratio": 5.374046858451966,
+        "newly_accepted": [],
+        "lost_accepted": [],
+        "ratios": {
+          "MOSARQP1": 0.831768068171027,
+          "MOSARQP2": 0.9988393302704665,
+          "PRIMAL1": 0.9951691770604771,
+          "PRIMAL2": 1.0110282109504045,
+          "PRIMAL4": 1.1109969838904934,
+          "QFFFFF80": 28.80530700887313,
+          "STCQP1": 0.2724729275338689,
+          "STCQP2": 0.12312030760200383
+        },
+        "below_0_95": [
+          "MOSARQP1",
+          "STCQP1",
+          "STCQP2"
+        ],
+        "above_1_05": [
+          "PRIMAL4",
+          "QFFFFF80"
+        ]
+      },
+      "glqp_base__glqp_candidate": {
+        "common_accepted_problems": 8,
+        "wall_geomean_ratio": 0.9204088610238472,
+        "wall_median_ratio": 0.993835440064911,
+        "summed_common_wall_ratio": 0.9865480040974988,
+        "newly_accepted": [],
+        "lost_accepted": [],
+        "ratios": {
+          "MOSARQP1": 0.8050390201397869,
+          "MOSARQP2": 0.9947828748708664,
+          "PRIMAL1": 1.0331665145882472,
+          "PRIMAL2": 1.000174882959288,
+          "PRIMAL4": 1.1095676443122777,
+          "QFFFFF80": 0.9928880052589556,
+          "STCQP1": 0.6588444087874036,
+          "STCQP2": 0.8574679938564973
+        },
+        "below_0_95": [
+          "MOSARQP1",
+          "STCQP1",
+          "STCQP2"
+        ],
+        "above_1_05": [
+          "PRIMAL4"
+        ]
+      }
+    },
+    "scalar_groups": {
+      "scalar_changed": {
+        "problems": 7,
+        "names": [
+          "MOSARQP1",
+          "MOSARQP2",
+          "PRIMAL1",
+          "PRIMAL2",
+          "PRIMAL4",
+          "STCQP1",
+          "STCQP2"
+        ],
+        "wall_geomean_ratio": 0.9104959308787427,
+        "glqp_base": {
+          "median_presolve_seconds": 0.00033181800972670317,
+          "median_postsolve_seconds": 1.9068014807999134e-05,
+          "median_native_seconds": 0.00012368103489279747,
+          "median_presolve_postsolve_fraction": 0.015385142266016094
+        },
+        "glqp_candidate": {
+          "median_presolve_seconds": 0.0007177499355748296,
+          "median_postsolve_seconds": 5.410599987953901e-05,
+          "median_native_seconds": 0.00019378506112843752,
+          "median_presolve_postsolve_fraction": 0.03363852701883736
+        }
+      },
+      "no_scalar_reduction": {
+        "problems": 1,
+        "names": [
+          "QFFFFF80"
+        ],
+        "wall_geomean_ratio": 0.9928880052589556,
+        "glqp_base": {
+          "median_presolve_seconds": 0.0005887539591640234,
+          "median_postsolve_seconds": 7.084198296070099e-05,
+          "median_native_seconds": 0.00013867998495697975,
+          "median_presolve_postsolve_fraction": 0.00026758138750236513
+        },
+        "glqp_candidate": {
+          "median_presolve_seconds": 0.0005682579940184951,
+          "median_postsolve_seconds": 6.350199691951275e-05,
+          "median_native_seconds": 0.00013682700227946043,
+          "median_presolve_postsolve_fraction": 0.0002581248287140045
+        }
+      }
+    }
+  },
+  "problems": [
+    {
+      "name": "MOSARQP1",
+      "variants": {
+        "glqp_current": {
+          "records": [
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_current/MOSARQP1__r000.json",
+              "sha256": "e97f1cad669ff6518835a03e3723decb70e8001e559deaa43ab552afea81f23f"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_current/MOSARQP1__r001.json",
+              "sha256": "a068d78ceb7fbef6814cc05d8bfd9b78be2a3d99e7ac424ee0e192c65f4182ea"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_current/MOSARQP1__r002.json",
+              "sha256": "9db4d5b7f288846ab6fff41d757a9ca6597e8e38b5ae3a9b1f332211d880dd22"
+            }
+          ],
+          "status_counts": {
+            "solved": 3
+          },
+          "accurate_over_budget": 0,
+          "accepted_repeats": 3,
+          "all_accepted": true,
+          "wall_seconds": [
+            0.024633350083604455,
+            0.024634302011691034,
+            0.024388963007368147
+          ],
+          "iterations": [
+            20,
+            20,
+            20
+          ],
+          "solver_statuses": [
+            "optimal",
+            "optimal",
+            "optimal"
+          ],
+          "failure_reasons": [
+            [],
+            [],
+            []
+          ],
+          "median_wall_seconds": 0.024633350083604455,
+          "median_setup_seconds": 0.000622129999101162,
+          "median_solve_seconds": 0.023889169096946716,
+          "max_residuals": {
+            "primal_residual_scaled": 0.0,
+            "stationarity_residual_scaled": 2.259098495771462e-14,
+            "complementarity_residual_scaled": 3.326086106080301e-08,
+            "dual_sign_violation_scaled": 0.0
+          }
+        },
+        "glqp_base": {
+          "records": [
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_base/MOSARQP1__r000.json",
+              "sha256": "979ee43972860446391363d8bf93b6a92b38a9e889cf885138b2db8754f8bbb3"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_base/MOSARQP1__r001.json",
+              "sha256": "e6c50aef27ded5f6d92dfabd3126abaf4c7dab1379a131c30b3660fa95f82c53"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_base/MOSARQP1__r002.json",
+              "sha256": "a2c28e7cb412c6e9a800a51f4285984c33497d406720fbaf7c6dca51b6de523b"
+            }
+          ],
+          "status_counts": {
+            "solved": 3
+          },
+          "accurate_over_budget": 0,
+          "accepted_repeats": 3,
+          "all_accepted": true,
+          "wall_seconds": [
+            0.025451230932958424,
+            0.025748848915100098,
+            0.024859579047188163
+          ],
+          "iterations": [
+            20,
+            20,
+            20
+          ],
+          "solver_statuses": [
+            "optimal",
+            "optimal",
+            "optimal"
+          ],
+          "failure_reasons": [
+            [],
+            [],
+            []
+          ],
+          "median_wall_seconds": 0.025451230932958424,
+          "median_setup_seconds": 0.000991782988421619,
+          "median_solve_seconds": 0.02424041402991861,
+          "max_residuals": {
+            "primal_residual_scaled": 0.0,
+            "stationarity_residual_scaled": 2.259098495771462e-14,
+            "complementarity_residual_scaled": 3.326086106080301e-08,
+            "dual_sign_violation_scaled": 0.0
+          },
+          "presolve": {
+            "status": "unchanged",
+            "original_dimensions": [
+              2500,
+              0,
+              3200
+            ],
+            "reduced_dimensions": [
+              2500,
+              0,
+              3200
+            ],
+            "stats": {
+              "deferred_variables": 0,
+              "fixed_variables": 0,
+              "input_nonzeros": 8512,
+              "propagation_visits": 0,
+              "removed_equalities": 0,
+              "removed_inequalities": 0,
+              "retained_ambiguous_rows": 0,
+              "separable_ambiguous_variables": 0,
+              "separable_variables": 0,
+              "singleton_rows": 2500
+            },
+            "median_presolve_seconds": 0.00033181800972670317,
+            "median_postsolve_seconds": 2.630101516842842e-05,
+            "median_pack_seconds": 0.00015730899758636951,
+            "median_native_seconds": 0.00014687003567814827,
+            "median_total_seconds": 0.00031604792457073927
+          }
+        },
+        "glqp_candidate": {
+          "records": [
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_candidate/MOSARQP1__r000.json",
+              "sha256": "b7c43583c46c9911ccd23bcadfa4a0b69994a1f28bdabeb5c6979207768ee25b"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_candidate/MOSARQP1__r001.json",
+              "sha256": "f71b41c06d8bff24231a6d57a3f83702a81b2beab4a280bfc6b14f78a0d3d406"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_candidate/MOSARQP1__r002.json",
+              "sha256": "42e831ec386d57449e70ca173b07f48028bf74737885d5bb5f4ca58e1d420a94"
+            }
+          ],
+          "status_counts": {
+            "solved": 3
+          },
+          "accurate_over_budget": 0,
+          "accepted_repeats": 3,
+          "all_accepted": true,
+          "wall_seconds": [
+            0.020912911975756288,
+            0.020489234011620283,
+            0.020383871044032276
+          ],
+          "iterations": [
+            21,
+            21,
+            21
+          ],
+          "solver_statuses": [
+            "optimal",
+            "optimal",
+            "optimal"
+          ],
+          "failure_reasons": [
+            [],
+            [],
+            []
+          ],
+          "median_wall_seconds": 0.020489234011620283,
+          "median_setup_seconds": 0.0013616019859910011,
+          "median_solve_seconds": 0.0190550439292565,
+          "max_residuals": {
+            "primal_residual_scaled": 0.0,
+            "stationarity_residual_scaled": 2.168005814490357e-14,
+            "complementarity_residual_scaled": 7.764371372507918e-09,
+            "dual_sign_violation_scaled": 0.0
+          },
+          "presolve": {
+            "status": "reduced",
+            "original_dimensions": [
+              2500,
+              0,
+              3200
+            ],
+            "reduced_dimensions": [
+              757,
+              0,
+              1457
+            ],
+            "stats": {
+              "deferred_variables": 0,
+              "fixed_variables": 1743,
+              "input_nonzeros": 8512,
+              "propagation_visits": 1743,
+              "removed_equalities": 0,
+              "removed_inequalities": 1743,
+              "retained_ambiguous_rows": 0,
+              "separable_ambiguous_variables": 0,
+              "separable_variables": 1743,
+              "singleton_rows": 2500
+            },
+            "median_presolve_seconds": 0.0007177499355748296,
+            "median_postsolve_seconds": 6.600702181458473e-05,
+            "median_pack_seconds": 0.0001562590477988124,
+            "median_native_seconds": 0.00029127695597708225,
+            "median_total_seconds": 0.0007012339774519205
+          }
+        }
+      }
+    },
+    {
+      "name": "MOSARQP2",
+      "variants": {
+        "glqp_current": {
+          "records": [
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_current/MOSARQP2__r000.json",
+              "sha256": "eea37d0e13e53310a1f5e7f9d7d62653289cda5588829c00a08ceaee099fd6da"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_current/MOSARQP2__r001.json",
+              "sha256": "64c038b285cbfdb97c15e1a9248d7c6e5f6ffda60eda8c17e373a7702e11d6c5"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_current/MOSARQP2__r002.json",
+              "sha256": "beb47d5e78870ed42053fc37ba819473fd65aeb56f9c74c14c67674dc8b681e5"
+            }
+          ],
+          "status_counts": {
+            "solved": 3
+          },
+          "accurate_over_budget": 0,
+          "accepted_repeats": 3,
+          "all_accepted": true,
+          "wall_seconds": [
+            0.0176024119136855,
+            0.017573485034517944,
+            0.01740533800330013
+          ],
+          "iterations": [
+            18,
+            18,
+            18
+          ],
+          "solver_statuses": [
+            "optimal",
+            "optimal",
+            "optimal"
+          ],
+          "failure_reasons": [
+            [],
+            [],
+            []
+          ],
+          "median_wall_seconds": 0.017573485034517944,
+          "median_setup_seconds": 0.0005856689531356096,
+          "median_solve_seconds": 0.01684906892478466,
+          "max_residuals": {
+            "primal_residual_scaled": 0.0,
+            "stationarity_residual_scaled": 3.944780991982511e-13,
+            "complementarity_residual_scaled": 8.0384122117193e-09,
+            "dual_sign_violation_scaled": 0.0
+          }
+        },
+        "glqp_base": {
+          "records": [
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_base/MOSARQP2__r000.json",
+              "sha256": "59c46aef5d9aad5054bc3ec664a28eb775bae7ebcb840d1c66ecc89a42f2358a"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_base/MOSARQP2__r001.json",
+              "sha256": "02ab6d23ae3e4dcaef245c14c4d75ea9a5ed6fd114a8b9972e15fad5ae971f51"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_base/MOSARQP2__r002.json",
+              "sha256": "897c87d179b8d6b26452599db87891f1b55f38fd86571b175ba0c3f40f05b8ad"
+            }
+          ],
+          "status_counts": {
+            "solved": 3
+          },
+          "accurate_over_budget": 0,
+          "accepted_repeats": 3,
+          "all_accepted": true,
+          "wall_seconds": [
+            0.017693319940008223,
+            0.0176451449515298,
+            0.017267914954572916
+          ],
+          "iterations": [
+            18,
+            18,
+            18
+          ],
+          "solver_statuses": [
+            "optimal",
+            "optimal",
+            "optimal"
+          ],
+          "failure_reasons": [
+            [],
+            [],
+            []
+          ],
+          "median_wall_seconds": 0.0176451449515298,
+          "median_setup_seconds": 0.0008971589850261807,
+          "median_solve_seconds": 0.01661976205650717,
+          "max_residuals": {
+            "primal_residual_scaled": 0.0,
+            "stationarity_residual_scaled": 3.944780991982511e-13,
+            "complementarity_residual_scaled": 8.0384122117193e-09,
+            "dual_sign_violation_scaled": 0.0
+          },
+          "presolve": {
+            "status": "unchanged",
+            "original_dimensions": [
+              900,
+              0,
+              1500
+            ],
+            "reduced_dimensions": [
+              900,
+              0,
+              1500
+            ],
+            "stats": {
+              "deferred_variables": 0,
+              "fixed_variables": 0,
+              "input_nonzeros": 4820,
+              "propagation_visits": 0,
+              "removed_equalities": 0,
+              "removed_inequalities": 0,
+              "retained_ambiguous_rows": 0,
+              "separable_ambiguous_variables": 0,
+              "separable_variables": 0,
+              "singleton_rows": 900
+            },
+            "median_presolve_seconds": 0.00025958800688385963,
+            "median_postsolve_seconds": 1.7731916159391403e-05,
+            "median_pack_seconds": 0.00014078395906835794,
+            "median_native_seconds": 8.502195123583078e-05,
+            "median_total_seconds": 0.00024292408488690853
+          }
+        },
+        "glqp_candidate": {
+          "records": [
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_candidate/MOSARQP2__r000.json",
+              "sha256": "beb0078e4f4dabb8036829ee36b04dca04f24431c98fdfbb1e7fbb73f92d4513"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_candidate/MOSARQP2__r001.json",
+              "sha256": "d21f434ec0dd3bda81f38c24396d976f1968fa0700abd263a48e122cf4d0eabf"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_candidate/MOSARQP2__r002.json",
+              "sha256": "81d63c4a6c5335594cffb9f0397f2ff65fd8fc2c1f945c9c1b8fa548462239c5"
+            }
+          ],
+          "status_counts": {
+            "solved": 3
+          },
+          "accurate_over_budget": 0,
+          "accepted_repeats": 3,
+          "all_accepted": true,
+          "wall_seconds": [
+            0.01755308802239597,
+            0.01756802503950894,
+            0.017394748982042074
+          ],
+          "iterations": [
+            18,
+            18,
+            18
+          ],
+          "solver_statuses": [
+            "optimal",
+            "optimal",
+            "optimal"
+          ],
+          "failure_reasons": [
+            [],
+            [],
+            []
+          ],
+          "median_wall_seconds": 0.01755308802239597,
+          "median_setup_seconds": 0.001131606986746192,
+          "median_solve_seconds": 0.016260777018032968,
+          "max_residuals": {
+            "primal_residual_scaled": 0.0,
+            "stationarity_residual_scaled": 5.118248215613502e-13,
+            "complementarity_residual_scaled": 4.979095726737446e-09,
+            "dual_sign_violation_scaled": 0.0
+          },
+          "presolve": {
+            "status": "reduced",
+            "original_dimensions": [
+              900,
+              0,
+              1500
+            ],
+            "reduced_dimensions": [
+              633,
+              0,
+              1233
+            ],
+            "stats": {
+              "deferred_variables": 0,
+              "fixed_variables": 267,
+              "input_nonzeros": 4820,
+              "propagation_visits": 267,
+              "removed_equalities": 0,
+              "removed_inequalities": 267,
+              "retained_ambiguous_rows": 0,
+              "separable_ambiguous_variables": 0,
+              "separable_variables": 267,
+              "singleton_rows": 900
+            },
+            "median_presolve_seconds": 0.0005363540258258581,
+            "median_postsolve_seconds": 5.410599987953901e-05,
+            "median_pack_seconds": 0.00014668900985270739,
+            "median_native_seconds": 0.0001209980109706521,
+            "median_total_seconds": 0.0005185590125620365
+          }
+        }
+      }
+    },
+    {
+      "name": "PRIMAL1",
+      "variants": {
+        "glqp_current": {
+          "records": [
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_current/PRIMAL1__r000.json",
+              "sha256": "7797e8f2173d2c184809c8184049e02bc1dd77aba206c196107ee94b51450c7a"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_current/PRIMAL1__r001.json",
+              "sha256": "5ccf14da73eaacd64c31ec3202c3a57bcfe3b6f682929a2856a0fab314c21ca3"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_current/PRIMAL1__r002.json",
+              "sha256": "67089478fc8863afd73edffee08269a2fd9a439fd48803789e4b2c1ed09a0e14"
+            }
+          ],
+          "status_counts": {
+            "solved": 3
+          },
+          "accurate_over_budget": 0,
+          "accepted_repeats": 3,
+          "all_accepted": true,
+          "wall_seconds": [
+            0.019487784011289477,
+            0.019466217956505716,
+            0.018696789047680795
+          ],
+          "iterations": [
+            26,
+            26,
+            26
+          ],
+          "solver_statuses": [
+            "optimal",
+            "optimal",
+            "optimal"
+          ],
+          "failure_reasons": [
+            [],
+            [],
+            []
+          ],
+          "median_wall_seconds": 0.019466217956505716,
+          "median_setup_seconds": 0.0005898630479350686,
+          "median_solve_seconds": 0.01884347095619887,
+          "max_residuals": {
+            "primal_residual_scaled": 0.0,
+            "stationarity_residual_scaled": 3.828969762733399e-16,
+            "complementarity_residual_scaled": 2.234180732226843e-08,
+            "dual_sign_violation_scaled": 0.0
+          }
+        },
+        "glqp_base": {
+          "records": [
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_base/PRIMAL1__r000.json",
+              "sha256": "d4e9c47b84622c05d3ae4298e0f3677666bd726322754f3c0d7a94d49363eb2d"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_base/PRIMAL1__r001.json",
+              "sha256": "7f968c08e2c20abcf942f15c2d109ea7d1c48b1b2a1a5532962b7bb625316e6b"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_base/PRIMAL1__r002.json",
+              "sha256": "f0c7d15473985f31fa2cb3f7b1335380083ec16f209138cbe9520a25e3174ebc"
+            }
+          ],
+          "status_counts": {
+            "solved": 3
+          },
+          "accurate_over_budget": 0,
+          "accepted_repeats": 3,
+          "all_accepted": true,
+          "wall_seconds": [
+            0.018750298069790006,
+            0.01954694592859596,
+            0.01840920897666365
+          ],
+          "iterations": [
+            26,
+            26,
+            26
+          ],
+          "solver_statuses": [
+            "optimal",
+            "optimal",
+            "optimal"
+          ],
+          "failure_reasons": [
+            [],
+            [],
+            []
+          ],
+          "median_wall_seconds": 0.018750298069790006,
+          "median_setup_seconds": 0.0008922469569370151,
+          "median_solve_seconds": 0.017813827958889306,
+          "max_residuals": {
+            "primal_residual_scaled": 0.0,
+            "stationarity_residual_scaled": 3.828969762733399e-16,
+            "complementarity_residual_scaled": 2.234180732226843e-08,
+            "dual_sign_violation_scaled": 0.0
+          },
+          "presolve": {
+            "status": "unchanged",
+            "original_dimensions": [
+              325,
+              0,
+              86
+            ],
+            "reduced_dimensions": [
+              325,
+              0,
+              86
+            ],
+            "stats": {
+              "deferred_variables": 0,
+              "fixed_variables": 0,
+              "input_nonzeros": 6140,
+              "propagation_visits": 0,
+              "removed_equalities": 0,
+              "removed_inequalities": 0,
+              "retained_ambiguous_rows": 0,
+              "separable_ambiguous_variables": 0,
+              "separable_variables": 0,
+              "singleton_rows": 1
+            },
+            "median_presolve_seconds": 0.0002718630712479353,
+            "median_postsolve_seconds": 1.6612932085990906e-05,
+            "median_pack_seconds": 0.00015490595251321793,
+            "median_native_seconds": 7.970794104039669e-05,
+            "median_total_seconds": 0.00025452091358602047
+          }
+        },
+        "glqp_candidate": {
+          "records": [
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_candidate/PRIMAL1__r000.json",
+              "sha256": "bcb6f3d9bcff916fe3340a1aab7b0ad2b19fe985646ccc31018d169a1c12c58a"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_candidate/PRIMAL1__r001.json",
+              "sha256": "7f9b39facc459879cef4a92ac2123fcecb9d14ca33a11550d95befaef7b83cc5"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_candidate/PRIMAL1__r002.json",
+              "sha256": "89e2b733cf9af87b77572f15ad5fd1ba20b4988b869ed9d0e30d363009c005f6"
+            }
+          ],
+          "status_counts": {
+            "solved": 3
+          },
+          "accurate_over_budget": 0,
+          "accepted_repeats": 3,
+          "all_accepted": true,
+          "wall_seconds": [
+            0.01941539696417749,
+            0.019372180104255676,
+            0.018670766963623464
+          ],
+          "iterations": [
+            26,
+            26,
+            26
+          ],
+          "solver_statuses": [
+            "optimal",
+            "optimal",
+            "optimal"
+          ],
+          "failure_reasons": [
+            [],
+            [],
+            []
+          ],
+          "median_wall_seconds": 0.019372180104255676,
+          "median_setup_seconds": 0.0011062240228056908,
+          "median_solve_seconds": 0.01815926202107221,
+          "max_residuals": {
+            "primal_residual_scaled": 0.0,
+            "stationarity_residual_scaled": 3.8289358819430216e-16,
+            "complementarity_residual_scaled": 2.234180732466028e-08,
+            "dual_sign_violation_scaled": 0.0
+          },
+          "presolve": {
+            "status": "reduced",
+            "original_dimensions": [
+              325,
+              0,
+              86
+            ],
+            "reduced_dimensions": [
+              200,
+              0,
+              86
+            ],
+            "stats": {
+              "deferred_variables": 0,
+              "fixed_variables": 125,
+              "input_nonzeros": 6140,
+              "propagation_visits": 0,
+              "removed_equalities": 0,
+              "removed_inequalities": 0,
+              "retained_ambiguous_rows": 0,
+              "separable_ambiguous_variables": 0,
+              "separable_variables": 125,
+              "singleton_rows": 1
+            },
+            "median_presolve_seconds": 0.0005137990228831768,
+            "median_postsolve_seconds": 4.282803274691105e-05,
+            "median_pack_seconds": 0.00014544802252203226,
+            "median_native_seconds": 9.363004937767982e-05,
+            "median_total_seconds": 0.000495291082188487
+          }
+        }
+      }
+    },
+    {
+      "name": "PRIMAL2",
+      "variants": {
+        "glqp_current": {
+          "records": [
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_current/PRIMAL2__r000.json",
+              "sha256": "27175df3a7370db8165cc06d19cea50afd21c4d9b4ff769c5de74b06360a78ac"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_current/PRIMAL2__r001.json",
+              "sha256": "be88b8e04657d0465baf4e213e1a3a7aaa9e1d6299ef847db7152f1063912dbe"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_current/PRIMAL2__r002.json",
+              "sha256": "c8cddd815ee080facde1fa3c9616edcecb247aeafa6c5bd1b9762d3d5d045b10"
+            }
+          ],
+          "status_counts": {
+            "solved": 3
+          },
+          "accurate_over_budget": 0,
+          "accepted_repeats": 3,
+          "all_accepted": true,
+          "wall_seconds": [
+            0.020059471018612385,
+            0.020219440921209753,
+            0.01998035900760442
+          ],
+          "iterations": [
+            22,
+            22,
+            22
+          ],
+          "solver_statuses": [
+            "optimal",
+            "optimal",
+            "optimal"
+          ],
+          "failure_reasons": [
+            [],
+            [],
+            []
+          ],
+          "median_wall_seconds": 0.020059471018612385,
+          "median_setup_seconds": 0.0005636720452457666,
+          "median_solve_seconds": 0.0194010220002383,
+          "max_residuals": {
+            "primal_residual_scaled": 0.0,
+            "stationarity_residual_scaled": 2.437070059675453e-14,
+            "complementarity_residual_scaled": 6.440576264705656e-09,
+            "dual_sign_violation_scaled": 0.0
+          }
+        },
+        "glqp_base": {
+          "records": [
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_base/PRIMAL2__r000.json",
+              "sha256": "03be94c405c011b521ae60d23221e6a35273e02750dcfaa6e0694cc3b3b4def8"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_base/PRIMAL2__r001.json",
+              "sha256": "7790c458e88adaa3a263bbf4a6bc114e680e2d1532e7328b236fa19430f1b3bc"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_base/PRIMAL2__r002.json",
+              "sha256": "2795256448d877bf075dfd7f40370fa73f556e49f4d75c3fbed61852bd0f3f57"
+            }
+          ],
+          "status_counts": {
+            "solved": 3
+          },
+          "accurate_over_budget": 0,
+          "accepted_repeats": 3,
+          "all_accepted": true,
+          "wall_seconds": [
+            0.020295509952120483,
+            0.020277144969440997,
+            0.01992416090797633
+          ],
+          "iterations": [
+            22,
+            22,
+            22
+          ],
+          "solver_statuses": [
+            "optimal",
+            "optimal",
+            "optimal"
+          ],
+          "failure_reasons": [
+            [],
+            [],
+            []
+          ],
+          "median_wall_seconds": 0.020277144969440997,
+          "median_setup_seconds": 0.0008721960475668311,
+          "median_solve_seconds": 0.019236474996432662,
+          "max_residuals": {
+            "primal_residual_scaled": 0.0,
+            "stationarity_residual_scaled": 2.437070059675453e-14,
+            "complementarity_residual_scaled": 6.440576264705656e-09,
+            "dual_sign_violation_scaled": 0.0
+          },
+          "presolve": {
+            "status": "unchanged",
+            "original_dimensions": [
+              649,
+              0,
+              97
+            ],
+            "reduced_dimensions": [
+              649,
+              0,
+              97
+            ],
+            "stats": {
+              "deferred_variables": 0,
+              "fixed_variables": 0,
+              "input_nonzeros": 8691,
+              "propagation_visits": 0,
+              "removed_equalities": 0,
+              "removed_inequalities": 0,
+              "retained_ambiguous_rows": 0,
+              "separable_ambiguous_variables": 0,
+              "separable_variables": 0,
+              "singleton_rows": 1
+            },
+            "median_presolve_seconds": 0.0002697469899430871,
+            "median_postsolve_seconds": 1.7088023014366627e-05,
+            "median_pack_seconds": 0.00015437602996826172,
+            "median_native_seconds": 8.241296745836735e-05,
+            "median_total_seconds": 0.0002542280126363039
+          }
+        },
+        "glqp_candidate": {
+          "records": [
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_candidate/PRIMAL2__r000.json",
+              "sha256": "f3a8a4b4c0006932e2981f7a0065bcecc94c20e6a417bbb29724838129961ab0"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_candidate/PRIMAL2__r001.json",
+              "sha256": "3e7446fb37b4e2b26c81645d6d0e5575ffd19fc7d06fd39d1cf0f41a6fbdc062"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_candidate/PRIMAL2__r002.json",
+              "sha256": "29b614d5c78df310615e8e5f82e93b75ff57d4082d200a4df8e2bd5deca7cc7e"
+            }
+          ],
+          "status_counts": {
+            "solved": 3
+          },
+          "accurate_over_budget": 0,
+          "accepted_repeats": 3,
+          "all_accepted": true,
+          "wall_seconds": [
+            0.02045569894835353,
+            0.020280691096559167,
+            0.019855255959555507
+          ],
+          "iterations": [
+            22,
+            22,
+            22
+          ],
+          "solver_statuses": [
+            "optimal",
+            "optimal",
+            "optimal"
+          ],
+          "failure_reasons": [
+            [],
+            [],
+            []
+          ],
+          "median_wall_seconds": 0.020280691096559167,
+          "median_setup_seconds": 0.0011567430337890983,
+          "median_solve_seconds": 0.019019071012735367,
+          "max_residuals": {
+            "primal_residual_scaled": 0.0,
+            "stationarity_residual_scaled": 2.4373841744177527e-14,
+            "complementarity_residual_scaled": 6.440577664477647e-09,
+            "dual_sign_violation_scaled": 0.0
+          },
+          "presolve": {
+            "status": "reduced",
+            "original_dimensions": [
+              649,
+              0,
+              97
+            ],
+            "reduced_dimensions": [
+              395,
+              0,
+              97
+            ],
+            "stats": {
+              "deferred_variables": 0,
+              "fixed_variables": 254,
+              "input_nonzeros": 8691,
+              "propagation_visits": 0,
+              "removed_equalities": 0,
+              "removed_inequalities": 0,
+              "retained_ambiguous_rows": 0,
+              "separable_ambiguous_variables": 0,
+              "separable_variables": 254,
+              "singleton_rows": 1
+            },
+            "median_presolve_seconds": 0.0005613769171759486,
+            "median_postsolve_seconds": 3.976002335548401e-05,
+            "median_pack_seconds": 0.0001539649674668908,
+            "median_native_seconds": 0.00011467398144304752,
+            "median_total_seconds": 0.000544187962077558
+          }
+        }
+      }
+    },
+    {
+      "name": "PRIMAL4",
+      "variants": {
+        "glqp_current": {
+          "records": [
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_current/PRIMAL4__r000.json",
+              "sha256": "1e1c7b340265eea60fffa5aee95079bffbbf140f40d6a0ea60ed2c75be980adf"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_current/PRIMAL4__r001.json",
+              "sha256": "978d9e7cc05ecf2fb8092a0aaede3f53541c8157d1a8b33f52c4ab53c526a62f"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_current/PRIMAL4__r002.json",
+              "sha256": "2c5d1d7989ddd494578a507445962f660813e5862604e133946f73633f53eac1"
+            }
+          ],
+          "status_counts": {
+            "solved": 3
+          },
+          "accurate_over_budget": 0,
+          "accepted_repeats": 3,
+          "all_accepted": true,
+          "wall_seconds": [
+            0.04015442600939423,
+            0.06436315400060266,
+            0.04023763397708535
+          ],
+          "iterations": [
+            26,
+            26,
+            26
+          ],
+          "solver_statuses": [
+            "optimal",
+            "optimal",
+            "optimal"
+          ],
+          "failure_reasons": [
+            [],
+            [],
+            []
+          ],
+          "median_wall_seconds": 0.04023763397708535,
+          "median_setup_seconds": 0.0006095689022913575,
+          "median_solve_seconds": 0.039516482036560774,
+          "max_residuals": {
+            "primal_residual_scaled": 0.0,
+            "stationarity_residual_scaled": 2.3449398702886215e-13,
+            "complementarity_residual_scaled": 5.8243213355686194e-08,
+            "dual_sign_violation_scaled": 0.0
+          }
+        },
+        "glqp_base": {
+          "records": [
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_base/PRIMAL4__r000.json",
+              "sha256": "c24e4122b6e8aa70feeb86da5978560bd1d7f3114a0f7153bf4cafc19026355a"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_base/PRIMAL4__r001.json",
+              "sha256": "6e060460698626b094479d275d4c6df3410926f6d18996f3086bf9bf186eacea"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_base/PRIMAL4__r002.json",
+              "sha256": "c8b01da6a5f0acd406eda80e0bab3843d10fbf9121dec570ef1df6bfc66d13f3"
+            }
+          ],
+          "status_counts": {
+            "solved": 3
+          },
+          "accurate_over_budget": 0,
+          "accepted_repeats": 3,
+          "all_accepted": true,
+          "wall_seconds": [
+            0.040289467899128795,
+            0.04007249895948917,
+            0.041938205948099494
+          ],
+          "iterations": [
+            26,
+            26,
+            26
+          ],
+          "solver_statuses": [
+            "optimal",
+            "optimal",
+            "optimal"
+          ],
+          "failure_reasons": [
+            [],
+            [],
+            []
+          ],
+          "median_wall_seconds": 0.040289467899128795,
+          "median_setup_seconds": 0.0009523999178782105,
+          "median_solve_seconds": 0.03909125807695091,
+          "max_residuals": {
+            "primal_residual_scaled": 0.0,
+            "stationarity_residual_scaled": 2.3449398702886215e-13,
+            "complementarity_residual_scaled": 5.8243213355686194e-08,
+            "dual_sign_violation_scaled": 0.0
+          },
+          "presolve": {
+            "status": "unchanged",
+            "original_dimensions": [
+              1489,
+              0,
+              76
+            ],
+            "reduced_dimensions": [
+              1489,
+              0,
+              76
+            ],
+            "stats": {
+              "deferred_variables": 0,
+              "fixed_variables": 0,
+              "input_nonzeros": 17520,
+              "propagation_visits": 0,
+              "removed_equalities": 0,
+              "removed_inequalities": 0,
+              "retained_ambiguous_rows": 0,
+              "separable_ambiguous_variables": 0,
+              "separable_variables": 0,
+              "singleton_rows": 1
+            },
+            "median_presolve_seconds": 0.00033991190139204264,
+            "median_postsolve_seconds": 1.9068014807999134e-05,
+            "median_pack_seconds": 0.00017916003707796335,
+            "median_native_seconds": 0.00012368103489279747,
+            "median_total_seconds": 0.0003213980235159397
+          }
+        },
+        "glqp_candidate": {
+          "records": [
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_candidate/PRIMAL4__r000.json",
+              "sha256": "4ed55f73c693cce6041f6b706addf48cf8c5b1d9134bc8a431be9e8af968b932"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_candidate/PRIMAL4__r001.json",
+              "sha256": "6d512a951d24b0d2fc6b792184a3d84dca4ec8bbb29977ac23476f6bfdf42b65"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_candidate/PRIMAL4__r002.json",
+              "sha256": "b1dbadae0bac50bc3a5d54d356c22c3ecec61afe33af45d22e55773e123d0b7e"
+            }
+          ],
+          "status_counts": {
+            "solved": 3
+          },
+          "accurate_over_budget": 0,
+          "accepted_repeats": 3,
+          "all_accepted": true,
+          "wall_seconds": [
+            0.04544487898238003,
+            0.04470388998743147,
+            0.04301868402399123
+          ],
+          "iterations": [
+            26,
+            26,
+            26
+          ],
+          "solver_statuses": [
+            "optimal",
+            "optimal",
+            "optimal"
+          ],
+          "failure_reasons": [
+            [],
+            [],
+            []
+          ],
+          "median_wall_seconds": 0.04470388998743147,
+          "median_setup_seconds": 0.0013858560705557466,
+          "median_solve_seconds": 0.04311340698041022,
+          "max_residuals": {
+            "primal_residual_scaled": 0.0,
+            "stationarity_residual_scaled": 2.34495670221533e-13,
+            "complementarity_residual_scaled": 5.824392858496081e-08,
+            "dual_sign_violation_scaled": 0.0
+          },
+          "presolve": {
+            "status": "reduced",
+            "original_dimensions": [
+              1489,
+              0,
+              76
+            ],
+            "reduced_dimensions": [
+              1247,
+              0,
+              76
+            ],
+            "stats": {
+              "deferred_variables": 0,
+              "fixed_variables": 242,
+              "input_nonzeros": 17520,
+              "propagation_visits": 0,
+              "removed_equalities": 0,
+              "removed_inequalities": 0,
+              "retained_ambiguous_rows": 0,
+              "separable_ambiguous_variables": 0,
+              "separable_variables": 242,
+              "singleton_rows": 1
+            },
+            "median_presolve_seconds": 0.0007350590312853456,
+            "median_postsolve_seconds": 4.3131993152201176e-05,
+            "median_pack_seconds": 0.0002157719573006034,
+            "median_native_seconds": 0.00019378506112843752,
+            "median_total_seconds": 0.0007125299889594316
+          }
+        }
+      }
+    },
+    {
+      "name": "QFFFFF80",
+      "variants": {
+        "glqp_current": {
+          "records": [
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_current/QFFFFF80__r000.json",
+              "sha256": "6aab7641bf32a8a0a3513b6b4819dc0f2e8bdb67a176f97b49b6e14ea5d52eca"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_current/QFFFFF80__r001.json",
+              "sha256": "f5eccd3625f8604145b944033afaba2ae947fc5f9d28ccb364e39b9917219e16"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_current/QFFFFF80__r002.json",
+              "sha256": "5214dc1196be034e22ca9809cea54f31238393c2009daf3f30a1c0aaedc4629b"
+            }
+          ],
+          "status_counts": {
+            "solved": 3
+          },
+          "accurate_over_budget": 0,
+          "accepted_repeats": 3,
+          "all_accepted": true,
+          "wall_seconds": [
+            0.08732217899523675,
+            0.08496691100299358,
+            0.08170132106170058
+          ],
+          "iterations": [
+            68,
+            68,
+            68
+          ],
+          "solver_statuses": [
+            "optimal",
+            "optimal",
+            "optimal"
+          ],
+          "failure_reasons": [
+            [],
+            [],
+            []
+          ],
+          "median_wall_seconds": 0.08496691100299358,
+          "median_setup_seconds": 0.0006150989793241024,
+          "median_solve_seconds": 0.0843238509260118,
+          "max_residuals": {
+            "primal_residual_scaled": 5.820766091346741e-11,
+            "stationarity_residual_scaled": 2.8083557079554785e-09,
+            "complementarity_residual_scaled": 4.746743235129458e-11,
+            "dual_sign_violation_scaled": 0.0
+          }
+        },
+        "glqp_base": {
+          "records": [
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_base/QFFFFF80__r000.json",
+              "sha256": "6a69535bb2dd71278225a2d767e17594323708b62a82d55e1538186ad1a625dc"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_base/QFFFFF80__r001.json",
+              "sha256": "638ac4ef2a0314a0fd3be6434b28afe66d3460d04a211a016d965981cd9d3e98"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_base/QFFFFF80__r002.json",
+              "sha256": "af679d7c4ddff433eefa6a46463d9b3933a9e0683addb01bf2a58c9d7e9152f4"
+            }
+          ],
+          "status_counts": {
+            "solved": 3
+          },
+          "accurate_over_budget": 0,
+          "accepted_repeats": 3,
+          "all_accepted": true,
+          "wall_seconds": [
+            2.4908562699565664,
+            2.4650292319711298,
+            2.4518007109872997
+          ],
+          "iterations": [
+            1751,
+            1751,
+            1751
+          ],
+          "solver_statuses": [
+            "optimal",
+            "optimal",
+            "optimal"
+          ],
+          "failure_reasons": [
+            [],
+            [],
+            []
+          ],
+          "median_wall_seconds": 2.4650292319711298,
+          "median_setup_seconds": 0.0011685569770634174,
+          "median_solve_seconds": 2.4636774578830227,
+          "max_residuals": {
+            "primal_residual_scaled": 1.6745061981491947e-10,
+            "stationarity_residual_scaled": 2.4566225358889834e-09,
+            "complementarity_residual_scaled": 4.530241671607208e-11,
+            "dual_sign_violation_scaled": 0.0
+          },
+          "presolve": {
+            "status": "reduced",
+            "original_dimensions": [
+              854,
+              350,
+              1028
+            ],
+            "reduced_dimensions": [
+              817,
+              313,
+              980
+            ],
+            "stats": {
+              "deferred_variables": 0,
+              "fixed_variables": 37,
+              "input_nonzeros": 10635,
+              "propagation_visits": 211,
+              "removed_equalities": 37,
+              "removed_inequalities": 48,
+              "retained_ambiguous_rows": 0,
+              "separable_ambiguous_variables": 0,
+              "separable_variables": 0,
+              "singleton_rows": 879
+            },
+            "median_presolve_seconds": 0.0005887539591640234,
+            "median_postsolve_seconds": 7.084198296070099e-05,
+            "median_pack_seconds": 0.00013508694246411324,
+            "median_native_seconds": 0.00013867998495697975,
+            "median_total_seconds": 0.0005739979678764939
+          }
+        },
+        "glqp_candidate": {
+          "records": [
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_candidate/QFFFFF80__r000.json",
+              "sha256": "f45aa0bb4f3a179b1c6d148b2f006ae4706c655723e8040ea308f94bde90e272"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_candidate/QFFFFF80__r001.json",
+              "sha256": "7ae08e4509c1a9d6b9002a99f1e65cbe82bdda295d092842b9bc787cbbc0a281"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_candidate/QFFFFF80__r002.json",
+              "sha256": "0b4b67f6b7d013baaf8463d5ee0011d85df46b2d47fd8f0206374192f4f713cc"
+            }
+          ],
+          "status_counts": {
+            "solved": 3
+          },
+          "accurate_over_budget": 0,
+          "accepted_repeats": 3,
+          "all_accepted": true,
+          "wall_seconds": [
+            2.4757401109673083,
+            2.4474979570368305,
+            2.444919320056215
+          ],
+          "iterations": [
+            1751,
+            1751,
+            1751
+          ],
+          "solver_statuses": [
+            "optimal",
+            "optimal",
+            "optimal"
+          ],
+          "failure_reasons": [
+            [],
+            [],
+            []
+          ],
+          "median_wall_seconds": 2.4474979570368305,
+          "median_setup_seconds": 0.0011599420104175806,
+          "median_solve_seconds": 2.4461598499910906,
+          "max_residuals": {
+            "primal_residual_scaled": 1.6745061981491947e-10,
+            "stationarity_residual_scaled": 2.4566225358889834e-09,
+            "complementarity_residual_scaled": 4.530241671607208e-11,
+            "dual_sign_violation_scaled": 0.0
+          },
+          "presolve": {
+            "status": "reduced",
+            "original_dimensions": [
+              854,
+              350,
+              1028
+            ],
+            "reduced_dimensions": [
+              817,
+              313,
+              980
+            ],
+            "stats": {
+              "deferred_variables": 0,
+              "fixed_variables": 37,
+              "input_nonzeros": 10635,
+              "propagation_visits": 211,
+              "removed_equalities": 37,
+              "removed_inequalities": 48,
+              "retained_ambiguous_rows": 0,
+              "separable_ambiguous_variables": 0,
+              "separable_variables": 0,
+              "singleton_rows": 879
+            },
+            "median_presolve_seconds": 0.0005682579940184951,
+            "median_postsolve_seconds": 6.350199691951275e-05,
+            "median_pack_seconds": 0.00012398092076182365,
+            "median_native_seconds": 0.00013682700227946043,
+            "median_total_seconds": 0.0005547329783439636
+          }
+        }
+      }
+    },
+    {
+      "name": "STCQP1",
+      "variants": {
+        "glqp_current": {
+          "records": [
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_current/STCQP1__r000.json",
+              "sha256": "37a29f5b830ed357d89bd82235bb67f34c43d6818a6eea3aca905d4b50076ef3"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_current/STCQP1__r001.json",
+              "sha256": "d6d2cdce824e3b089f71bdb500e0462fdb32e8fa1e4f24af82bec19d7700da50"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_current/STCQP1__r002.json",
+              "sha256": "1daeb3ca825cadd291592bf414a3dc4d9eb80397be1a7fa4cb8d9775399c3f12"
+            }
+          ],
+          "status_counts": {
+            "solved": 3
+          },
+          "accurate_over_budget": 0,
+          "accepted_repeats": 3,
+          "all_accepted": true,
+          "wall_seconds": [
+            0.11962013901211321,
+            0.1030915779992938,
+            0.10021354199852794
+          ],
+          "iterations": [
+            17,
+            17,
+            17
+          ],
+          "solver_statuses": [
+            "optimal",
+            "optimal",
+            "optimal"
+          ],
+          "failure_reasons": [
+            [],
+            [],
+            []
+          ],
+          "median_wall_seconds": 0.1030915779992938,
+          "median_setup_seconds": 0.0007369060767814517,
+          "median_solve_seconds": 0.1023619829211384,
+          "max_residuals": {
+            "primal_residual_scaled": 5.21471754666436e-13,
+            "stationarity_residual_scaled": 2.601117910608923e-13,
+            "complementarity_residual_scaled": 3.537813818974884e-10,
+            "dual_sign_violation_scaled": 0.0
+          }
+        },
+        "glqp_base": {
+          "records": [
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_base/STCQP1__r000.json",
+              "sha256": "cbd51348693efb336665a096635fea1e66c97a520768ec00e3e312a3150ba12a"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_base/STCQP1__r001.json",
+              "sha256": "819dff836386a37ccb6332caf6307599142d622dd6686bc2c95917e1df4d24e7"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_base/STCQP1__r002.json",
+              "sha256": "62ecd27b6e194182c5a1f558a7db6aaecc852dfd81087b34c5ac8744406d81eb"
+            }
+          ],
+          "status_counts": {
+            "solved": 3
+          },
+          "accurate_over_budget": 0,
+          "accepted_repeats": 3,
+          "all_accepted": true,
+          "wall_seconds": [
+            0.04678260302171111,
+            0.04263474605977535,
+            0.03871252108365297
+          ],
+          "iterations": [
+            17,
+            17,
+            17
+          ],
+          "solver_statuses": [
+            "optimal",
+            "optimal",
+            "optimal"
+          ],
+          "failure_reasons": [
+            [],
+            [],
+            []
+          ],
+          "median_wall_seconds": 0.04263474605977535,
+          "median_setup_seconds": 0.002527270931750536,
+          "median_solve_seconds": 0.039377589942887425,
+          "max_residuals": {
+            "primal_residual_scaled": 5.551115123125784e-16,
+            "stationarity_residual_scaled": 2.6900941100698554e-13,
+            "complementarity_residual_scaled": 3.3778485187046975e-10,
+            "dual_sign_violation_scaled": 0.0
+          },
+          "presolve": {
+            "status": "reduced",
+            "original_dimensions": [
+              4097,
+              2052,
+              8194
+            ],
+            "reduced_dimensions": [
+              3830,
+              1785,
+              7660
+            ],
+            "stats": {
+              "deferred_variables": 85,
+              "fixed_variables": 267,
+              "input_nonzeros": 70641,
+              "propagation_visits": 7295,
+              "removed_equalities": 267,
+              "removed_inequalities": 534,
+              "retained_ambiguous_rows": 85,
+              "separable_ambiguous_variables": 0,
+              "separable_variables": 0,
+              "singleton_rows": 8765
+            },
+            "median_presolve_seconds": 0.001750267925672233,
+            "median_postsolve_seconds": 0.00015281501691788435,
+            "median_pack_seconds": 0.0003109410172328353,
+            "median_native_seconds": 0.0010658800601959229,
+            "median_total_seconds": 0.0017308129463344812
+          }
+        },
+        "glqp_candidate": {
+          "records": [
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_candidate/STCQP1__r000.json",
+              "sha256": "45ffda09dc3da3345242a6060af81e18261b8059cec6067b38592201162bac44"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_candidate/STCQP1__r001.json",
+              "sha256": "1a9d53fe3941b45261fe87ea7462c3ed69bd55268ecc2cd991eae7d1e5ca29ed"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_candidate/STCQP1__r002.json",
+              "sha256": "59e1b743902fbdeca246d05e27c770d9368ece45b6f49e0bc737c92ceb120484"
+            }
+          ],
+          "status_counts": {
+            "solved": 3
+          },
+          "accurate_over_budget": 0,
+          "accepted_repeats": 3,
+          "all_accepted": true,
+          "wall_seconds": [
+            0.029796296963468194,
+            0.028089664061553776,
+            0.02690400800202042
+          ],
+          "iterations": [
+            17,
+            17,
+            17
+          ],
+          "solver_statuses": [
+            "optimal",
+            "optimal",
+            "optimal"
+          ],
+          "failure_reasons": [
+            [],
+            [],
+            []
+          ],
+          "median_wall_seconds": 0.028089664061553776,
+          "median_setup_seconds": 0.002390148933045566,
+          "median_solve_seconds": 0.02565166202839464,
+          "max_residuals": {
+            "primal_residual_scaled": 1.2212453270876724e-15,
+            "stationarity_residual_scaled": 4.990463596207612e-13,
+            "complementarity_residual_scaled": 2.0242909557774933e-10,
+            "dual_sign_violation_scaled": 0.0
+          },
+          "presolve": {
+            "status": "reduced",
+            "original_dimensions": [
+              4097,
+              2052,
+              8194
+            ],
+            "reduced_dimensions": [
+              1270,
+              1785,
+              2540
+            ],
+            "stats": {
+              "deferred_variables": 85,
+              "fixed_variables": 2827,
+              "input_nonzeros": 70641,
+              "propagation_visits": 12415,
+              "removed_equalities": 267,
+              "removed_inequalities": 5654,
+              "retained_ambiguous_rows": 85,
+              "separable_ambiguous_variables": 0,
+              "separable_variables": 2560,
+              "singleton_rows": 8765
+            },
+            "median_presolve_seconds": 0.0017233089311048388,
+            "median_postsolve_seconds": 0.00013777799904346466,
+            "median_pack_seconds": 0.0002650599926710129,
+            "median_native_seconds": 0.0011392150772735476,
+            "median_total_seconds": 0.0017073809867724776
+          }
+        }
+      }
+    },
+    {
+      "name": "STCQP2",
+      "variants": {
+        "glqp_current": {
+          "records": [
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_current/STCQP2__r000.json",
+              "sha256": "ccd31ddf02845f2984f8929d411f3cfd4a91c36e2d08257c51d912423ff9ef1d"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_current/STCQP2__r001.json",
+              "sha256": "df015929acc9b477258a5a648a62e3a009e4f4ab29784d57a21b9f841b3df827"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_current/STCQP2__r002.json",
+              "sha256": "d100fad863fd724cf369846a84ac79612162637562fc7d54e18c74b7e8920ef2"
+            }
+          ],
+          "status_counts": {
+            "solved": 3
+          },
+          "accurate_over_budget": 0,
+          "accepted_repeats": 3,
+          "all_accepted": true,
+          "wall_seconds": [
+            0.1971855730516836,
+            0.1769690199289471,
+            0.17746929393615574
+          ],
+          "iterations": [
+            17,
+            17,
+            17
+          ],
+          "solver_statuses": [
+            "optimal",
+            "optimal",
+            "optimal"
+          ],
+          "failure_reasons": [
+            [],
+            [],
+            []
+          ],
+          "median_wall_seconds": 0.17746929393615574,
+          "median_setup_seconds": 0.0007714619860053062,
+          "median_solve_seconds": 0.17677047802135348,
+          "max_residuals": {
+            "primal_residual_scaled": 3.606781540099746e-12,
+            "stationarity_residual_scaled": 1.309480145060231e-12,
+            "complementarity_residual_scaled": 5.332750535458622e-09,
+            "dual_sign_violation_scaled": 0.0
+          }
+        },
+        "glqp_base": {
+          "records": [
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_base/STCQP2__r000.json",
+              "sha256": "7935d3fb6ba3c8a7ee1bc5a90efee98ef0e07ef14a31e3513acb481beac1f6a4"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_base/STCQP2__r001.json",
+              "sha256": "a247d42c4dd7c844484f612ee60bf297feb0f01c7648ecda9df91bb2a803ed3f"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_base/STCQP2__r002.json",
+              "sha256": "f5d2c9304d0dd3aeb86ed05071f314e83f28c6f744c4409e98231f192473c66d"
+            }
+          ],
+          "status_counts": {
+            "solved": 3
+          },
+          "accurate_over_budget": 0,
+          "accepted_repeats": 3,
+          "all_accepted": true,
+          "wall_seconds": [
+            0.02729812602046877,
+            0.025284911040216684,
+            0.025482087046839297
+          ],
+          "iterations": [
+            17,
+            17,
+            17
+          ],
+          "solver_statuses": [
+            "optimal",
+            "optimal",
+            "optimal"
+          ],
+          "failure_reasons": [
+            [],
+            [],
+            []
+          ],
+          "median_wall_seconds": 0.025482087046839297,
+          "median_setup_seconds": 0.0022866750368848443,
+          "median_solve_seconds": 0.023008357034996152,
+          "max_residuals": {
+            "primal_residual_scaled": 0.0,
+            "stationarity_residual_scaled": 1.5420379574162513e-12,
+            "complementarity_residual_scaled": 3.116711595710817e-09,
+            "dual_sign_violation_scaled": 0.0
+          },
+          "presolve": {
+            "status": "reduced",
+            "original_dimensions": [
+              4097,
+              2052,
+              8194
+            ],
+            "reduced_dimensions": [
+              2045,
+              0,
+              4090
+            ],
+            "stats": {
+              "deferred_variables": 0,
+              "fixed_variables": 2052,
+              "input_nonzeros": 70641,
+              "propagation_visits": 17442,
+              "removed_equalities": 2052,
+              "removed_inequalities": 4104,
+              "retained_ambiguous_rows": 0,
+              "separable_ambiguous_variables": 0,
+              "separable_variables": 0,
+              "singleton_rows": 9904
+            },
+            "median_presolve_seconds": 0.0016805499326437712,
+            "median_postsolve_seconds": 0.00010630791075527668,
+            "median_pack_seconds": 0.00023175100795924664,
+            "median_native_seconds": 0.0012172850547358394,
+            "median_total_seconds": 0.0016682320274412632
+          }
+        },
+        "glqp_candidate": {
+          "records": [
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_candidate/STCQP2__r000.json",
+              "sha256": "ef7301265c4635533c8de709a4b4cdcf1bc4a0b6c801777a9378162e0bf990d9"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_candidate/STCQP2__r001.json",
+              "sha256": "966adb1f8038214e5caabdb85ee3fb4aca0d7cd19eadcec5ac74bc67d02e9117"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-repeats-20261016/source/benchmark/runs/mm/records/glqp_candidate/STCQP2__r002.json",
+              "sha256": "9bf9b784586d9ab214465c7e6993fee28eec47e9eaf80d6ef38700ae1b1098d1"
+            }
+          ],
+          "status_counts": {
+            "solved": 3
+          },
+          "accurate_over_budget": 0,
+          "accepted_repeats": 3,
+          "all_accepted": true,
+          "wall_seconds": [
+            0.022547508007846773,
+            0.021850074059329927,
+            0.021303382935002446
+          ],
+          "iterations": [
+            18,
+            18,
+            18
+          ],
+          "solver_statuses": [
+            "optimal",
+            "optimal",
+            "optimal"
+          ],
+          "failure_reasons": [
+            [],
+            [],
+            []
+          ],
+          "median_wall_seconds": 0.021850074059329927,
+          "median_setup_seconds": 0.0026285420171916485,
+          "median_solve_seconds": 0.01910237700212747,
+          "max_residuals": {
+            "primal_residual_scaled": 0.0,
+            "stationarity_residual_scaled": 3.913176435447658e-13,
+            "complementarity_residual_scaled": 6.974710781462472e-11,
+            "dual_sign_violation_scaled": 0.0
+          },
+          "presolve": {
+            "status": "reduced",
+            "original_dimensions": [
+              4097,
+              2052,
+              8194
+            ],
+            "reduced_dimensions": [
+              763,
+              0,
+              1526
+            ],
+            "stats": {
+              "deferred_variables": 0,
+              "fixed_variables": 3334,
+              "input_nonzeros": 70641,
+              "propagation_visits": 20006,
+              "removed_equalities": 2052,
+              "removed_inequalities": 6668,
+              "retained_ambiguous_rows": 0,
+              "separable_ambiguous_variables": 0,
+              "separable_variables": 1282,
+              "singleton_rows": 9904
+            },
+            "median_presolve_seconds": 0.0019980650395154953,
+            "median_postsolve_seconds": 0.00013236398808658123,
+            "median_pack_seconds": 0.00029881903901696205,
+            "median_native_seconds": 0.0013888769317418337,
+            "median_total_seconds": 0.001981258043088019
+          }
+        }
+      }
+    }
+  ]
+}

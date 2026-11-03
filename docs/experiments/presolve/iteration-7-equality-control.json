@@ -1,0 +1,435 @@
+{
+  "kind": "matched complete-solve presolve analysis",
+  "run": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-equality-control-20261016",
+  "manifest_sha256": "3115de78be3ba8fb74c6332b86238d47269e424cf1bec90782ed6abdd389fbf7",
+  "script_sha256": "d183073fe586fcaf4fd73e8f5d85b1902b1e3e3f87ed23556db6c1fcc16c4fdf",
+  "approved_report": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/reports-comparators-paced-20261016/presolve-equality-control",
+  "approved_summary_sha256": "ef74e2206aef794918660e970849a034aaf5586bc40e4d198dcbdd0fcc11a8f2",
+  "artifact_audit_sha256": "6a315917375b73edc56145a595ead48298236dce1889e75b50955deb00423732",
+  "isolation": {
+    "status": "clean_selected_waves",
+    "policy": "first-clean-whole-wave-v1",
+    "original_summary": {
+      "status": "clean",
+      "monitor_errors": [],
+      "command": [
+        "/scratch/awh9112/InteriorPoint/.conda/envs/glqp/bin/python",
+        "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-equality-control-20261016/source/benchmark/tools/run_comparator_study.py",
+        "--execute",
+        "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-equality-control-20261016"
+      ],
+      "cwd": "/scratch/awh9112/InteriorPoint/glqp-bench",
+      "returncode": 0,
+      "samples": 17,
+      "average_external_cores": 0.24518220827990747,
+      "maximum_external_cores": 0.4266296014040438,
+      "flagged_intervals": 0,
+      "thresholds": {
+        "external_cores": 0.5,
+        "competing_compute_cores": 0.05
+      },
+      "host_init": "systemd",
+      "scope": "Sampled live processes; short-lived jobs can evade sampling. Agent compute paused by coordination."
+    },
+    "selected_wave_count": 1,
+    "replayed_wave_count": 0,
+    "evidence": "wave-audits.json and wave-selection.json",
+    "scope": "First complete clean whole-wave attempt; sampled host CPU activity, with agent compute paused."
+  },
+  "wave_selection_sha256": "283f121defcb371114cbeab6dfc6ededb9df7e48ec55a2bd1b8443358a2bb59f",
+  "solver_commit": "cfad73fac44e7c2f9737865819b989beb025880b",
+  "benchmark_commit": "a337c86f635b9f504b386b2a251d7355eccfe400",
+  "execution": {
+    "cold_process_per_observation": true,
+    "config_sha256": "0ff355d32afc81dc133a34b1701e85ad72d95a090ec876e645799941c8c6dca1",
+    "cpu_groups": [
+      [
+        0
+      ],
+      [
+        1
+      ],
+      [
+        2
+      ],
+      [
+        3
+      ],
+      [
+        4
+      ],
+      [
+        5
+      ],
+      [
+        6
+      ],
+      [
+        7
+      ]
+    ],
+    "id": "execution-v1",
+    "order": "All revisions and repetitions for a problem run consecutively on the same CPU group; rotate revision order",
+    "parallel_workers": 8,
+    "problem_assignment": "Sorted problem index modulo worker count; barrier between waves",
+    "profile": "parallel-8",
+    "scheduling": "fixed-waves-v1",
+    "threads": 1
+  },
+  "solver_options": {
+    "glqp_base": {
+      "presolve": {
+        "enabled": true,
+        "local_fallback": true,
+        "separable_quadratics": true
+      }
+    },
+    "glqp_candidate": {
+      "presolve": {
+        "enabled": true,
+        "local_fallback": true,
+        "separable_quadratics": true,
+        "singleton_equalities": false
+      }
+    }
+  },
+  "solver_tolerance": 1e-07,
+  "validation_tolerance": 1e-06,
+  "time_limit": 60.0,
+  "summary": {
+    "problems": 1,
+    "repeats": 3,
+    "variants": {
+      "glqp_current": {
+        "status_counts": {
+          "solved": 3
+        },
+        "all_repetitions_accepted_problems": 1,
+        "accurate_over_budget": 0,
+        "max_residuals": {
+          "primal_residual_scaled": 5.820766091346741e-11,
+          "stationarity_residual_scaled": 2.8083557079554785e-09,
+          "complementarity_residual_scaled": 4.746743235129458e-11,
+          "dual_sign_violation_scaled": 0.0
+        }
+      },
+      "glqp_base": {
+        "status_counts": {
+          "solved": 3
+        },
+        "all_repetitions_accepted_problems": 1,
+        "accurate_over_budget": 0,
+        "max_residuals": {
+          "primal_residual_scaled": 1.6745061981491947e-10,
+          "stationarity_residual_scaled": 2.4566225358889834e-09,
+          "complementarity_residual_scaled": 4.530241671607208e-11,
+          "dual_sign_violation_scaled": 0.0
+        }
+      },
+      "glqp_candidate": {
+        "status_counts": {
+          "solved": 3
+        },
+        "all_repetitions_accepted_problems": 1,
+        "accurate_over_budget": 0,
+        "max_residuals": {
+          "primal_residual_scaled": 5.820766091346741e-11,
+          "stationarity_residual_scaled": 2.8083557079554785e-09,
+          "complementarity_residual_scaled": 4.746743235129458e-11,
+          "dual_sign_violation_scaled": 0.0
+        }
+      }
+    },
+    "pairs": {
+      "glqp_current__glqp_base": {
+        "common_accepted_problems": 1,
+        "wall_geomean_ratio": 29.681638876193684,
+        "wall_median_ratio": 29.68163887619368,
+        "summed_common_wall_ratio": 29.68163887619368,
+        "newly_accepted": [],
+        "lost_accepted": [],
+        "ratios": {
+          "QFFFFF80": 29.68163887619368
+        },
+        "below_0_95": [],
+        "above_1_05": [
+          "QFFFFF80"
+        ]
+      },
+      "glqp_current__glqp_candidate": {
+        "common_accepted_problems": 1,
+        "wall_geomean_ratio": 0.9990905299558682,
+        "wall_median_ratio": 0.9990905299558682,
+        "summed_common_wall_ratio": 0.9990905299558682,
+        "newly_accepted": [],
+        "lost_accepted": [],
+        "ratios": {
+          "QFFFFF80": 0.9990905299558682
+        },
+        "below_0_95": [],
+        "above_1_05": []
+      },
+      "glqp_base__glqp_candidate": {
+        "common_accepted_problems": 1,
+        "wall_geomean_ratio": 0.033660221193419146,
+        "wall_median_ratio": 0.033660221193419146,
+        "summed_common_wall_ratio": 0.033660221193419146,
+        "newly_accepted": [],
+        "lost_accepted": [],
+        "ratios": {
+          "QFFFFF80": 0.033660221193419146
+        },
+        "below_0_95": [
+          "QFFFFF80"
+        ],
+        "above_1_05": []
+      }
+    },
+    "scalar_groups": {
+      "scalar_changed": {
+        "problems": 0,
+        "names": [],
+        "wall_geomean_ratio": null
+      },
+      "no_scalar_reduction": {
+        "problems": 1,
+        "names": [
+          "QFFFFF80"
+        ],
+        "wall_geomean_ratio": 0.033660221193419146,
+        "glqp_base": {
+          "median_presolve_seconds": 0.0005787790287286043,
+          "median_postsolve_seconds": 6.766302976757288e-05,
+          "median_native_seconds": 0.00013239996042102575,
+          "median_presolve_postsolve_fraction": 0.00025897938219441593
+        },
+        "glqp_candidate": {
+          "median_presolve_seconds": 0.00025024102069437504,
+          "median_postsolve_seconds": 1.5813973732292652e-05,
+          "median_native_seconds": 8.654198609292507e-05,
+          "median_presolve_postsolve_fraction": 0.0031665768788991665
+        }
+      }
+    }
+  },
+  "problems": [
+    {
+      "name": "QFFFFF80",
+      "variants": {
+        "glqp_current": {
+          "records": [
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-equality-control-20261016/source/benchmark/runs/mm/records/glqp_current/QFFFFF80__r000.json",
+              "sha256": "2560d656d0b3852990cc7c10c870b8d7084388afc140999f706feeefae0753b6"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-equality-control-20261016/source/benchmark/runs/mm/records/glqp_current/QFFFFF80__r001.json",
+              "sha256": "5baa726f004b1e48a274ce31ed7d2d59ff11f0938c23cee157b74373fda82a55"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-equality-control-20261016/source/benchmark/runs/mm/records/glqp_current/QFFFFF80__r002.json",
+              "sha256": "482e1a8424cc82837a9d52d48d46fe7dc2ff0c95572afba9385a740b6e7defe0"
+            }
+          ],
+          "status_counts": {
+            "solved": 3
+          },
+          "accurate_over_budget": 0,
+          "accepted_repeats": 3,
+          "all_accepted": true,
+          "wall_seconds": [
+            0.08409623196348548,
+            0.08462734008207917,
+            0.08409112691879272
+          ],
+          "iterations": [
+            68,
+            68,
+            68
+          ],
+          "solver_statuses": [
+            "optimal",
+            "optimal",
+            "optimal"
+          ],
+          "failure_reasons": [
+            [],
+            [],
+            []
+          ],
+          "median_wall_seconds": 0.08409623196348548,
+          "median_setup_seconds": 0.000549643998965621,
+          "median_solve_seconds": 0.08351951802615076,
+          "max_residuals": {
+            "primal_residual_scaled": 5.820766091346741e-11,
+            "stationarity_residual_scaled": 2.8083557079554785e-09,
+            "complementarity_residual_scaled": 4.746743235129458e-11,
+            "dual_sign_violation_scaled": 0.0
+          }
+        },
+        "glqp_base": {
+          "records": [
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-equality-control-20261016/source/benchmark/runs/mm/records/glqp_base/QFFFFF80__r000.json",
+              "sha256": "6eca30ec33b06bedd15a1251595c4d22f84213fe7b65ce05d34555586342f6e0"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-equality-control-20261016/source/benchmark/runs/mm/records/glqp_base/QFFFFF80__r001.json",
+              "sha256": "872e4d1f48992d04f0c27fb5f9faa5346a41a8ca653c281f6548e1188a092999"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-equality-control-20261016/source/benchmark/runs/mm/records/glqp_base/QFFFFF80__r002.json",
+              "sha256": "83645ba6efd84d4272283daba36b8c76b2b9682b88700acfc4e9d2b28fa7745a"
+            }
+          ],
+          "status_counts": {
+            "solved": 3
+          },
+          "accurate_over_budget": 0,
+          "accepted_repeats": 3,
+          "all_accepted": true,
+          "wall_seconds": [
+            2.4961139879887924,
+            2.492700745933689,
+            2.500669289031066
+          ],
+          "iterations": [
+            1751,
+            1751,
+            1751
+          ],
+          "solver_statuses": [
+            "optimal",
+            "optimal",
+            "optimal"
+          ],
+          "failure_reasons": [
+            [],
+            [],
+            []
+          ],
+          "median_wall_seconds": 2.4961139879887924,
+          "median_setup_seconds": 0.0011524619767442346,
+          "median_solve_seconds": 2.4947966770268977,
+          "max_residuals": {
+            "primal_residual_scaled": 1.6745061981491947e-10,
+            "stationarity_residual_scaled": 2.4566225358889834e-09,
+            "complementarity_residual_scaled": 4.530241671607208e-11,
+            "dual_sign_violation_scaled": 0.0
+          },
+          "presolve": {
+            "status": "reduced",
+            "original_dimensions": [
+              854,
+              350,
+              1028
+            ],
+            "reduced_dimensions": [
+              817,
+              313,
+              980
+            ],
+            "stats": {
+              "deferred_variables": 0,
+              "fixed_variables": 37,
+              "input_nonzeros": 10635,
+              "propagation_visits": 211,
+              "removed_equalities": 37,
+              "removed_inequalities": 48,
+              "retained_ambiguous_rows": 0,
+              "separable_ambiguous_variables": 0,
+              "separable_variables": 0,
+              "singleton_rows": 879
+            },
+            "median_presolve_seconds": 0.0005787790287286043,
+            "median_postsolve_seconds": 6.766302976757288e-05,
+            "median_pack_seconds": 0.00012284901458770037,
+            "median_native_seconds": 0.00013239996042102575,
+            "median_total_seconds": 0.000565825030207634
+          }
+        },
+        "glqp_candidate": {
+          "records": [
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-equality-control-20261016/source/benchmark/runs/mm/records/glqp_candidate/QFFFFF80__r000.json",
+              "sha256": "f34662ff34892ee85bff4796cf226a26cb9df3223696e61ad320dced2d9c38e2"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-equality-control-20261016/source/benchmark/runs/mm/records/glqp_candidate/QFFFFF80__r001.json",
+              "sha256": "38ca8b67deebd5a1a1a6419ce5094394d597abd82c59e50d62095e7742d25a1a"
+            },
+            {
+              "path": "/scratch/awh9112/InteriorPoint/glqp-bench/runs/presolve-paced-equality-control-20261016/source/benchmark/runs/mm/records/glqp_candidate/QFFFFF80__r002.json",
+              "sha256": "7c0a25929fbe6f6892832e58ff04d50f4d8994c19765e26c12f7d4a7c1e7d92e"
+            }
+          ],
+          "status_counts": {
+            "solved": 3
+          },
+          "accurate_over_budget": 0,
+          "accepted_repeats": 3,
+          "all_accepted": true,
+          "wall_seconds": [
+            0.08337537199258804,
+            0.08401974895969033,
+            0.08474206703249365
+          ],
+          "iterations": [
+            68,
+            68,
+            68
+          ],
+          "solver_statuses": [
+            "optimal",
+            "optimal",
+            "optimal"
+          ],
+          "failure_reasons": [
+            [],
+            [],
+            []
+          ],
+          "median_wall_seconds": 0.08401974895969033,
+          "median_setup_seconds": 0.0008404490072280169,
+          "median_solve_seconds": 0.08311956096440554,
+          "max_residuals": {
+            "primal_residual_scaled": 5.820766091346741e-11,
+            "stationarity_residual_scaled": 2.8083557079554785e-09,
+            "complementarity_residual_scaled": 4.746743235129458e-11,
+            "dual_sign_violation_scaled": 0.0
+          },
+          "presolve": {
+            "status": "unchanged",
+            "original_dimensions": [
+              854,
+              350,
+              1028
+            ],
+            "reduced_dimensions": [
+              854,
+              350,
+              1028
+            ],
+            "stats": {
+              "deferred_variables": 0,
+              "fixed_variables": 0,
+              "input_nonzeros": 10635,
+              "propagation_visits": 0,
+              "removed_equalities": 0,
+              "removed_inequalities": 0,
+              "retained_ambiguous_rows": 0,
+              "separable_ambiguous_variables": 0,
+              "separable_variables": 0,
+              "singleton_rows": 877
+            },
+            "median_presolve_seconds": 0.00025024102069437504,
+            "median_postsolve_seconds": 1.5813973732292652e-05,
+            "median_pack_seconds": 0.0001328509533777833,
+            "median_native_seconds": 8.654198609292507e-05,
+            "median_total_seconds": 0.00023537001106888056
+          }
+        }
+      }
+    }
+  ]
+}

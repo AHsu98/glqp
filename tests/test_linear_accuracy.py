@@ -58,7 +58,7 @@ def test_rounding_worsens_a_correction_and_the_best_iterate_is_preserved(monkeyp
     assert len(calls) == 2
     assert result.info.refinements == 1
     assert result.info.status == ('accurate' if rtol == 2. else 'inaccurate')
-    assert result.info.stop_reason == 'stagnated'
+    assert result.info.stop_reason == ('stagnated' if rtol == 2. else 'arnoldi_breakdown')
     assert_allclose(result.info.relative_error, np.linalg.norm(residual)/np.linalg.norm(rhs))
 
 
@@ -82,7 +82,7 @@ def test_first_polish_restores_accuracy_without_exceeding_the_budget(
     assert result.info.absolute_error == max(abs(np.asarray(rhs)-result.solution))
 
 
-@pytest.mark.parametrize('budget,expected_calls', [(0, 1), (5, 2)])
+@pytest.mark.parametrize('budget,expected_calls', [(0, 1), (5, 3)])
 def test_inaccurate_result_is_explicit_and_unproductive_refinement_is_bounded(monkeypatch, budget, expected_calls):
     calls = scripted_backend(monkeypatch, [[1., 0.]])
     result = solve(np.eye(2), [1., 1.], max_refinement_steps=budget,
@@ -109,11 +109,11 @@ def test_nonfinite_correction_does_not_replace_a_finite_iterate(monkeypatch):
 def test_numerical_backend_failure_retries_and_reports_the_actual_shift(monkeypatch):
     factory = linear.qdldl.Solver
     shifts = []
-    def fail_once(matrix):
+    def fail_once(matrix, **kwargs):
         shifts.append(matrix.diagonal()[0]-2.)
         if len(shifts) == 1:
             raise RuntimeError('injected numerical factorization failure')
-        return factory(matrix)
+        return factory(matrix, **kwargs)
     monkeypatch.setattr(linear.qdldl, 'Solver', fail_once)
     result = solve(np.diag([2., -3.]), [4., 3.], init_tau_reg=2e-8)
     assert result.info.attempts == 2
@@ -125,7 +125,7 @@ def test_numerical_backend_failure_retries_and_reports_the_actual_shift(monkeypa
 @pytest.mark.parametrize('error', [TimeoutError, TypeError, ValueError])
 def test_timeout_and_programming_errors_do_not_retry_as_factorization_failures(monkeypatch, error):
     calls = []
-    def fail(matrix):
+    def fail(matrix, **kwargs):
         calls.append(1)
         raise error('injected non-numerical failure')
     monkeypatch.setattr(linear.qdldl, 'Solver', fail)

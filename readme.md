@@ -23,11 +23,87 @@ The main additional requirement comes from [sparse_dot_mkl](https://github.com/f
 needing the associated MKL dependencies.
 These are packaged with Conda, and can be installed into Miniconda with `conda install -c intel mkl`.
 
-In a later update, these may be made optional, but it sepeds up formation of the hessian significantly.
+In a later update, these may be made optional, but it speeds up formation of the Hessian significantly.
 
 See https://github.com/flatironinstitute/sparse_dot for more details.
 
-We solve KKT systems using [qdldl](https://github.com/osqp/qdldl-python)[[2]](#2).
+QDLDL is the default KKT factorization. The [backend guide](docs/linear-backends.md)
+describes optional SuperLU, FERAL, and PARDISO alternatives with explicit
+ordering/scaling options and shared verified float64 GMRES refinement.
+The default uses a [private checked QDLDL binding](docs/checked-qdldl.md), leaving
+the installed public package unchanged. Building it requires 64-bit Linux,
+C/C++ compilers, CMake, Python headers, and `pybind11==2.13.6` (the `native-build`
+extra). A matching frozen library and manifest can load without build tools.
+
+#### Current algorithm and experiment history
+
+The [accepted algorithm reference](docs/accepted-algorithm.md) documents the
+implemented Newton equations, regularization, float64 GMRES, barrier update,
+clipping, line search, repair, and stopping tests. It also distinguishes public
+defaults from the QP and GLM benchmark profiles.
+
+The [experiment ledger](docs/experiments/README.md) records what we tried,
+the measured outcomes, and unresolved issues. Accepted defaults remain legacy
+Newton, QDLDL, ten-step float64 right-GMRES, and presolve disabled. Predictor–
+corrector and centered proximal methods remain experimental. The earlier full
+138-problem Maros–Mészáros comparison validates 129 cases with accepted Newton
+and 127 with centered adaptive Newton; the latter is slower on the separately
+audited timing subset. Its selected large gains do not justify promotion.
+
+The accepted [physical-decay recipe](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/accepted-decay-diagnosis-20261024/README.md)
+uses `rho_i=30/(30+i)*min(2e-9,1e-4*KKT_i)` with a fixed `2e-8`
+factorization shift and absolute linear target `.005*tol`. At native `1e-8`,
+the measured benchmark profiles certify 172/178 QPs (132/138 MM and 40/40
+applications) and 80/81 GLMs at the independent `1e-6` threshold. Public
+budgets remain shorter than those benchmark budgets.
+
+The [checked-QDLDL qualification](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/qdldl-failure-retry-20261024/README.md)
+accepts failure propagation at `f4f8a94` on 2026-10-27. Failed numeric updates
+now enter the existing larger-shift retry instead of applying partial factors.
+The full suite retains every certificate and native optimum with the same
+T30 recipe; QSCFXM1 falls from 301 to 96 iterations and from 80 to zero
+inaccurate inner calls. All 81 GLM and 168 of 173 returned QP trajectories
+remain exact. That qualification passed 1,100 solver tests. Timings are excluded;
+the host guard retained 19 load flags, so these are numerical-work and reliability results.
+
+For the current state, frozen sources, and next experiments, start with the
+[research handoff](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/docs/handoff.md).
+The handoff and benchmark reports require access to the private `glqp-bench`
+repository; the solver documentation in this repository is public.
+
+#### Numerical experiments
+
+- [Standalone QP polishing](docs/qp-polish.md): optional active-set postprocessing
+  improves 142/173 archived endpoints while preserving 172/178 strict certificates.
+  It remains experimental and does not establish a wall-time speedup; see the
+  [2026-10-30 study](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/active-set-polish-20261030/README.md).
+- [Standalone C++ QP presolve](docs/presolve.md): optional structural reductions,
+  objective offsets, and original primal/dual recovery, available through a
+  C ABI, CLI, and Python adapter.
+- [Iteration work reuse](docs/iteration-work.md): matvec, transpose, curvature,
+  and allocation optimizations with unchanged acceptance rules.
+- [Verified linear solves](docs/linear-solves.md) and
+  [factorization options](docs/linear-backends.md): separate factor reuse from
+  fresh-residual accuracy checks.
+
+The sibling `glqp-bench` repository contains committed-source comparison
+campaigns, explicit per-variant presolve/backend settings, and 81 GLM examples,
+including large sparse and weighted real-data problems. The 2026-10-17
+[GLM stress checkpoint](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/glm-stress-20261017/README.md)
+adds 42 compact cases targeting numerical difficulty: all 30 initial additions
+pass, as do 7 of 12 deliberately severe cases. The original 39 also pass.
+The [numerical review](docs/research/glm-numerics-review-20261017.md) covers stable
+scalar losses, weighted Gram formation, original-operator diagnostics, and
+alternatives to the current fast Hessian path.
+Routine tests use eight independent one-thread workers; serial and multithreaded
+per-problem profiles are explicit alternatives. The 2026-10-16 checkpoint
+retains 169/178 QP successes with byte-identical accepted primal/dual vectors
+and 23.7% lower paired geometric mean wall time than the original accepted
+float64 GMRES implementation. All 39 GLMs pass under the explicit `glm-v2`
+profile; see the [Poisson trial-budget diagnosis](docs/poisson-linesearch.md).
+Presolve and backend changes remain opt-in; their gains depend on the problem,
+and the presolve guide documents a reproduced convergence regression and an
+explicit pass option that avoids it.
 
 #### Convergence tolerance
 
@@ -49,10 +125,12 @@ This supplements the original absolute KKT test; its tolerance, Newton equations
 and line-search settings are unchanged. Some problems consequently require more
 iterations or reach their iteration/time limit before receiving `optimal` status.
 
-#### Benchmark
+#### Historical benchmark
 I ran a benchmark on the MM problems [[7]](#7) starting with the experiments and code from the assocated repository for [[1]](#1) in this repo:
 https://github.com/AHsu98/glqp-benchmark
-The benchmark shows that with well tuned QP settings, we complete 133/138 of them.
+That earlier benchmark reported completion on 133/138 with tuned QP settings.
+It predates the current independent correctness checks and should not be mixed
+with the versioned comparisons in `glqp-bench`.
 
 ## References
 <a id="1">[1]</a>

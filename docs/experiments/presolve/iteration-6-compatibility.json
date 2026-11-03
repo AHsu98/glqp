@@ -1,0 +1,2974 @@
+{
+  "kind": "output and recovery validation; timings omitted",
+  "reference_commit": "a6f9e36",
+  "builds": {
+    "reference": {
+      "compile_seconds": 1.1558371320134029,
+      "compiler": [
+        "c++"
+      ],
+      "compiler_version": "c++ (GCC) 11.5.0 20240719 (Red Hat 11.5.0-14)\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+      "flags": [
+        "-O3",
+        "-DNDEBUG",
+        "-std=c++17",
+        "-shared",
+        "-fPIC",
+        "-ffp-contract=off"
+      ],
+      "library_sha256": "6c4145c662f3d20b6c003179eae1a25e3ba71680c8df233e05884fe9b3f305ac",
+      "machine": "x86_64",
+      "source_sha256": "aa16e73f2f08dc8728307b7458ddd460b905c5c8ed31780ec5f450c57aacda8c",
+      "system": "Linux",
+      "build_key": "c3516ea402ee16858d5309ce1b372a53d5dd13d02b735bd59a614d19804694e0",
+      "library": "/tmp/glqp-native-3695880/c3516ea402ee16858d5309ce1b372a53d5dd13d02b735bd59a614d19804694e0/libglqp_presolve.so"
+    },
+    "candidate": {
+      "compile_seconds": 0.7334729530848563,
+      "compiler": [
+        "c++"
+      ],
+      "compiler_version": "c++ (GCC) 11.5.0 20240719 (Red Hat 11.5.0-14)\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+      "flags": [
+        "-O3",
+        "-DNDEBUG",
+        "-std=c++17",
+        "-shared",
+        "-fPIC",
+        "-ffp-contract=off"
+      ],
+      "library_sha256": "c5285ced8dcacacb50c56ecb47430682dd0d559b8b160fdc1458ba8cb4552203",
+      "machine": "x86_64",
+      "source_sha256": "a039d9aa78e9e37b7d159fca69fe606494238af5b37facdde4d7207e72259eb8",
+      "system": "Linux",
+      "build_key": "f5f341ec0c55d246cfc52a293ed11605f173ecb97d5e340c9a547bd6b86d98ae",
+      "library": "/tmp/glqp-native-3695880/f5f341ec0c55d246cfc52a293ed11605f173ecb97d5e340c9a547bd6b86d98ae/libglqp_presolve.so"
+    }
+  },
+  "options": {
+    "reference": {
+      "singleton_equalities": true,
+      "fixed_bounds": true,
+      "redundant_bounds": true,
+      "infeasibility_guard": 1e-12,
+      "local_fallback": true,
+      "separable_quadratics": true
+    },
+    "candidate": {
+      "singleton_equalities": true,
+      "fixed_bounds": true,
+      "redundant_bounds": true,
+      "infeasibility_guard": 1e-12,
+      "local_fallback": true,
+      "separable_quadratics": true
+    }
+  },
+  "affinity": [
+    10
+  ],
+  "repeats": 3,
+  "problems": [
+    {
+      "name": "AUG2D",
+      "input_sha256": "5dbea42fb59d5aee74f06215e12969366c2380ddf89337ca4c7c4a4ad120dfe1",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "AUG2DC",
+      "input_sha256": "af5d187ad04ec292503eb870bcf8275c8d209904c84529c15cc6a7d67acce70c",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "AUG2DCQP",
+      "input_sha256": "f8e90f576951685d34eb4ebaa1f892ae6217f84360f8508151a67a84e29ecd12",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "AUG2DQP",
+      "input_sha256": "8046abf28afbdbcfdf9742b7e07520047556fa5ac183e46ec876c35baa9d0ad8",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "AUG3D",
+      "input_sha256": "2e0a17a71e0f7c99fc7aa6da8c790a97819b586955279a7692505b0ab1e230bf",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "AUG3DC",
+      "input_sha256": "e96625061658e1408c4899060c79667af5ba4b740338874ff586885a19a1f491",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "AUG3DCQP",
+      "input_sha256": "2cdc1456b0eddce44e5c3cd43d4c52649d0e78b94d9b37ca71ac529745a7ac5b",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "AUG3DQP",
+      "input_sha256": "3e3d4999bceb81157056ebdd8e727508cfe4aa74afc96911d19521ee45b3dfef",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "BOYD1",
+      "input_sha256": "ded9dece130406d8440f45310d0531cc152b6075aff9f39229d9248dbc586fc9",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "BOYD2",
+      "input_sha256": "50f660954ae797c22bb82be6a8fe4adc8ad5aa0ccc0e815e86ab51483e0aba4d",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "CONT-050",
+      "input_sha256": "b131c479da13e04c98f45339f39a3d6b6fc16528aa6d4bd220e2947fec67f2a8",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "CONT-100",
+      "input_sha256": "25a82eb218d1e6c29af155722c1b793a6e6440373ffcc5971ec4ace8fba4dec1",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "CONT-101",
+      "input_sha256": "ac3053e7c1f60b8179abd33bc67139d0971bf5276eb9345f12f271ff87550e66",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "CONT-200",
+      "input_sha256": "4939caff4005f954e6ed9b1b3f90cede9f22ad04a7a36f6e795406acb9a9da67",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "CONT-201",
+      "input_sha256": "19a297e7978cc58b3e0f3e4957c1cdd2c3648a77d82a925b38d4a866a74050c2",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "CONT-300",
+      "input_sha256": "5038dd62e6d766d164b9841e531c5cd17e75517a20ef21ddcfde302a818b696c",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "CVXQP1_L",
+      "input_sha256": "fc3f42af1880e8bb3b9d02ba20e8d394d9642b34f037653cd375da7b7d4760bc",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "CVXQP1_M",
+      "input_sha256": "3c302f2851969bbe687aff8861fe17e67c4c27163cd81a0ec7183f98afe99493",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "CVXQP1_S",
+      "input_sha256": "07c079ea187b79978bb6fbfc51b16617b43d15777658b4cecd17ed1c45672cb1",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "CVXQP2_L",
+      "input_sha256": "d6251b4e2486d3cf08a16cc01cd6c7e64802ea35abfe1932d08894f56034af5f",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "CVXQP2_M",
+      "input_sha256": "b6a95f74d7ec3bcaeaab43f7d07a52b66493c6bd3c323ed7e2f7a72a5309c913",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "CVXQP2_S",
+      "input_sha256": "d7e2dd4c43008e0740d1e793f6053b04ee5c074173d3e26f091829e2d8f13a2b",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "CVXQP3_L",
+      "input_sha256": "a0aec9de490e289697363d4ba45c2eca5765c11f0458ed042d6a6f94a28d0da0",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "CVXQP3_M",
+      "input_sha256": "04506d1f6fbefa1dac9496468214e279230eddf47cada555750b729189493db2",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "CVXQP3_S",
+      "input_sha256": "222ff9a32ac5aceefa8874504efd46396e3c061a878840b497d1455bd325d89b",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "DPKLO1",
+      "input_sha256": "99391f119b5ddae3c3aafac944895834dd384f226e0d1e5a8adcb2e436b37020",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "DTOC3",
+      "input_sha256": "5fdaa559b63197e35fdc1dbe8d99a8489e2d92922579ee04b91024a9511903d1",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "DUAL1",
+      "input_sha256": "b8dc98428f0dc6b19fd461c104f394ac9d59d250caf87e3d964c6d9782ae0b3f",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "DUAL2",
+      "input_sha256": "d236edba915ac5f6be72afa3b927c5fbd9b759c4d9ada9b33a3ec174e7087bd0",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "DUAL3",
+      "input_sha256": "564119cd7dbf58d24dd6a0c128fd271ff3b818df94b2a366cee57cb5e76f6947",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "DUAL4",
+      "input_sha256": "cfda94fd74b9554835a2fc4d5ffa5bd6558b17ebf93a114eba79fb5f597e6598",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "DUALC1",
+      "input_sha256": "fdaa99c662de860c6c39c637d01595c0e77d9cb8c43f09601cceaa6de31db42d",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "DUALC2",
+      "input_sha256": "97ae64825ea7ae78ef21dffd4d4269ee92e8cb7a9a2a4ffe3489b50651763507",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "DUALC5",
+      "input_sha256": "434df0504ee7dacf66a9708d5f2786a9c82dac883dd4f3b5ddb5500a34b69890",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "DUALC8",
+      "input_sha256": "7c4f9cef18ec06af565803cb5d8597a2ab8f99564b16bc8d2f000c4d38b39936",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "EXDATA",
+      "input_sha256": "77d147d9ebc7adcd4a78731452f8fe7cf6c840f35f8fb7706622603bf358a89f",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "GENHS28",
+      "input_sha256": "14733fef88c420c9ba836bf9697cf32d1b16e997dc3bd35f10c05415f3f3f1de",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "GOULDQP2",
+      "input_sha256": "4eb426bbc18bc5c8dafe6c1d96e1b0155856da3eba2ff2160d7062fc466645a7",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "GOULDQP3",
+      "input_sha256": "eea78b12f68fcb1098d6ded1a8e29627a1a5965d79f46ae27668b7ab7b36740e",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "HS118",
+      "input_sha256": "f5a2df109285747db5055867ad6e528162f30e76c3b513b0284e79a08ce88977",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "HS21",
+      "input_sha256": "2c1b73f7fefa47c523ca828a7b9fc26b8684f961bcd3150d833ee9e97f810152",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "HS268",
+      "input_sha256": "ca4eaf1ca3f4b6079eed9298b5035ae74e229d20343661e5364e7f77573b2265",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "HS35",
+      "input_sha256": "415358a924161a5a431a24438ef956b022b6f9648539046b1a39caabc24c64d4",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "HS35MOD",
+      "input_sha256": "0766cc4bb69ddeb7f583fb5904e1248e27e4460c46820bd1c12df0ab67fc88c8",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "HS51",
+      "input_sha256": "9b3faf8d76f9f2ff696d3a7e0c7fcd041b3721530e70271c9701245f1e70c71e",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "HS52",
+      "input_sha256": "eb70a0e2ace48eb8893cac1665fc9c56ba54aaba3d1c70536a416c5f583eec84",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "HS53",
+      "input_sha256": "25b39fad693e8f7123da5489bb0a2c1fb4abfb80fd6d21de05a0a784ea4b184e",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "HS76",
+      "input_sha256": "8cb9ba8e57bbf8ef9023be69ff0575e2d7cafdad0dd848a4fb482acb939cbdbd",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "HUES-MOD",
+      "input_sha256": "e1dad88c6c5e8a261a24ca25e7da625c1931ddc2efe770579daa76e1f36f1396",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "HUESTIS",
+      "input_sha256": "b3af121bfc617ed899a999ca0de144438b6aab08aab355b15acdc8e1262b7079",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "KSIP",
+      "input_sha256": "bc48b861a7fda2150f85eeb8a2c302f6e3c7d9e749d4b84010ed99f45284b656",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "LASER",
+      "input_sha256": "95499854de359c7d104f055d8c3047bd7c1138fe304bc67e85451ae3ebf64eb0",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "LISWET1",
+      "input_sha256": "02c8347f280f0307749bac8d60765b34f023e8e02eb065e390b4681cb8e95bb2",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "LISWET10",
+      "input_sha256": "f0d21c2dd4e18e16624cf09b99bfc45fb7cd9aaa12233c0604d5b8ead7415810",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "LISWET11",
+      "input_sha256": "7aecfb272951292b5aa0eeb22ba7bda430e67d53d6a922d88967535b9c5bb65c",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "LISWET12",
+      "input_sha256": "6faf1d86d56406fce2c3d8e55ed98a49fc787c952cdb1796252cfcdac35965f1",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "LISWET2",
+      "input_sha256": "8546644fa4af1f1d3dca8d3db6256c384090ac64d172fcd2b24ee2cf104e8528",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "LISWET3",
+      "input_sha256": "de62ea289f23839b0b19559fff731cdccd89d932bc331d0063ad441c9eb67ddf",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "LISWET4",
+      "input_sha256": "923ca17efa916600e562ab1ff2c23b1a24307917a1b6629ac53d97cdc1d638c2",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "LISWET5",
+      "input_sha256": "c689564313368cce113f29d4f5eab8f05da9ed1770f4894d1d57a6d7da9369e9",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "LISWET6",
+      "input_sha256": "fd12219545d6cefdebca47b1a87a31e9b806d58e1b235e48e027929dd319854b",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "LISWET7",
+      "input_sha256": "09ff8938c248f0d88cb50cc0f669607a100620515235899b619df0e29215c61a",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "LISWET8",
+      "input_sha256": "a6a32f6d5a1f19e57aececdeccdfa682d4d4c52ce6a606b970119ee26d37fa06",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "LISWET9",
+      "input_sha256": "419d5202653a1b789b6158f1ee31025a888d3cb37f0e6824af7ccce3d2be35d8",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "LOTSCHD",
+      "input_sha256": "eb860b786e6c9344d7547f75a8be3869bba55a4e8a18b4104a53ce0c5c8364b7",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "MOSARQP1",
+      "input_sha256": "790cae399a584ec2aa850e4c047ba93d70477c1213ab99a8663a8372c72963ce",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "MOSARQP2",
+      "input_sha256": "007c73e350229a2c39a7e4663e1bf539bfacbe56db5b76ad11667648e53a54e6",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "POWELL20",
+      "input_sha256": "379a3fda85903d58f867224ac3d310d2b0c35d1ee25ce6cf0dfdf4eab38e9c76",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "PRIMAL1",
+      "input_sha256": "d08012219d7763062a1e601f7fcfa08b6b7528e2b1aef090e9538614378d0b41",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "PRIMAL2",
+      "input_sha256": "8317ddeaadc6f324957123466e5f1f0952bb3a4247cfcb6a3bc98f868abcda37",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "PRIMAL3",
+      "input_sha256": "47ae6992fd430726b40c96d4e45cd22d2995aafa509677858cddfea7ae5b3cd0",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "PRIMAL4",
+      "input_sha256": "723b4213970659215e4740cbc4d50093a0c3bf6601dd8dbe398a43c257785ec3",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "PRIMALC1",
+      "input_sha256": "6c368ec4f0686983db501ab9e3fb9f1ed729dd1e96c40fd2b28cd88dac6632fe",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "PRIMALC2",
+      "input_sha256": "0406eabe77115fcb17aef2bb5d4200c2392a3091840f865b14cbb8713abc14b3",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "PRIMALC5",
+      "input_sha256": "30f41ca32c260de37cd33b5b4fcc898d7f0cf6a332fc86371bdde6fd1d9bb5b4",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "PRIMALC8",
+      "input_sha256": "28cae7a889f941203a10e3230168dd85d51d6220e926bc8cbfb7a2ed7226adaa",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "Q25FV47",
+      "input_sha256": "1ae742a0af5039c0d7c3d4bdb1b055a7a8f88e62ab128860208d5d7a8222da56",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QADLITTL",
+      "input_sha256": "29c3c32b72dbf8587bacd8cccb1214f77bd11997ecbeeabe4014481aad43f63b",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QAFIRO",
+      "input_sha256": "fcb29458f738e57ea59541ac6d712f78753a9ced0dd9f59df0e42d691387c506",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QBANDM",
+      "input_sha256": "4d0b96777f9296e77e06fb59d90374ef12b8bd06841885b60d0ec3f46071f826",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QBEACONF",
+      "input_sha256": "33db85a391619f2f42337c0723f9262f8d95b2fa82c818c5a1069544f5837281",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QBORE3D",
+      "input_sha256": "e2bee59674321051dafa88f5a407ba53c89ac1b3b48ce86e19a5bceac79f4fdd",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QBRANDY",
+      "input_sha256": "6a4bb3c533362def62712e448cbc814f1dd2b6da5d42e5bc2ff2b5d09c2c738b",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QCAPRI",
+      "input_sha256": "d5d60bba7e07ebddb121953141d23fcb18b7f941a6b78b98bb841cad2775003c",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QE226",
+      "input_sha256": "9d3e7a744a37650ec35850421458981bb9f640c0a1f35a58f72eb72ec0618fed",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QETAMACR",
+      "input_sha256": "10f8d4e151bef531679a7f48703dfb0d9a0ff826f96e8c974e83f54ea0e7f68f",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QFFFFF80",
+      "input_sha256": "fc0555fca60f68eb47ab19d8fe3301e465c8bc4f587b321b2404acf92a69b5ae",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QFORPLAN",
+      "input_sha256": "0d3569113642238ffb52e7c7475001bbcd0dc57618f29381990e80206d4ba493",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QGFRDXPN",
+      "input_sha256": "c520f74287e62e4dca5e4796a9b4b4eb3ebf27350c9e6743e5dd4ba03492e71d",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QGROW15",
+      "input_sha256": "8e53b158e062bb5d7e875b46cb38baef84ffdbc43290014cc9c3a961b045cc4e",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QGROW22",
+      "input_sha256": "d3d633abaaf0932632b2c8f6168d074b6ee5f6e39e431b43d96ed4fd4c19891a",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QGROW7",
+      "input_sha256": "5b3105cd57774f998102b6857b55f55de408f4fb6af94fc1e2c074d8317fb25c",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QISRAEL",
+      "input_sha256": "5905b918b18492811bb9c651c607683300bbff284c09e8f91232e5292a758954",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QPCBLEND",
+      "input_sha256": "0be01c6c8ec52cfb4a4a58e173281792f8f9498647d09ca78606101b9623bd95",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QPCBOEI1",
+      "input_sha256": "94a702f460b56a293abce08c7f929b5e2acad4fcc5d958f24cfdb0dcc7ea3379",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QPCBOEI2",
+      "input_sha256": "6fab457591993e9ef7a5ba2a935fb2403192ccd084d599cea3c4efb5fa22b97b",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QPCSTAIR",
+      "input_sha256": "db64827a68a4f10328e25cf902967c8528ba1363cc2b3de8db50e9f13386cd8c",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QPILOTNO",
+      "input_sha256": "f9e56e5eb3ed0a3e24385248b11cccf8dde422980e7a3aff1ff48f811c02a44c",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QPTEST",
+      "input_sha256": "3c3012cd3224d13124b45f9610b87687d05fa905c900a7b50f4270066d78b76b",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QRECIPE",
+      "input_sha256": "4dbf9588942e2633b4f0b6e7bf12fb918e215e782321f1eb2d6ddf1e8fedaab2",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QSC205",
+      "input_sha256": "944aa29cf299015201bb7e8675914e8df1cb1eb6ff5c3dd0038ab32aae0ca423",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QSCAGR25",
+      "input_sha256": "de15dce79fba6631580325f318f4a0e914dbbf888fcc9344264de4d8c4ea2fc2",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QSCAGR7",
+      "input_sha256": "50d69c852ecd1bf68abe28ba90661e89022023593297ca06db02ff908c6d8875",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QSCFXM1",
+      "input_sha256": "b2d93fb742a5a4ce9c9003d3e62d9828271e4d60fddcc47aae3c01b5eca9b97a",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QSCFXM2",
+      "input_sha256": "779506b7eec9f9cf8b438cac6b2c1e415ba14b2c7334b90eb0a7f103fdf2d67a",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QSCFXM3",
+      "input_sha256": "ce1732152208adfc2c90c2ba6ddce4107a756a46c72d0704bd9f3bd29f526173",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QSCORPIO",
+      "input_sha256": "68d451c2fc5b8bbaccd19e681d8ee3ffb1751bfca2ad665ff19c58bf67578383",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QSCRS8",
+      "input_sha256": "de1ddcd843a3c9bd35ba7d8a0f4fae54940258880360233a8655caf7177f01a0",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QSCSD1",
+      "input_sha256": "52b5be2241f5f39b8856bbe0daf803a080d3ffacc6412f765bbd27622d5f452f",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QSCSD6",
+      "input_sha256": "90602d67a237e245081f269c30d3b47d1f72462d4895adf99412829a77bc7a86",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QSCSD8",
+      "input_sha256": "1a38d194d22eeedab7649fd77537eedc3e6ddfce1822a877eeb80cb1bbb05913",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QSCTAP1",
+      "input_sha256": "2e878587d2c3da2664696a2f6fa373ac9756e93c6873e6d101f18ec5480b9e56",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QSCTAP2",
+      "input_sha256": "cbc3d8d065c768d3b4dfa0742e455713dbd43f76f2754022d56b65e03f9c1571",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QSCTAP3",
+      "input_sha256": "ac10ef39bd2d2530f096e52e67d8a88cf640cd0f526cddeeffec9113d1f8e39e",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QSEBA",
+      "input_sha256": "aa36913213a0c5459052143a671762911ca6f645b9d84b7c0002b91dfe997853",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QSHARE1B",
+      "input_sha256": "70cfa333edc3d6c03fe0afa4d49320340e88c3249cc169b9a4788281e547e8c3",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QSHARE2B",
+      "input_sha256": "baf23693b9e81a24dbd5fb6e3f411f8a8b99c0262ac00d8ecbcdd230ddbca547",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QSHELL",
+      "input_sha256": "dcdd899cd7731297199ba1581eb64fdc58cb688bce3f50cb7de6ea1908df808b",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QSHIP04L",
+      "input_sha256": "b0653db8aecfa6db4372f4ad37038042e3fb148143ebc98e8670689724af1c5b",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QSHIP04S",
+      "input_sha256": "5c4a9416c0bfc936520d8020158ebac96ab6c136d9f9ad3d3db6eeea157c352f",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QSHIP08L",
+      "input_sha256": "36a8604e476d48b2d9d013f89fde06f73b5b2166253bfa549e10fcf206341188",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QSHIP08S",
+      "input_sha256": "b2b65e4a6b0a4872a65928c6e99ed6a4f6597d8d8f9507110984370b0b7a39aa",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QSHIP12L",
+      "input_sha256": "5c0a3417f21873c3e62e1af6cf13f9b80eee77430029edc216236ac629c1118b",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QSHIP12S",
+      "input_sha256": "82ee0a11fcd07ff6edad46fccec47226181cb1d68ef428df8e88a4019de605fa",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QSIERRA",
+      "input_sha256": "465b79202fa95673b1ca6c4bc21f475b0a57bcc9899aaf9a4320dc0b07a72c94",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QSTAIR",
+      "input_sha256": "e3f5fdbbb02eb170322200a0d5632275e52fb6f9a868f139295daf6bd9cde6c7",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "QSTANDAT",
+      "input_sha256": "c0a8afca08db85a826c9e7cabe9e3f8fca11fa6adfeb1eb197da7400e1232c0f",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "S268",
+      "input_sha256": "f0cf58ee81122bf1d1cd49fa22d021d321b8149aa965f2ea8c81d4bcffc981c6",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "STADAT1",
+      "input_sha256": "548741a1c07846ef951cbdce706588be4b7c1ef95a9168d74abf2bdcd628e1ef",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "STADAT2",
+      "input_sha256": "51ddd9fad1896df8c57f9e6bb81c58ab061e32f0af37157a0f37188d3963e717",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "STADAT3",
+      "input_sha256": "30576f475d191c005819a0da539b1903ed3ac8f092cc727a97a95b4579111afd",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "STCQP1",
+      "input_sha256": "617b7d9ea21a295706c21cd4ae2e8e827eaa98615a92362fc2c5cd997d09e65b",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "STCQP2",
+      "input_sha256": "dbd859f72a94a6f8e06957582b717f93537dc652611b9999f40ebb8b31071f5d",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "TAME",
+      "input_sha256": "66ee0bce2d054c35e6c8b7c338daa10330bf38d615b11f4e1d332ff5740522b8",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "UBH1",
+      "input_sha256": "b6ec9bfc19f62ff758bf28b5eea1c3e3709c43d0ec026b156c30673ee50c433a",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "VALUES",
+      "input_sha256": "e96feaaa9e2fd486f40449ee50621f8118db69fcae366f9a87f7c8ec279acbc8",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "YAO",
+      "input_sha256": "9c7d581b710f385de183ea5e8be8084945fc22e74225a9bd1d41fa4d33a4327d",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    },
+    {
+      "name": "ZECEVIC2",
+      "input_sha256": "692e421c1e16952022ce9e5e2256dbbb2cb25b44d93d4d18972f9ffca76fbb31",
+      "samples": {
+        "reference": [
+          {},
+          {},
+          {}
+        ],
+        "candidate": [
+          {},
+          {},
+          {}
+        ]
+      },
+      "medians": {
+        "reference": {},
+        "candidate": {}
+      },
+      "output_and_recovery_identical": true
+    }
+  ],
+  "summary": {
+    "problems": 138,
+    "identical_outputs": true
+  }
+}

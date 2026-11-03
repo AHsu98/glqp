@@ -5,6 +5,36 @@ import pandas as pd
 from scipy.sparse import csc_array,eye_array
 from .obj import DummyGLM
 
+
+class SparseTransposeCache:
+    """Reuse sparse transpose views while their source storage is unchanged.
+
+    A sparse transpose is a cheap view of coefficients, but constructing its
+    Python wrapper still validates shape and index storage. Numerical values
+    written into existing arrays are visible through the view. Replacing a
+    matrix or any of its compressed storage arrays invalidates the entry.
+    Clear the cache at the start of a solve to bound its lifetime.
+    """
+
+    def __init__(self):
+        self._entries = {}
+
+    def clear(self):
+        self._entries.clear()
+
+    def get(self, name, matrix):
+        entry = self._entries.get(name)
+        if (entry is None or entry[0] is not matrix
+                or entry[1] is not matrix.data
+                or entry[2] is not matrix.indices
+                or entry[3] is not matrix.indptr
+                or entry[4] != matrix.shape):
+            entry = (matrix, matrix.data, matrix.indices, matrix.indptr,
+                     matrix.shape, matrix.T)
+            self._entries[name] = entry
+        return entry[5]
+
+
 def norm2(x):
     if len(x)==0:
         return 0.
