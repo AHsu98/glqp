@@ -50,24 +50,33 @@ corrector and centered proximal methods remain experimental. The earlier full
 and 127 with centered adaptive Newton; the latter is slower on the separately
 audited timing subset. Its selected large gains do not justify promotion.
 
-The accepted [physical-decay recipe](../glqp-bench/benchmarks/progression/accepted-decay-diagnosis-20261024/README.md)
+The accepted [physical-decay recipe](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/accepted-decay-diagnosis-20261024/README.md)
 uses `rho_i=30/(30+i)*min(2e-9,1e-4*KKT_i)` with a fixed `2e-8`
 factorization shift and absolute linear target `.005*tol`. At native `1e-8`,
 the measured benchmark profiles certify 172/178 QPs (132/138 MM and 40/40
 applications) and 80/81 GLMs at the independent `1e-6` threshold. Public
 budgets remain shorter than those benchmark budgets.
 
-The [checked-QDLDL qualification](../glqp-bench/benchmarks/progression/qdldl-failure-retry-20261024/README.md)
+The [checked-QDLDL qualification](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/qdldl-failure-retry-20261024/README.md)
 accepts failure propagation at `f4f8a94` on 2026-10-27. Failed numeric updates
 now enter the existing larger-shift retry instead of applying partial factors.
 The full suite retains every certificate and native optimum with the same
 T30 recipe; QSCFXM1 falls from 301 to 96 iterations and from 80 to zero
 inaccurate inner calls. All 81 GLM and 168 of 173 returned QP trajectories
-remain exact. The solver passes 1,100 tests. Timings are excluded; the host
-guard retained 19 load flags, so these are numerical-work and reliability results.
+remain exact. That qualification passed 1,100 solver tests. Timings are excluded;
+the host guard retained 19 load flags, so these are numerical-work and reliability results.
+
+For the current state, frozen sources, and next experiments, start with the
+[research handoff](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/docs/handoff.md).
+The handoff and benchmark reports require access to the private `glqp-bench`
+repository; the solver documentation in this repository is public.
 
 #### Numerical experiments
 
+- [Standalone QP polishing](docs/qp-polish.md): optional active-set postprocessing
+  improves 142/173 archived endpoints while preserving 172/178 strict certificates.
+  It remains experimental and does not establish a wall-time speedup; see the
+  [2026-10-30 study](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/active-set-polish-20261030/README.md).
 - [Standalone C++ QP presolve](docs/presolve.md): optional structural reductions,
   objective offsets, and original primal/dual recovery, available through a
   C ABI, CLI, and Python adapter.
@@ -80,7 +89,7 @@ guard retained 19 load flags, so these are numerical-work and reliability result
 The sibling `glqp-bench` repository contains committed-source comparison
 campaigns, explicit per-variant presolve/backend settings, and 81 GLM examples,
 including large sparse and weighted real-data problems. The 2026-10-17
-[GLM stress checkpoint](../glqp-bench/benchmarks/progression/glm-stress-20261017/README.md)
+[GLM stress checkpoint](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/glm-stress-20261017/README.md)
 adds 42 compact cases targeting numerical difficulty: all 30 initial additions
 pass, as do 7 of 12 deliberately severe cases. The original 39 also pass.
 The [numerical review](docs/research/glm-numerics-review-20261017.md) covers stable

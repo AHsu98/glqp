@@ -8,7 +8,7 @@ Other experimental options remain opt-in. This document records implemented beha
 it does not claim a convergence theorem for their combination.
 The structural cleanup at `f179f1d` preserves this numerical behavior; selected
 exact-parity checks and regression tests are recorded in the
-[cleanup checkpoint](../../glqp-bench/benchmarks/progression/cleanup-20261017/README.md).
+[cleanup checkpoint](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/cleanup-20261017/README.md).
 The [experiment ledger](experiments/README.md) records the evidence behind these
 choices and the alternatives that remain experimental.
 
@@ -17,7 +17,7 @@ loss, gradient, and curvature retain representable weighted tails, and exactly
 zero-weight Poisson observations are omitted before exponentiation. Newton
 equations, Hessian assembly, regularization, and outer policies are unchanged.
 The [GLM numerical review](research/glm-numerics-review-20261017.md) and
-[81-case checkpoint](../../glqp-bench/benchmarks/progression/glm-stress-20261017/README.md)
+[81-case checkpoint](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/glm-stress-20261017/README.md)
 record the reproducer, independent validation correction, and remaining limits.
 
 The cached GLM scalar search at `af8e5bb` (2026-10-18) is now accepted and the
@@ -38,7 +38,7 @@ acceptance rules; a unified QP/GLM acceptance rule has not been evaluated.
 The subsequent search consolidation shares trial scheduling, the cached-ray
 interface, and safeguarded step proposals. Acceptance policies, defaults, and
 floating-point evaluation order are retained. See the implementation map below
-and the [exact-parity checkpoint](../../glqp-bench/benchmarks/progression/search-consolidation-20261018/README.md).
+and the [exact-parity checkpoint](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/search-consolidation-20261018/README.md).
 
 The weighted Gaussian/Poisson range correction at `5573cae` (2026-10-19)
 preserves finite weighted values when an unweighted square, exponential, or
@@ -49,16 +49,16 @@ action diagnostics. See the [range contract](weighted-loss-range.md) and
 diagnostic changes retain stopping, barrier floors, normal equations, and regularization.
 
 The constraint-count barrier-floor policy tested at `32ffecb` (2026-10-21)
-is accepted after the [full 178-QP comparison](../../glqp-bench/benchmarks/progression/qp-floor-full-20261021/README.md).
+is accepted after the [full 178-QP comparison](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/qp-floor-full-20261021/README.md).
 Both revisions certify 129/138 MM problems and all 40 applications, with the
 same nine failures and identical iteration counts on all returned solutions.
 All 346 saved certificates independently replay. Full-run timings are excluded
 after host-load flags. The policy changes only the absolute floor, as defined below.
 The follow-up `94dd41c` makes the new setting keyword-only, preserving the old
 positional constructor signature; its defaults and numerical implementation
-are identical to the measured candidate. The solver suite passes 924 tests.
+are identical to the measured candidate. That checkpoint passed 924 solver tests.
 
-The [T30 regularization recipe](../../glqp-bench/benchmarks/progression/iteration-decay-20261024/README.md)
+The [T30 regularization recipe](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/iteration-decay-20261024/README.md)
 is accepted as the public default on 2026-10-24 following explicit user approval.
 It sets `prox_reg=2e-9`, `prox_residual_factor=1e-4`,
 `linear_atol_factor=.005`, and `prox_decay_iterations=30`.
@@ -76,7 +76,7 @@ profiles, not the public 200-iteration/20-step-stagnation defaults. The promotio
 changes only the four regularization/accuracy defaults above; tolerance,
 budgets, outer rules, and initialization remain unchanged.
 
-The [checked-QDLDL fix](../../glqp-bench/benchmarks/progression/qdldl-failure-retry-20261024/README.md)
+The [checked-QDLDL fix](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/qdldl-failure-retry-20261024/README.md)
 at `f4f8a94` is accepted on 2026-10-27 after full paired qualification and
 independent replay of all 508 returned endpoints at both certificate thresholds.
 It propagates failed numeric updates into the existing factorization retry;
@@ -87,13 +87,20 @@ iterations, with zero inaccurate inner calls instead of 80. All 81 GLM and
 168/173 returned QP endpoints and non-time histories remain exact. The five
 changed QPs first diverge at an actual failed-update retry. This resolves the
 diagnosed QSCFXM1 factor failure; LISWET9's different stall remains unchanged.
-All 1,100 solver tests pass. Timings are excluded in advance and the guard
-retains 19 external-load flags; no wall-time improvement is claimed.
+At that checkpoint, all 1,100 solver tests passed. Timings are excluded in
+advance and the guard retains 19 external-load flags; no wall-time improvement
+is claimed.
+
+The subsequent [standalone QP polishing experiment](qp-polish.md) remains
+optional and does not change this accepted algorithm or its defaults. Its
+[2026-10-30 checkpoint](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/active-set-polish-20261030/README.md)
+records 1,138 passing solver tests, including 38 focused polishing tests.
 
 The authoritative entry points are [`SolverSettings` and `GLQP`](../glqp/solver.py).
 Benchmark settings are a separate layer in the sibling repository's
-[`adapters.py`](../../glqp-bench/src/glqp_bench/adapters.py). Those sibling links
-assume the standard `glqp`/`glqp-bench` workspace layout.
+[`adapters.py`](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/src/glqp_bench/adapters.py).
+Links to benchmark sources and reports require access to the private
+`glqp-bench` repository.
 
 ## Problem, derivatives, and residuals
 
@@ -509,7 +516,7 @@ assembled objective Hessian action with `Q@dx + A.T@(f.d2f(z)*(A@dx))`.
 These observations exclude physical proximal terms and numerical factor shifts;
 they neither replace the carried predictor nor change the linear solve.
 
-The [stopping study](../../glqp-bench/benchmarks/progression/glm-stopping-20261019/README.md)
+The [stopping study](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/glm-stopping-20261019/README.md)
 separates native convergence from the positive-ridge benchmark certificate.
 An experimental certificate veto with tighter linear accuracy after rejection
 certifies 81/81 GLMs in 1,059 total iterations versus 76/81 in 1,050. This is
@@ -519,7 +526,7 @@ configured `min_mu` can leave aggregate complementarity near `k*min_mu`, above
 the requested `tol`. A constraint-count floor cap resolves the six observed
 large constrained cases; it is now the default after the full QP check below.
 
-The [QP floor follow-up](../../glqp-bench/benchmarks/progression/qp-floor-20261020/README.md)
+The [QP floor follow-up](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/qp-floor-20261020/README.md)
 tests that explicit cap on all 14 MM cases whose configured floor would change
 at native `1e-7`: the same nine certify and five time out, with unchanged
 iteration counts on completed pairs. Four unchanged-setting controls pass.
@@ -575,8 +582,8 @@ The benchmark's independent original-data acceptance normally uses `1e-6`.
 QP acceptance gates scaled feasibility, stationarity, aggregate complementarity,
 and dual-sign residuals; the GLM validator additionally gates a positive-ridge
 optimality-gap bound. These are not identical to native `tol`. See the sibling
-[`QP validator`](../../glqp-bench/src/glqp_bench/qp.py) and
-[`GLM validator`](../../glqp-bench/src/glqp_bench/glm.py).
+[`QP validator`](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/src/glqp_bench/qp.py) and
+[`GLM validator`](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/src/glqp_bench/glm.py).
 Native success, independent acceptance, and time-budget success should remain
 separate when reporting results.
 
@@ -584,7 +591,7 @@ Routine execution is `parallel-8`: eight independent problems with one
 numerical thread each. This does not change the Newton algorithm or give a
 single problem eight threads. Serial and one-problem/eight-thread modes are
 codified separately in the benchmark
-[`execution policy`](../../glqp-bench/docs/execution.md). Source freezes,
+[`execution policy`](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/docs/execution.md). Source freezes,
 isolation monitoring, and stopping other work during timings remain required.
 
 ## Experimental switches and implementation map
@@ -628,7 +635,7 @@ the observed difficult searches, and weighted-range rescue avoids premature
 overflow when the weighted result is representable. A finite
 inaccurate scaled linear direction can pass the outer search; requested-system
 accuracy alone also does not bound every recovered unscaled equation tightly.
-The retained [legacy slope-overflow capture](../../glqp-bench/benchmarks/progression/predictor-corrector-20261016/slope-capture/README.md)
+The retained [legacy slope-overflow capture](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/predictor-corrector-20261016/slope-capture/README.md)
 also exposes nonfinite slopes reaching acceptance; an arithmetic correction
 needs a separate numerical experiment.
 There is no homogeneous embedding or general infeasibility/unboundedness

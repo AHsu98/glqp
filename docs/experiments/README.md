@@ -1,14 +1,27 @@
 # Experiment ledger
 
-Status: 2026-10-27. This index records implemented changes, completed experiments,
+Status: 2026-11-02. This index records implemented changes, completed experiments,
 and working decisions. Dated reports remain the authority for their particular
 source revisions, settings, observations, and limitations. An option's presence
 in the solver does not mean that it has been selected as a default.
 See the [accepted algorithm reference](../accepted-algorithm.md) for its exact
 equations, control flow, and public versus benchmark settings.
 
-The latest [QDLDL failure qualification](../../../glqp-bench/benchmarks/progression/qdldl-failure-retry-20261024/README.md)
-accepts `f4f8a94` on 2026-10-27. A private checked binding propagates failed
+The optional [standalone QP polishing implementation](../qp-polish.md) at
+`15b13c6` is documented in the
+[2026-10-30 study](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/active-set-polish-20261030/README.md).
+Bounded add/drop improves 142/173 available archived endpoints and preserves
+all 172/178 strict certificates; these are accuracy improvements, not newly
+solved QPs. LISWET9 remains unresolved, and five baseline failures have no
+saved endpoint. On the separate online experiment's 15 successful cases,
+add/drop saves only 33 of 7,723 IPM steps (0.43%) and adds 65 active KKT passes.
+Host-load flags exclude wall-time speedup claims. No polishing strategy or
+profile is promoted; accepted numerical source remains `f4f8a94`. This
+checkpoint records 1,138 passing solver tests, including 38 polishing tests.
+
+The [QDLDL failure qualification](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/qdldl-failure-retry-20261024/README.md)
+accepts `f4f8a94` on 2026-10-27, the latest accepted numerical change.
+A private checked binding propagates failed
 numeric updates into the existing factorization retry and rejects further
 solves with invalid factors. QDLDL/AMD kernels, the physical T30 recipe,
 GMRES accuracy semantics, and nonlinear rules remain unchanged. The installed
@@ -30,13 +43,14 @@ the five QP timeouts remain unresolved.
 
 Independent audit covers 518 records, 508 returned endpoints, 1,016
 certificate evaluations, and 46,123 history rows; fresh baseline endpoints
-match their prior accepted references exactly. All 1,100 solver tests pass.
+match their prior accepted references exactly. At that checkpoint, all 1,100
+solver tests passed.
 Timings are excluded in advance, and the guard retains 19 external-load
 flags. These results establish reliability and numerical work, not a wall-time
 speedup. No regularization, tolerance, iteration budget, or outer-policy
 setting is promoted in this corrective change.
 
-The preceding [iteration-decay study](../../../glqp-bench/benchmarks/progression/iteration-decay-20261024/README.md)
+The preceding [iteration-decay study](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/iteration-decay-20261024/README.md)
 adds independent `prox_decay_iterations` and `tau_decay_iterations`
 controls; both were initially opt-in at solver `77379ce` (1,072 tests).
 The T30 recipe is now accepted as the public default after explicit user
@@ -63,7 +77,7 @@ Tau decay remains disabled, `linear_rtol=1e-6`, and the GMRES budget remains ten
 The promotion passes all 1,077 solver tests; compatibility checks retain the
 36 original positional settings and explicitly reconstruct historical defaults.
 
-The separate [accepted-decay diagnosis](../../../glqp-bench/benchmarks/progression/accepted-decay-diagnosis-20261024/README.md)
+The separate [accepted-decay diagnosis](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/accepted-decay-diagnosis-20261024/README.md)
 reproduces QSCFXM1 and LISWET9 exactly, including all 5,318 non-time history
 rows. QSCFXM1 resurfaces the known unchecked QDLDL update failure: its first
 bad factor has 145 zero D entries, while a fresh constructor rejects the
@@ -78,7 +92,7 @@ Those controls are diagnostic only; that study included no backend
 failure-handling, repair, or other numerical fix. Its proposed failure
 propagation is subsequently qualified and accepted in the checkpoint above.
 
-The preceding [regularization and accuracy study](../../../glqp-bench/benchmarks/progression/reg-accuracy-20261024/README.md)
+The preceding [regularization and accuracy study](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/reg-accuracy-20261024/README.md)
 adds opt-in keyword-only controls without changing defaults. Its recommended
 candidate sets `prox_reg=2e-9`, `prox_residual_factor=1e-4` and
 `linear_atol_factor=.005`, retaining `linear_rtol=1e-6`, GMRES10 and factorization
@@ -122,7 +136,7 @@ severe12 control at native `1e-9` improves 9/12 to 12/12. Initial severe Poisson
 searches take two trials instead of exhausting 100, without extra sparse
 matvecs. The clean final parallel-8 sweep observes about 2% lower wall time on
 76 common successes; this single short-case sweep is not a broad timing claim.
-The [checkpoint](../../../glqp-bench/benchmarks/progression/scalar-search-20261018/README.md)
+The [checkpoint](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/scalar-search-20261018/README.md)
 retains both flagged earlier timing attempts, numerical revalidation, and raw
 evidence. QP searches, regularization, and barrier updates are unchanged.
 
@@ -131,10 +145,10 @@ exact complementarity rejection, and bounded affine residual caching separately.
 All retain 12/12 certificates on the selected panel. Scalar proposals leave
 the long trajectories unchanged; the bounded cache adds work on QPCBOEI2.
 No QP search default changes, and no full-suite coverage claim follows from
-this screen. The [four-round checkpoint](../../../glqp-bench/benchmarks/progression/qp-scalar-search-20261018/README.md)
+this screen. The [four-round checkpoint](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/qp-scalar-search-20261018/README.md)
 retains the excluded timing attempt and diagnostic parity evidence.
 
-The [full scalar-proposal reliability follow-up](../../../glqp-bench/benchmarks/progression/qp-scalar-full-20261018/README.md)
+The [full scalar-proposal reliability follow-up](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/qp-scalar-full-20261018/README.md)
 retains the same 129/138 certificates and nine failures as backtracking, with
 residual screening disabled. Full-run timings are excluded after four host
 flags. QP restoration/fallback acceptance is preserved; these results do not
@@ -153,12 +167,12 @@ new full-138-QP coverage claim.
 The [weighted Gaussian/Poisson range fix](../weighted-loss-range.md) at
 `5573cae` preserves representable weighted values and derivatives outside the
 range of their unweighted intermediates. `0f98254` adds opt-in original-design
-diagnostics. The [operator audit](../../../glqp-bench/benchmarks/progression/glm-operators-20261019/README.md)
+diagnostics. The [operator audit](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/glm-operators-20261019/README.md)
 rules out predictor drift as the cause of the five gap failures; manufactured
 controls still demonstrate that forming a Gram matrix can erase weak modes.
 No normal-equation or fallback policy changes follow from those controls.
 
-The [613-solve stopping study](../../../glqp-bench/benchmarks/progression/glm-stopping-20261019/README.md)
+The [613-solve stopping study](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/glm-stopping-20261019/README.md)
 separates outer stopping, inner accuracy, proximal regularization, and the
 barrier floor. A certificate veto followed by tighter inner accuracy recovers
 81/81 certificates in 1,059 total iterations, versus baseline 76/81 in 1,050;
@@ -167,7 +181,7 @@ the linear solve recovers none. A separate strict-tolerance control needs a
 constraint-count-aware barrier floor to avoid six stagnation tails. These are
 untimed experiments, with no production convergence hook or changed defaults.
 
-The [QP absolute-floor follow-up](../../../glqp-bench/benchmarks/progression/qp-floor-20261020/README.md)
+The [QP absolute-floor follow-up](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/qp-floor-20261020/README.md)
 tests `min_mu=min(1e-12,.1*tol/k)` without changing the separate `.01*KKT`
 floor. At native `1e-7`, all 14 affected MM cases retain nine certificates
 and five timeouts; four unchanged controls also pass. Completed iteration
@@ -178,7 +192,7 @@ with identical iterates because its absolute floor never activates.
 Primary timings are excluded after a host flag; one clean strict sweep has
 wall ratio .59786, scoped to this selected diagnostic panel. No default changes.
 
-The [full 178-QP qualification](../../../glqp-bench/benchmarks/progression/qp-floor-full-20261021/README.md)
+The [full 178-QP qualification](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/qp-floor-full-20261021/README.md)
 subsequently promotes `min_mu_policy='constraint_count'`, measured at `32ffecb`.
 It resolves `min(configured_min_mu,.1*tol/k)` once per solve without mutating
 caller settings; `min_mu_policy='fixed'` restores the old rule. Baseline and
@@ -317,36 +331,36 @@ count/status/solution parity on all 80 replay observations; unresolved timing
 waves still remain excluded. Clean numerical evidence does not remove a timing
 isolation failure.
 
-Links into `glqp-bench` assume sibling checkouts in the standard workspace.
+Links into `glqp-bench` require access to that private GitHub repository.
 Older reports' statements such as “PC deferred” describe their dated stage;
 the later ledger rows record its subsequent implementation. Historical branches,
 measurements, and source snapshots are preserved rather than silently relabeled.
 
-[execution]: ../../../glqp-bench/docs/execution.md
-[isolation]: ../../../glqp-bench/docs/comparator-isolation.md
-[workflow]: ../../../glqp-bench/docs/research-workflow.md
-[handoff]: ../../../glqp-bench/docs/handoff.md
-[history]: ../../../glqp-bench/benchmarks/progression/overview-20261015/README.md
-[correctness]: ../../../glqp-bench/benchmarks/progression/correctness-blocks/README.md
-[termination]: ../../../glqp-bench/benchmarks/progression/termination-20261014/README.md
-[slack]: ../../../glqp-bench/benchmarks/progression/slack-20261014/README.md
-[glm-fixes]: ../../../glqp-bench/benchmarks/progression/glm-fixes-20261015/README.md
-[gmres-f64]: ../../../glqp-bench/benchmarks/progression/gmres10-f64-20261016/README.md
-[gmres-extended]: ../../../glqp-bench/benchmarks/progression/gmres10-20261015/README.md
-[research1]: ../../../glqp-bench/benchmarks/progression/numerical-research-20261016/README.md
-[research2]: ../../../glqp-bench/benchmarks/progression/numerical-research-round2-20261016/README.md
-[cleanup]: ../../../glqp-bench/benchmarks/progression/cleanup-20261017/README.md
-[search-consolidation]: ../../../glqp-bench/benchmarks/progression/search-consolidation-20261018/README.md
-[backends]: ../../../glqp-bench/benchmarks/linear-systems/backend-20261016/README.md
-[guard]: ../../../glqp-bench/benchmarks/progression/barrier-guard-20261016/README.md
-[outer]: ../../../glqp-bench/benchmarks/progression/outer-policy-20261016/README.md
-[pc]: ../../../glqp-bench/benchmarks/progression/predictor-corrector-20261016/README.md
-[proximal]: ../../../glqp-bench/benchmarks/progression/proximal-consistency-20261017/README.md
-[newton-screen]: ../../../glqp-bench/benchmarks/progression/proximal-newton-20261017/README.md
-[newton-full]: ../../../glqp-bench/benchmarks/progression/proximal-newton-full-20261017/README.md
-[comparison]: ../../../glqp-bench/benchmarks/progression/solver-comparison-20261016/README.md
-[tolerances]: ../../../glqp-bench/docs/comparator-tolerances-20261016.md
-[attribution]: ../../../glqp-bench/benchmarks/progression/speed-attribution-20261016/README.md
-[slope]: ../../../glqp-bench/benchmarks/progression/predictor-corrector-20261016/slope-capture/README.md
+[execution]: https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/docs/execution.md
+[isolation]: https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/docs/comparator-isolation.md
+[workflow]: https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/docs/research-workflow.md
+[handoff]: https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/docs/handoff.md
+[history]: https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/overview-20261015/README.md
+[correctness]: https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/correctness-blocks/README.md
+[termination]: https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/termination-20261014/README.md
+[slack]: https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/slack-20261014/README.md
+[glm-fixes]: https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/glm-fixes-20261015/README.md
+[gmres-f64]: https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/gmres10-f64-20261016/README.md
+[gmres-extended]: https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/gmres10-20261015/README.md
+[research1]: https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/numerical-research-20261016/README.md
+[research2]: https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/numerical-research-round2-20261016/README.md
+[cleanup]: https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/cleanup-20261017/README.md
+[search-consolidation]: https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/search-consolidation-20261018/README.md
+[backends]: https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/linear-systems/backend-20261016/README.md
+[guard]: https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/barrier-guard-20261016/README.md
+[outer]: https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/outer-policy-20261016/README.md
+[pc]: https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/predictor-corrector-20261016/README.md
+[proximal]: https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/proximal-consistency-20261017/README.md
+[newton-screen]: https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/proximal-newton-20261017/README.md
+[newton-full]: https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/proximal-newton-full-20261017/README.md
+[comparison]: https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/solver-comparison-20261016/README.md
+[tolerances]: https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/docs/comparator-tolerances-20261016.md
+[attribution]: https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/speed-attribution-20261016/README.md
+[slope]: https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/predictor-corrector-20261016/slope-capture/README.md
 [ideas]: ../research/algorithm-improvement-proposals-20261016.md
-[glm-stress]: ../../../glqp-bench/benchmarks/progression/glm-stress-20261017/README.md
+[glm-stress]: https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/glm-stress-20261017/README.md

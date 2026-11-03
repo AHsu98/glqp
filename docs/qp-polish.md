@@ -139,7 +139,7 @@ and their trace has `lin_attempts=None`, rather than claiming zero native work.
 
 ## Full archived-endpoint experiment, 2026-10-30
 
-The [benchmark study report](../../glqp-bench/benchmarks/progression/active-set-polish-20261030/README.md)
+The [benchmark study report](https://github.com/AHsu98/glqp-bench/blob/benchmarks/correctness-block-results/benchmarks/progression/active-set-polish-20261030/README.md)
 records the protocols, frozen sources, independent certificate replay, and
 artifacts. The full screen covered 138 Maros–Mészáros problems and 40 application
 QPs. It had 173 available archived endpoints and five unavailable endpoints;
@@ -179,6 +179,8 @@ settings = PolishSettings(
 | PDAS | 138 | 15 | 20 | 5 |
 
 These are counts of endpoint improvements, not counts of newly solved QPs.
+All 172/178 original strict certificates are preserved. LISWET9 remains
+unresolved; the other five baseline failures have no saved endpoint to polish.
 Every unsuccessful attempt returns the unchanged input. Ratio, add/drop, and
 PDAS improve all 40 application endpoints; slack improves 38. Add/drop adds
 nine improvements over ratio with no losses, using two to six passes on those
@@ -200,4 +202,7 @@ Use bounded add/drop when additional solves are justified by a need for a more
 accurate endpoint. Keep simultaneous PDAS experimental. The full-screen timing
 guard was flagged, so this broad experiment supports numerical conclusions
 only. Polishing an already completed solve does not demonstrate acceleration;
-the separate early-endpoint experiments in the study report assess that question.
+the separate online experiment saves only 33 of 7,723 IPM steps on its 15
+successful cases while adding 65 active KKT passes. Its host-load flag also
+excludes a wall-time speedup claim. No strategy or profile is promoted.
+The study report requires access to the private `glqp-bench` repository.
